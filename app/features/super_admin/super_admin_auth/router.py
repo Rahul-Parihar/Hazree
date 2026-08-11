@@ -4,16 +4,15 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import create_access_token
-from app.features.super_admin import service
-from app.features.super_admin.models import AdminUser
-from app.features.super_admin.schemas import (
+from app.features.super_admin.super_admin_auth import service
+from app.features.super_admin.super_admin_auth.models import AdminUser
+from app.features.super_admin.super_admin_auth.schemas import (
     SuperAdminCreate,
     SuperAdminResponse,
-    SuperAdminLogin,
     Token,
 )
 
-router = APIRouter(prefix="/super-admin", tags=["super_admin"])
+router = APIRouter(prefix="/super-admin", tags=["super_admin_auth"])
 
 
 @router.post("/login", response_model=Token)

@@ -13,8 +13,8 @@ from app.core.security import (
     oauth2_scheme,
 )
 from app.features.companies.models import Company
-from app.features.super_admin.models import AdminUser
-from app.features.super_admin.schemas import SuperAdminCreate, Token, TokenData
+from app.features.super_admin.super_admin_auth.models import AdminUser
+from app.features.super_admin.super_admin_auth.schemas import SuperAdminCreate
 
 
 def get_admin_by_email(db: Session, email: str) -> Optional[AdminUser]:
