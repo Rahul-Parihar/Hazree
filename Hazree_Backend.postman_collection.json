@@ -1,0 +1,266 @@
+{
+	"info": {
+		"_postman_id": "hazree-backend-collection",
+		"name": "Hazree Backend API",
+		"description": "Complete API collection for Hazree Backend - Super Admin Auth & Company Management",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & Root",
+			"item": [
+				{
+					"name": "Root - App Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": ["{{base_url}}"],
+							"path": [""]
+						},
+						"description": "Check if Hazree backend is running."
+					}
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Check database connection health status."
+					}
+				}
+			]
+		},
+		{
+			"name": "Super Admin Auth",
+			"item": [
+				{
+					"name": "Login Super Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"    console.log('Token saved successfully!');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "admin@hazree.com",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "Admin@123456",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/super-admin/login",
+							"host": ["{{base_url}}"],
+							"path": ["super-admin", "login"]
+						},
+						"description": "Login as Super Admin.\n\nDefault Credentials:\n- Email: admin@hazree.com\n- Password: Admin@123456\n\nToken auto-saves to collection variable after successful login."
+					}
+				},
+				{
+					"name": "Get My Profile (Protected)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/super-admin/me",
+							"host": ["{{base_url}}"],
+							"path": ["super-admin", "me"]
+						},
+						"description": "Get current logged-in Super Admin profile. Requires JWT Bearer token."
+					}
+				},
+				{
+					"name": "Register New Super Admin (Protected)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"newadmin@hazree.com\",\n    \"full_name\": \"New Super Admin\",\n    \"password\": \"NewAdmin@123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/super-admin/register",
+							"host": ["{{base_url}}"],
+							"path": ["super-admin", "register"]
+						},
+						"description": "Register a new Super Admin account. Requires existing Super Admin authentication."
+					}
+				},
+				{
+					"name": "Super Admin Overview (Protected)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/super-admin/",
+							"host": ["{{base_url}}"],
+							"path": ["super-admin", ""]
+						},
+						"description": "Super Admin dashboard overview with DB statistics. Requires JWT Bearer token."
+					}
+				},
+				{
+					"name": "Database Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/super-admin/db-status",
+							"host": ["{{base_url}}"],
+							"path": ["super-admin", "db-status"]
+						},
+						"description": "Check PostgreSQL database connection status and version."
+					}
+				}
+			]
+		},
+		{
+			"name": "Company Management",
+			"item": [
+				{
+					"name": "Get All Companies",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/companies/?skip=0&limit=100",
+							"host": ["{{base_url}}"],
+							"path": ["companies", ""],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "100"
+								}
+							]
+						},
+						"description": "Fetch all companies from database with pagination."
+					}
+				},
+				{
+					"name": "Create Company",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Hazree Technologies\",\n    \"code\": \"HAZREE-001\",\n    \"email\": \"info@hazree.com\",\n    \"phone\": \"+91-9876543210\",\n    \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/companies/",
+							"host": ["{{base_url}}"],
+							"path": ["companies", ""]
+						},
+						"description": "Create a new company in the database."
+					}
+				},
+				{
+					"name": "Get Company by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/companies/1",
+							"host": ["{{base_url}}"],
+							"path": ["companies", "1"]
+						},
+						"description": "Fetch a single company by its ID."
+					}
+				},
+				{
+					"name": "Update Company",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Hazree Technologies Updated\",\n    \"email\": \"updated@hazree.com\",\n    \"phone\": \"+91-1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/companies/1",
+							"host": ["{{base_url}}"],
+							"path": ["companies", "1"]
+						},
+						"description": "Update an existing company's details by ID."
+					}
+				}
+			]
+		}
+	]
+}
