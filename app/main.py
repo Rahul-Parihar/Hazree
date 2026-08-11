@@ -7,11 +7,11 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import init_db, get_db, SessionLocal
-import app.features.companies.models  # Register models
+import app.features.companies.company_management.models  # Register models
 import app.features.super_admin.super_admin_auth.models  # Register models
 from app.features.super_admin.super_admin_auth.service import init_default_super_admin
 
-from app.features.companies.router import router as companies_router
+from app.features.companies.company_management.router import router as companies_router
 from app.features.super_admin.super_admin_auth.router import router as super_admin_router
 
 # Configure logging

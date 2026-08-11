@@ -2,8 +2,8 @@ from sqlalchemy.orm import Session
 from typing import List
 from fastapi import HTTPException, status
 
-from app.features.companies.models import Company
-from app.features.companies.schemas import CompanyCreate, CompanyUpdate
+from app.features.companies.company_management.models import Company
+from app.features.companies.company_management.schemas import CompanyCreate, CompanyUpdate
 
 
 def get_all_companies(db: Session, skip: int = 0, limit: int = 100) -> List[Company]:

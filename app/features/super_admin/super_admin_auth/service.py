@@ -12,7 +12,7 @@ from app.core.security import (
     decode_access_token,
     oauth2_scheme,
 )
-from app.features.companies.models import Company
+from app.features.companies.company_management.models import Company
 from app.features.super_admin.super_admin_auth.models import AdminUser
 from app.features.super_admin.super_admin_auth.schemas import SuperAdminCreate
 

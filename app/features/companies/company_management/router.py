@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.database import get_db
-from app.features.companies import service
-from app.features.companies.schemas import CompanyCreate, CompanyResponse, CompanyUpdate
+from app.features.companies.company_management import service
+from app.features.companies.company_management.schemas import CompanyCreate, CompanyResponse, CompanyUpdate
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
