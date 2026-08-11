@@ -1,56 +1,66 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from sqlalchemy import text
-from app.core.config import settings
+
 from app.core.database import get_db
-from app.features.companies.models import Company
+from app.core.security import create_access_token
+from app.features.super_admin import service
 from app.features.super_admin.models import AdminUser
+from app.features.super_admin.schemas import (
+    SuperAdminCreate,
+    SuperAdminResponse,
+    SuperAdminLogin,
+    Token,
+)
 
 router = APIRouter(prefix="/super-admin", tags=["super_admin"])
 
 
-@router.get("/")
-async def read_super_admin(db: Session = Depends(get_db)):
-    """Super Admin Overview endpoint with DB statistics."""
-    db_connected = False
-    company_count = 0
-    admin_count = 0
-    try:
-        db.execute(text("SELECT 1"))
-        db_connected = True
-        company_count = db.query(Company).count()
-        admin_count = db.query(AdminUser).count()
-    except Exception as e:
-        db_connected = False
+@router.post("/login", response_model=Token)
+async def login_super_admin(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """Super Admin Login Endpoint (Generates JWT Bearer Token)."""
+    admin = service.authenticate_admin(db, email=form_data.username, password=form_data.password)
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(data={"sub": admin.email})
+    return {"access_token": access_token, "token_type": "bearer"}
 
-    return {
-        "message": f"Hello {settings.app_name} super admin",
-        "debug": settings.debug,
-        "admin_email": settings.admin_email,
-        "database": {
-            "connected": db_connected,
-            "engine": "PostgreSQL",
-            "database_name": settings.postgres_db,
-            "total_companies": company_count,
-            "total_admin_users": admin_count,
-        }
-    }
+
+@router.post("/register", response_model=SuperAdminResponse, status_code=status.HTTP_201_CREATED)
+async def register_super_admin(
+    admin_in: SuperAdminCreate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(service.get_current_super_admin)
+):
+    """Register a new Super Admin (Requires existing Super Admin authentication)."""
+    return service.create_super_admin(db, admin_in)
+
+
+@router.get("/me", response_model=SuperAdminResponse)
+async def get_super_admin_profile(
+    current_admin: AdminUser = Depends(service.get_current_super_admin)
+):
+    """Get current logged-in Super Admin profile."""
+    return current_admin
+
+
+@router.get("/")
+async def read_super_admin(
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(service.get_current_super_admin)
+):
+    """Super Admin Overview endpoint (Protected)."""
+    return service.get_super_admin_overview(db)
 
 
 @router.get("/db-status")
 async def db_status(db: Session = Depends(get_db)):
     """Check status of PostgreSQL connection."""
-    try:
-        result = db.execute(text("SELECT version();")).fetchone()
-        return {
-            "status": "online",
-            "database_version": result[0] if result else "Unknown",
-            "database_name": settings.postgres_db,
-            "host": settings.postgres_server,
-            "port": settings.postgres_port
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Database connection failed: {str(e)}"
-        )
+    return service.get_database_status(db)

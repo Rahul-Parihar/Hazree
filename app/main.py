@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.config import settings
-from app.core.database import init_db, get_db
+from app.core.database import init_db, get_db, SessionLocal
 import app.features.companies.models  # Register models
 import app.features.super_admin.models  # Register models
+from app.features.super_admin.service import init_default_super_admin
 
 from app.features.companies.router import router as companies_router
 from app.features.super_admin.router import router as super_admin_router
@@ -25,8 +26,17 @@ async def lifespan(app: FastAPI):
     try:
         init_db()
         logger.info("Database tables verified/created successfully.")
+        
+        # Seed default Super Admin account if not present
+        db = SessionLocal()
+        try:
+            admin = init_default_super_admin(db)
+            logger.info(f"Default Super Admin verified/created: {admin.email}")
+        finally:
+            db.close()
+
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
+        logger.error(f"Failed to initialize database or super admin: {e}")
     yield
     # Shutdown actions
     logger.info("Shutting down Hazree backend...")
