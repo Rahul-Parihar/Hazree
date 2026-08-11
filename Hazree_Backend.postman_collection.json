@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "hazree-backend-collection",
 		"name": "Hazree Backend API",
-		"description": "Complete API collection for Hazree Backend - Super Admin Auth & Company Management",
+		"description": "Complete API collection for Hazree Backend - Cookie & Bearer Super Admin Auth & Company Management",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -53,7 +53,7 @@
 			"name": "Super Admin Auth",
 			"item": [
 				{
-					"name": "Login Super Admin",
+					"name": "Login Super Admin (Sets Cookie & Returns Token)",
 					"event": [
 						{
 							"listen": "test",
@@ -97,11 +97,24 @@
 							"host": ["{{base_url}}"],
 							"path": ["super-admin", "login"]
 						},
-						"description": "Login as Super Admin.\n\nDefault Credentials:\n- Email: admin@hazree.com\n- Password: Admin@123456\n\nToken auto-saves to collection variable after successful login."
+						"description": "Login as Super Admin.\n- Sets HTTP-Only Cookie ('access_token') automatically.\n- Returns JWT access_token JSON for API/mobile clients.\n\nCredentials:\n- Email: admin@hazree.com\n- Password: Admin@123456"
 					}
 				},
 				{
-					"name": "Get My Profile (Protected)",
+					"name": "Logout Super Admin (Clears Cookie)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/super-admin/logout",
+							"host": ["{{base_url}}"],
+							"path": ["super-admin", "logout"]
+						},
+						"description": "Logout Super Admin and clear HTTP-Only 'access_token' cookie."
+					}
+				},
+				{
+					"name": "Get My Profile (Protected via Cookie or Bearer Token)",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -115,33 +128,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["super-admin", "me"]
 						},
-						"description": "Get current logged-in Super Admin profile. Requires JWT Bearer token."
-					}
-				},
-				{
-					"name": "Register New Super Admin (Protected)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"newadmin@hazree.com\",\n    \"full_name\": \"New Super Admin\",\n    \"password\": \"NewAdmin@123456\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/super-admin/register",
-							"host": ["{{base_url}}"],
-							"path": ["super-admin", "register"]
-						},
-						"description": "Register a new Super Admin account. Requires existing Super Admin authentication."
+						"description": "Get current logged-in Super Admin profile. Authenticates using HTTP Cookie OR Bearer token."
 					}
 				},
 				{
@@ -159,7 +146,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["super-admin", ""]
 						},
-						"description": "Super Admin dashboard overview with DB statistics. Requires JWT Bearer token."
+						"description": "Super Admin dashboard overview with DB statistics. Authenticates using HTTP Cookie OR Bearer token."
 					}
 				},
 				{

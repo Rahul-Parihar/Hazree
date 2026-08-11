@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from fastapi import HTTPException, status, Depends
+from fastapi import Request, HTTPException, status, Depends
 from typing import Optional
 
 from app.core.config import settings
@@ -10,7 +10,7 @@ from app.core.security import (
     get_password_hash,
     create_access_token,
     decode_access_token,
-    oauth2_scheme,
+    get_token_from_request,
 )
 from app.features.companies.company_management.models import Company
 from app.features.super_admin.super_admin_auth.models import AdminUser
@@ -33,7 +33,15 @@ def authenticate_admin(db: Session, email: str, password: str) -> Optional[Admin
 
 
 def create_super_admin(db: Session, admin_in: SuperAdminCreate) -> AdminUser:
-    """Create a new Super Admin account."""
+    """Create a new Super Admin account (Strictly limited to 1 Super Admin)."""
+    # Enforce single Super Admin constraint
+    existing_count = db.query(AdminUser).count()
+    if existing_count >= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registration disabled. Only 1 Super Admin account is allowed in the system."
+        )
+
     existing = get_admin_by_email(db, admin_in.email)
     if existing:
         raise HTTPException(
@@ -55,15 +63,20 @@ def create_super_admin(db: Session, admin_in: SuperAdminCreate) -> AdminUser:
 
 
 def get_current_super_admin(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
     db: Session = Depends(get_db)
 ) -> AdminUser:
-    """FastAPI Dependency: Validate JWT token and return logged-in Super Admin."""
+    """FastAPI Dependency: Validate JWT token from HTTP Cookie or Bearer header and return Super Admin."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Could not validate credentials. Please log in.",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    token = get_token_from_request(request)
+    if not token:
+        raise credentials_exception
+
     payload = decode_access_token(token)
     if payload is None:
         raise credentials_exception
@@ -82,22 +95,23 @@ def get_current_super_admin(
 
 
 def init_default_super_admin(db: Session) -> AdminUser:
-    """Initialize a default Super Admin account if database is empty."""
+    """Initialize default Super Admin account if system has zero admins."""
+    existing_count = db.query(AdminUser).count()
+    if existing_count > 0:
+        return db.query(AdminUser).first()
+
     default_email = settings.admin_email or "admin@hazree.com"
-    existing = get_admin_by_email(db, default_email)
-    if not existing:
-        default_admin = AdminUser(
-            email=default_email,
-            full_name="Default Super Admin",
-            hashed_password=get_password_hash("Admin@123456"),
-            is_super_admin=True,
-            is_active=True,
-        )
-        db.add(default_admin)
-        db.commit()
-        db.refresh(default_admin)
-        return default_admin
-    return existing
+    default_admin = AdminUser(
+        email=default_email,
+        full_name="Default Super Admin",
+        hashed_password=get_password_hash("Admin@123456"),
+        is_super_admin=True,
+        is_active=True,
+    )
+    db.add(default_admin)
+    db.commit()
+    db.refresh(default_admin)
+    return default_admin
 
 
 def get_super_admin_overview(db: Session) -> dict:

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -17,10 +17,15 @@ router = APIRouter(prefix="/super-admin", tags=["super_admin_auth"])
 
 @router.post("/login", response_model=Token)
 async def login_super_admin(
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    """Super Admin Login Endpoint (Generates JWT Bearer Token)."""
+    """
+    Super Admin Login Endpoint.
+    - Sets HTTP-Only Cookie ('access_token') for secure web authentication.
+    - Also returns access_token JSON for API clients / mobile apps.
+    """
     admin = service.authenticate_admin(db, email=form_data.username, password=form_data.password)
     if not admin:
         raise HTTPException(
@@ -28,8 +33,31 @@ async def login_super_admin(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
     access_token = create_access_token(data={"sub": admin.email})
+
+    # Set HTTP-Only Cookie
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,  # Set to True in HTTPS production environments
+        samesite="lax",
+        max_age=86400  # 24 Hours
+    )
+
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/logout")
+async def logout_super_admin(response: Response):
+    """Logout Super Admin: Clears the HTTP-Only 'access_token' cookie."""
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax"
+    )
+    return {"message": "Successfully logged out. Cookie cleared."}
 
 
 @router.post("/register", response_model=SuperAdminResponse, status_code=status.HTTP_201_CREATED)
@@ -38,7 +66,7 @@ async def register_super_admin(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(service.get_current_super_admin)
 ):
-    """Register a new Super Admin (Requires existing Super Admin authentication)."""
+    """Register Super Admin (Disabled if 1 Super Admin already exists in system)."""
     return service.create_super_admin(db, admin_in)
 
 

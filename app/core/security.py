@@ -2,13 +2,13 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Request, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.config import settings
 
 # OAuth2 scheme for JWT Bearer token authentication
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/super-admin/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/super-admin/login", auto_error=False)
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours default token lifetime
@@ -51,3 +51,21 @@ def decode_access_token(token: str) -> Optional[dict]:
         return payload
     except jwt.PyJWTError:
         return None
+
+
+def get_token_from_request(request: Request) -> Optional[str]:
+    """Extract JWT token from HTTP Cookie first, then fallback to Authorization header."""
+    # 1. Try Cookie
+    cookie_token = request.cookies.get("access_token")
+    if cookie_token:
+        # Strip Bearer prefix if present in cookie
+        if cookie_token.startswith("Bearer "):
+            return cookie_token[7:]
+        return cookie_token
+
+    # 2. Try Authorization Header
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header[7:]
+
+    return None
