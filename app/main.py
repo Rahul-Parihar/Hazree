@@ -7,6 +7,12 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import init_db, get_db, SessionLocal
+from app.middlewares import (
+    AuthProtectionMiddleware,
+    RequestLoggingMiddleware,
+    SecurityHeadersMiddleware,
+)
+
 import app.features.companies.company_management.models  # Register models
 import app.features.super_admin.super_admin_auth.models  # Register models
 from app.features.super_admin.super_admin_auth.service import init_default_super_admin
@@ -48,7 +54,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware configured dynamically from .env settings
+# 1. Performance & Execution Timing Middleware (Outermost)
+app.add_middleware(RequestLoggingMiddleware)
+
+# 2. OWASP Security Defense Headers Middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 3. Dynamic CORS Middleware (Loaded from .env)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_cors_origins,
@@ -59,8 +71,10 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+# 4. Global Route Protection Middleware (Protects all private APIs after login)
+app.add_middleware(AuthProtectionMiddleware)
 
-
+# Register Feature Routers
 app.include_router(companies_router)
 app.include_router(super_admin_router)
 
