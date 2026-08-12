@@ -2,45 +2,71 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, Building2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, Building2, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { UserRole } from '../../types';
 import { useAppDispatch } from '../../redux/hooks';
-import { login } from '../../redux/slices/authSlice';
+import { login, loginSuperAdminAsync } from '../../redux/slices/authSlice';
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [selectedRole, setSelectedRole] = useState<UserRole>('SUPER_ADMIN');
-  const [email, setEmail] = useState('superadmin@hazree.com');
-  const [password, setPassword] = useState('HazreeAdmin@2026');
+  const [email, setEmail] = useState('admin@hazree.com');
+  const [password, setPassword] = useState('Admin@123456');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(true);
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
+    setErrorMessage(null);
     if (role === 'SUPER_ADMIN') {
-      setEmail('superadmin@hazree.com');
-      setPassword('SuperSecret2026!');
+      setEmail('admin@hazree.com');
+      setPassword('Admin@123456');
     } else {
       setEmail('admin@tatatech.com');
       setPassword('TataAdminPass#1');
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage(null);
 
-    dispatch(login({ role: selectedRole, email }));
+    if (selectedRole === 'SUPER_ADMIN') {
+      try {
+        const resultAction = await dispatch(loginSuperAdminAsync({ email, password }));
+        if (loginSuperAdminAsync.fulfilled.match(resultAction)) {
+          setIsLoading(false);
+          router.push('/');
+          return;
+        } else {
+          // Backend returned error (e.g. email not found or wrong password)
+          const errorDetail = (resultAction.payload as string) || 'Authentication failed';
+          setErrorMessage(errorDetail);
+          setIsLoading(false);
+          return;
+        }
+      } catch (err: any) {
+        setErrorMessage(err?.message || 'Network connection failed. Please ensure backend is running.');
+        setIsLoading(false);
+        return;
+      }
 
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push('/');
-    }, 600);
+    } else {
+      // Company Admin demo login
+      dispatch(login({ role: 'COMPANY_ADMIN', email }));
+      setTimeout(() => {
+        setIsLoading(false);
+        router.push('/');
+      }, 500);
+    }
   };
+
 
 
   return (
@@ -93,10 +119,18 @@ export const LoginForm: React.FC = () => {
 
       {/* Main Login Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
+        {errorMessage && (
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700 flex items-center gap-2 animate-fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
         <Input
           label="Work Email Address"
           type="email"
           value={email}
+
           onChange={(e) => setEmail(e.target.value)}
           placeholder="admin@hazree.com"
           icon={<Mail className="w-4 h-4" />}

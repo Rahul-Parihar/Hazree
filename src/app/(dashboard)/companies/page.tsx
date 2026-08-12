@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CompanyTable } from '../../../components/super-admin/CompanyTable';
 import { RegisterCompanyModal } from '../../../components/super-admin/RegisterCompanyModal';
 import { PlatformStats } from '../../../components/super-admin/PlatformStats';
@@ -8,20 +8,30 @@ import { Company } from '../../../types';
 import { Building2, Plus } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
-import { addCompany, updateCompanyStatus } from '../../../redux/slices/companiesSlice';
+import {
+  fetchCompaniesAsync,
+  createCompanyAsync,
+  updateCompanyStatus,
+} from '../../../redux/slices/companiesSlice';
 
 export default function CompaniesPage() {
   const dispatch = useAppDispatch();
   const companies = useAppSelector((state) => state.companies.companies);
+  const isLoading = useAppSelector((state) => state.companies.isLoading);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
+  useEffect(() => {
+    dispatch(fetchCompaniesAsync());
+  }, [dispatch]);
+
   const handleRegisterCompanySuccess = (newCompany: Company) => {
-    dispatch(addCompany(newCompany));
+    dispatch(createCompanyAsync(newCompany));
   };
 
   const handleCompanyStatusChange = (id: string, newStatus: Company['status']) => {
     dispatch(updateCompanyStatus({ id, status: newStatus }));
   };
+
 
   return (
     <div className="space-y-6 animate-fade-in pb-8">

@@ -2,63 +2,81 @@ import { apiClient } from './api/apiClient';
 import { ENDPOINTS } from './api/endpoints';
 
 export interface LoginCredentials {
-  username: string; // Email
+  username?: string; // Email
+  email?: string;
   password: string;
 }
 
-export interface AuthTokenResponse {
+export interface AuthData {
   access_token: string;
-  token_type: string;
+  refresh_token: string;
+  user?: {
+    id: number;
+    email: string;
+    full_name?: string;
+    is_super_admin: boolean;
+    is_active: boolean;
+    created_at?: string;
+  };
+}
+
+export interface AuthResponse {
+  status: string;
+  message: string;
+  data: AuthData;
+}
+
+export interface RefreshResponse {
+  status: string;
+  message: string;
+  data: {
+    access_token: string;
+    refresh_token?: string;
+  };
 }
 
 export interface SuperAdminProfile {
   id: number;
   email: string;
   full_name?: string;
+  is_super_admin: boolean;
   is_active: boolean;
-  created_at: string;
+  created_at?: string;
 }
 
 export const authService = {
   /**
-   * Super Admin Login via OAuth2 Form URL-encoded data
+   * Super Admin Login:
+   * Returns standard { status, message, data: { access_token, refresh_token, user } }
+   * and sets 15-Minute Access Token + 7-Day Refresh Token in HTTP-Only browser cookies.
    */
-  async loginSuperAdmin(credentials: LoginCredentials): Promise<AuthTokenResponse> {
-    const formData = new URLSearchParams();
-    formData.append('username', credentials.username);
-    formData.append('password', credentials.password);
+  async loginSuperAdmin(credentials: LoginCredentials): Promise<AuthResponse> {
+    const payload = {
+      email: credentials.email || credentials.username,
+      password: credentials.password,
+    };
 
-    const response = await apiClient.post<AuthTokenResponse>(
-      ENDPOINTS.AUTH.SUPER_ADMIN_LOGIN,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      }
-    );
-
-    if (response?.access_token && typeof window !== 'undefined') {
-      localStorage.setItem('hazree_auth_token', response.access_token);
-    }
-
-    return response;
+    return apiClient.post<AuthResponse>(ENDPOINTS.AUTH.SUPER_ADMIN_LOGIN, payload);
   },
 
   /**
-   * Get currently logged-in Super Admin profile
+   * Refresh 15-Minute Access Token using HTTP-Only Refresh Cookie
+   */
+  async refreshSession(): Promise<RefreshResponse> {
+    return apiClient.post<RefreshResponse>(ENDPOINTS.AUTH.SUPER_ADMIN_LOGIN.replace('/login', '/refresh'));
+  },
+
+  /**
+   * Get currently logged-in Super Admin profile from HTTP-Only cookie session
    */
   async getSuperAdminProfile(): Promise<SuperAdminProfile> {
     return apiClient.get<SuperAdminProfile>(ENDPOINTS.AUTH.SUPER_ADMIN_ME);
   },
 
   /**
-   * Logout Super Admin
+   * Logout Super Admin: Clears all HTTP-Only session cookies
    */
   async logoutSuperAdmin(): Promise<{ message: string }> {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('hazree_auth_token');
-    }
     return apiClient.post<{ message: string }>(ENDPOINTS.AUTH.SUPER_ADMIN_LOGOUT);
   },
 
@@ -67,24 +85,5 @@ export const authService = {
    */
   async getDbStatus(): Promise<any> {
     return apiClient.get(ENDPOINTS.AUTH.DB_STATUS);
-  },
-
-  /**
-   * Check if token is available
-   */
-  getStoredToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('hazree_auth_token');
-    }
-    return null;
-  },
-
-  /**
-   * Remove stored token
-   */
-  clearAuth(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('hazree_auth_token');
-    }
   },
 };

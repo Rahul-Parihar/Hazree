@@ -22,26 +22,23 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: any;
   params?: Record<string, string | number | boolean | undefined | null>;
   timeout?: number;
-  token?: string;
+  _retry?: boolean;
 }
 
 /**
  * Universal Type-Safe API Client for Hazree Admin
+ * - Configured with credentials: 'include' for secure HTTP-Only cookie authentication
+ * - Automatic 15-minute access token refresh on 401 Unauthorized
  */
 class ApiClient {
   private baseUrl: string;
   private defaultTimeout: number;
+  private isRefreshing: boolean = false;
+  private refreshSubscribers: Array<() => void> = [];
 
   constructor() {
     this.baseUrl = ENV.API_URL.replace(/\/$/, '');
     this.defaultTimeout = ENV.API_TIMEOUT;
-  }
-
-  private getToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('hazree_auth_token');
-    }
-    return null;
   }
 
   private buildUrl(endpoint: string, params?: Record<string, string | number | boolean | undefined | null>): string {
@@ -58,6 +55,15 @@ class ApiClient {
     return url.toString();
   }
 
+  private onRefreshed() {
+    this.refreshSubscribers.forEach((callback) => callback());
+    this.refreshSubscribers = [];
+  }
+
+  private addRefreshSubscriber(callback: () => void) {
+    this.refreshSubscribers.push(callback);
+  }
+
   public async request<T = any>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const {
       method = 'GET',
@@ -65,27 +71,25 @@ class ApiClient {
       body,
       params,
       timeout = this.defaultTimeout,
-      token,
+      _retry = false,
       ...customConfig
     } = options;
 
     const controller = new AbortController();
     const timerId = setTimeout(() => controller.abort(), timeout);
 
-    const authToken = token || this.getToken();
-
     const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     const isUrlEncoded = typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams;
 
     const requestHeaders: HeadersInit = {
       ...(isFormData || isUrlEncoded ? {} : { 'Content-Type': 'application/json' }),
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...headers,
     };
 
     const config: RequestInit = {
       method,
       headers: requestHeaders,
+      credentials: 'include', // Automatically send & receive HTTP-Only session cookies
       signal: controller.signal,
       ...customConfig,
     };
@@ -104,6 +108,37 @@ class ApiClient {
       const fullUrl = this.buildUrl(endpoint, params);
       const response = await fetch(fullUrl, config);
       clearTimeout(timerId);
+
+      // Handle 401 Unauthorized: Auto-refresh 15-minute access token if possible
+      if (response.status === 401 && !_retry && !endpoint.includes('/login') && !endpoint.includes('/refresh')) {
+        if (!this.isRefreshing) {
+          this.isRefreshing = true;
+          try {
+            // Attempt to refresh access token using 7-day HTTP-Only refresh cookie
+            await this.request('/super-admin/refresh', { method: 'POST', _retry: true });
+            this.isRefreshing = false;
+            this.onRefreshed();
+            // Retry original request with newly set access token cookie
+            return this.request<T>(endpoint, { ...options, _retry: true });
+          } catch (refreshErr) {
+            this.isRefreshing = false;
+            this.refreshSubscribers = [];
+            throw new ApiError('Session expired. Please log in again.', 401);
+          }
+        } else {
+          // If already refreshing, queue this request to retry after refresh completes
+          return new Promise<T>((resolve, reject) => {
+            this.addRefreshSubscriber(async () => {
+              try {
+                const res = await this.request<T>(endpoint, { ...options, _retry: true });
+                resolve(res);
+              } catch (err) {
+                reject(err);
+              }
+            });
+          });
+        }
+      }
 
       // Handle 204 No Content
       if (response.status === 204) {

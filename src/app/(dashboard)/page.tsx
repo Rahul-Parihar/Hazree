@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Company } from '../../types';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
 import { toggleUserRole } from '../../redux/slices/authSlice';
-import { addCompany } from '../../redux/slices/companiesSlice';
+import { addCompany, fetchCompaniesAsync, createCompanyAsync } from '../../redux/slices/companiesSlice';
 
 // Super Admin Components
 import { SuperAdminStats } from '../../components/super-admin/SuperAdminStats';
@@ -31,13 +31,18 @@ export default function DashboardPage() {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [dateRange, setDateRange] = useState('last30');
 
+  useEffect(() => {
+    dispatch(fetchCompaniesAsync());
+  }, [dispatch]);
+
   const handleRegisterCompanySuccess = (newCompany: Company) => {
-    dispatch(addCompany(newCompany));
+    dispatch(createCompanyAsync(newCompany));
   };
 
   const handleToggleRole = () => {
     dispatch(toggleUserRole());
   };
+
 
 
   return (

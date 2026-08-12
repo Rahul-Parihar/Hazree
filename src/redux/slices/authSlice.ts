@@ -7,7 +7,6 @@ interface AuthState {
   userRole: UserRole;
   currentUser: UserProfile;
   isAuthenticated: boolean;
-  token: string | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -22,26 +21,19 @@ const getInitialRole = (): UserRole => {
   return 'SUPER_ADMIN';
 };
 
-const getInitialToken = (): string | null => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('hazree_auth_token');
-  }
-  return null;
-};
-
 const initialRole = getInitialRole();
 
 const initialState: AuthState = {
   userRole: initialRole,
   currentUser: initialRole === 'SUPER_ADMIN' ? currentUserSuperAdmin : currentUserCompanyAdmin,
   isAuthenticated: true,
-  token: getInitialToken(),
   isLoading: false,
   error: null,
 };
 
 /**
  * Async thunk to authenticate Super Admin against FastAPI backend
+ * Sets 15-Minute Access Token + 7-Day Refresh Token in HTTP-Only browser cookies.
  */
 export const loginSuperAdminAsync = createAsyncThunk(
   'auth/loginSuperAdmin',
@@ -49,11 +41,32 @@ export const loginSuperAdminAsync = createAsyncThunk(
     try {
       const response = await authService.loginSuperAdmin(credentials);
       return {
-        token: response.access_token,
-        email: credentials.username,
+        email: credentials.email || credentials.username || 'admin@hazree.com',
+        user: response.data?.user || (response as any).user,
       };
     } catch (err: any) {
-      return rejectWithValue(err.message || 'Authentication failed');
+
+      const errorMsg =
+        (err.details && typeof err.details === 'object' && err.details.detail) ||
+        err.message ||
+        'Authentication failed';
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
+
+/**
+ * Async thunk to verify active HTTP-Only cookie session
+ */
+export const checkSessionAsync = createAsyncThunk(
+  'auth/checkSession',
+  async (_, { rejectWithValue }) => {
+    try {
+      const profile = await authService.getSuperAdminProfile();
+      return profile;
+    } catch (err: any) {
+      return rejectWithValue(err.message || 'Session expired');
     }
   }
 );
@@ -79,11 +92,10 @@ export const authSlice = createSlice({
     },
     login: (
       state,
-      action: PayloadAction<{ role: UserRole; email?: string; name?: string; token?: string }>
+      action: PayloadAction<{ role: UserRole; email?: string; name?: string }>
     ) => {
       state.userRole = action.payload.role;
       state.isAuthenticated = true;
-      state.token = action.payload.token || null;
       if (action.payload.role === 'SUPER_ADMIN') {
         state.currentUser = {
           ...currentUserSuperAdmin,
@@ -97,15 +109,11 @@ export const authSlice = createSlice({
       }
       if (typeof window !== 'undefined') {
         localStorage.setItem('hazree_user_role', action.payload.role);
-        if (action.payload.token) {
-          localStorage.setItem('hazree_auth_token', action.payload.token);
-        }
       }
     },
     logout: (state) => {
       state.isAuthenticated = false;
-      state.token = null;
-      authService.clearAuth();
+      authService.logoutSuperAdmin().catch(() => {});
       if (typeof window !== 'undefined') {
         localStorage.removeItem('hazree_user_role');
       }
@@ -116,19 +124,16 @@ export const authSlice = createSlice({
     initializeAuth: (state) => {
       if (typeof window !== 'undefined') {
         const savedRole = localStorage.getItem('hazree_user_role') as UserRole;
-        const savedToken = localStorage.getItem('hazree_auth_token');
         if (savedRole && (savedRole === 'SUPER_ADMIN' || savedRole === 'COMPANY_ADMIN')) {
           state.userRole = savedRole;
           state.currentUser = savedRole === 'SUPER_ADMIN' ? currentUserSuperAdmin : currentUserCompanyAdmin;
-        }
-        if (savedToken) {
-          state.token = savedToken;
         }
       }
     },
   },
   extraReducers: (builder) => {
     builder
+      // Login
       .addCase(loginSuperAdminAsync.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -136,20 +141,30 @@ export const authSlice = createSlice({
       .addCase(loginSuperAdminAsync.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
-        state.token = action.payload.token;
         state.userRole = 'SUPER_ADMIN';
         state.currentUser = {
           ...currentUserSuperAdmin,
           email: action.payload.email,
+          name: action.payload.user?.full_name || currentUserSuperAdmin.name,
         };
         if (typeof window !== 'undefined') {
           localStorage.setItem('hazree_user_role', 'SUPER_ADMIN');
-          localStorage.setItem('hazree_auth_token', action.payload.token);
         }
       })
       .addCase(loginSuperAdminAsync.rejected, (state, action) => {
         state.isLoading = false;
         state.error = (action.payload as string) || 'Authentication failed';
+      })
+      // Session Check
+      .addCase(checkSessionAsync.fulfilled, (state, action) => {
+        state.isAuthenticated = true;
+        if (action.payload?.email) {
+          state.currentUser = {
+            ...state.currentUser,
+            email: action.payload.email,
+            name: action.payload.full_name || state.currentUser.name,
+          };
+        }
       });
   },
 });
@@ -164,4 +179,3 @@ export const {
 } = authSlice.actions;
 
 export default authSlice.reducer;
-

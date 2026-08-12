@@ -7,7 +7,8 @@ export type { ApiResponse, RequestOptions } from './api/apiClient';
 export { ENDPOINTS } from './api/endpoints';
 
 export { authService } from './authService';
-export type { LoginCredentials, AuthTokenResponse, SuperAdminProfile } from './authService';
+export type { LoginCredentials, AuthResponse, RefreshResponse, SuperAdminProfile } from './authService';
+
 
 export { companiesService } from './companiesService';
 export type {

@@ -3,7 +3,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { makeStore, AppStore } from './store';
-import { initializeAuth } from './slices/authSlice';
+import { initializeAuth, checkSessionAsync } from './slices/authSlice';
 
 export default function ReduxProvider({ children }: { children: React.ReactNode }) {
   const storeRef = useRef<AppStore | null>(null);
@@ -14,8 +14,10 @@ export default function ReduxProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (storeRef.current) {
       storeRef.current.dispatch(initializeAuth());
+      storeRef.current.dispatch(checkSessionAsync());
     }
   }, []);
 
   return <Provider store={storeRef.current}>{children}</Provider>;
 }
+

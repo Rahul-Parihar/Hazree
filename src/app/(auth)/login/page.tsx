@@ -2,24 +2,39 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { useAppDispatch } from '../../../redux/hooks';
+import { loginSuperAdminAsync } from '../../../redux/slices/authSlice';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const dispatch = useAppDispatch();
+  const [email, setEmail] = useState('admin@hazree.com');
+  const [password, setPassword] = useState('Admin@123456');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    localStorage.setItem('hazree_user_role', 'SUPER_ADMIN');
-    setTimeout(() => {
+    setErrorMessage(null);
+
+    try {
+      const resultAction = await dispatch(loginSuperAdminAsync({ email, password }));
+      if (loginSuperAdminAsync.fulfilled.match(resultAction)) {
+        setIsLoading(false);
+        router.push('/');
+      } else {
+        const errorDetail = (resultAction.payload as string) || 'Authentication failed';
+        setErrorMessage(errorDetail);
+        setIsLoading(false);
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Network connection failed. Please ensure backend is running.');
       setIsLoading(false);
-      router.push('/');
-    }, 800);
+    }
   };
 
   return (
@@ -64,12 +79,20 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-6">
           {/* Login Heading */}
           <div className="text-center">
-            <h2 className="text-4xl font-black text-white italic tracking-tight">Login</h2>
-            <p className="text-base text-blue-100/70 mt-2 font-medium">Login to your account.</p>
+            <h2 className="text-4xl font-black text-white italic tracking-tight">Super Admin Login</h2>
+            <p className="text-base text-blue-100/70 mt-2 font-medium">Enter your credentials to access portal.</p>
           </div>
 
           {/* Form Card */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5 bg-white/10 backdrop-blur-xl p-8 rounded-2xl border border-white/20 shadow-2xl">
+            {/* Error Message Display */}
+            {errorMessage && (
+              <div className="p-4 rounded-xl bg-rose-500/20 border border-rose-500/50 text-xs font-bold text-rose-200 flex items-start gap-3 animate-fade-in shadow-lg">
+                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{errorMessage}</span>
+              </div>
+            )}
+
             {/* Email */}
             <div className="space-y-2">
               <label htmlFor="login-email" className="block text-sm font-bold text-white tracking-wide">
@@ -80,9 +103,12 @@ export default function LoginPage() {
                   id="login-email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@company.com"
-                  className="w-full px-4 py-3.5 bg-white text-slate-900 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 border border-white/20 shadow-lg"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  placeholder="admin@hazree.com"
+                  className="w-full px-4 py-3.5 bg-white text-slate-900 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 border border-white/20 shadow-lg font-medium"
                   required
                 />
               </div>
@@ -98,9 +124,12 @@ export default function LoginPage() {
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   placeholder="••••••••••••"
-                  className="w-full px-4 py-3.5 bg-white text-slate-900 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 border border-white/20 shadow-lg pr-12"
+                  className="w-full px-4 py-3.5 bg-white text-slate-900 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 border border-white/20 shadow-lg pr-12 font-medium"
                   required
                 />
                 <button
@@ -141,7 +170,10 @@ export default function LoginPage() {
               {isLoading ? (
                 <span className="inline-block w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
               ) : (
-                'Sign In'
+                <>
+                  <span>Sign In to Super Admin</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
               )}
             </button>
           </form>
