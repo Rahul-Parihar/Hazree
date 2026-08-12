@@ -20,12 +20,12 @@ export const DepartmentOverview: React.FC = () => {
         {departments.map((dept, idx) => (
           <div key={idx} className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-slate-800 dark:text-slate-200">{dept.name}</span>
+              <span className="text-slate-800">{dept.name}</span>
               <span className="text-slate-500 font-mono">
                 {dept.present}/{dept.total} ({dept.rate}%)
               </span>
             </div>
-            <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
                   dept.rate >= 90

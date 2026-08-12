@@ -29,7 +29,7 @@ export const AttendanceChart: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Progress distribution bar */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="flex h-4 w-full rounded-full overflow-hidden gap-0.5 bg-slate-100 dark:bg-slate-800 p-0.5">
+          <div className="flex h-4 w-full rounded-full overflow-hidden gap-0.5 bg-slate-100 p-0.5">
             {metrics.map((m, idx) => (
               <div
                 key={idx}
@@ -43,13 +43,13 @@ export const AttendanceChart: React.FC = () => {
           {/* Breakdown legend */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
             {metrics.map((m, idx) => (
-              <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80">
+              <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <div className="flex items-center gap-2">
                   <span className={`w-2.5 h-2.5 rounded-full ${m.color}`} />
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{m.label}</span>
+                  <span className="text-xs font-semibold text-slate-700">{m.label}</span>
                 </div>
                 <div className="mt-1 flex items-baseline justify-between">
-                  <span className="text-lg font-bold text-slate-900 dark:text-white">{m.count}</span>
+                  <span className="text-lg font-bold text-slate-900">{m.count}</span>
                   <span className="text-xs text-slate-500 font-medium">{m.percent}%</span>
                 </div>
               </div>
@@ -58,12 +58,12 @@ export const AttendanceChart: React.FC = () => {
         </div>
 
         {/* Hourly Punch Arrival Trend */}
-        <div className="lg:col-span-5 bg-slate-50/80 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-slate-50/80 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between">
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Peak Arrival Times (Check-in Traffic)
             </h4>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-600 mt-0.5">
               Highest check-in activity logged around <strong>09:00 AM IST</strong>.
             </p>
           </div>
@@ -73,12 +73,12 @@ export const AttendanceChart: React.FC = () => {
               const heightPercent = Math.round((h.punches / maxPunches) * 100);
               return (
                 <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{h.punches}</span>
+                  <span className="text-[10px] font-bold text-slate-600">{h.punches}</span>
                   <div
                     className="w-full bg-gradient-to-t from-emerald-600 to-teal-400 rounded-t-md transition-all hover:opacity-90"
                     style={{ height: `${heightPercent}%` }}
                   />
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono shrink-0">{h.hour.split(' ')[0]}</span>
+                  <span className="text-[10px] text-slate-500 font-mono shrink-0">{h.hour.split(' ')[0]}</span>
                 </div>
               );
             })}

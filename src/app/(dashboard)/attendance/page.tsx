@@ -17,13 +17,13 @@ export default function AttendancePage() {
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Title Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
             <CalendarCheck className="w-5 h-5 text-emerald-500" />
-            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Daily Attendance Logs</h2>
+            <h2 className="text-xl font-extrabold text-slate-900">Daily Attendance Logs</h2>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Complete check-in stream, GPS geofence verifications, and shift hours
           </p>
         </div>

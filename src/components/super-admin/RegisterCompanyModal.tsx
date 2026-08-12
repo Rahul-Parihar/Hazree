@@ -88,13 +88,13 @@ export const RegisterCompanyModal: React.FC<RegisterCompanyModalProps> = ({
     >
       {isSuccess ? (
         <div className="text-center py-8 space-y-4 animate-fade-in">
-          <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950/60 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 mx-auto">
+          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mx-auto">
             <CheckCircle2 className="w-10 h-10 animate-bounce" />
           </div>
-          <h4 className="text-xl font-bold text-slate-900 dark:text-white">Company Registered Successfully!</h4>
+          <h4 className="text-xl font-bold text-slate-900">Company Registered Successfully!</h4>
           <p className="text-sm text-slate-500 max-w-md mx-auto">
             Credentials and onboarding instructions have been sent to{' '}
-            <strong className="text-slate-800 dark:text-slate-200">{formData.adminEmail}</strong>.
+            <strong className="text-slate-800">{formData.adminEmail}</strong>.
           </p>
         </div>
       ) : (
@@ -162,13 +162,13 @@ export const RegisterCompanyModal: React.FC<RegisterCompanyModalProps> = ({
           {/* Subscription & Capacity */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
                 Subscription Plan
               </label>
               <select
                 value={formData.plan}
                 onChange={(e) => handleChange('plan', e.target.value as PlanType)}
-                className="w-full rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                className="w-full rounded-xl bg-white/80 border border-slate-200 text-slate-900 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               >
                 <option value="Trial">Free Trial (30 Days)</option>
                 <option value="Growth">Growth Plan (Up to 150 Employees)</option>
@@ -187,7 +187,7 @@ export const RegisterCompanyModal: React.FC<RegisterCompanyModalProps> = ({
           </div>
 
           {/* Submit Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>

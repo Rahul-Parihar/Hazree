@@ -20,13 +20,13 @@ export default function LeavesPage() {
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-emerald-500" />
-            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Leave Requests & Approvals</h2>
+            <h2 className="text-xl font-extrabold text-slate-900">Leave Requests & Approvals</h2>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Review time-off requests, sick leave certificates, and vacation applications
           </p>
         </div>
@@ -35,7 +35,7 @@ export default function LeavesPage() {
       {/* Leave Cards */}
       <div className="space-y-4">
         {leaves.map((leave) => (
-          <Card key={leave.id} glass className="border border-slate-200/80 dark:border-slate-800">
+          <Card key={leave.id} glass className="border border-slate-200/80">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               {/* Employee & Leave info */}
               <div className="flex items-center gap-4">
@@ -46,10 +46,10 @@ export default function LeavesPage() {
                 />
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-slate-900 dark:text-white">{leave.employeeName}</h4>
+                    <h4 className="font-bold text-slate-900">{leave.employeeName}</h4>
                     <span className="text-xs text-slate-500 font-medium">({leave.department})</span>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{leave.reason}</p>
+                  <p className="text-xs text-slate-600 mt-1">{leave.reason}</p>
                   <div className="flex items-center gap-3 text-xs text-slate-500 mt-2 font-mono">
                     <span>
                       Duration: <strong>{leave.startDate}</strong> to <strong>{leave.endDate}</strong> ({leave.daysCount} days)

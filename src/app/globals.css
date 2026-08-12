@@ -10,14 +10,6 @@
     --brand-primary: #059669;
     --brand-secondary: #4f46e5;
   }
-
-  .dark {
-    --bg-main: #0b0f17;
-    --card-bg: #111827;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --border-color: #1f2937;
-  }
 }
 
 body {
@@ -33,13 +25,6 @@ body {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.dark .glass-card {
-  background: rgba(17, 24, 39, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Custom Glow Effects */
@@ -64,10 +49,6 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 9999px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
 }
 
 ::-webkit-scrollbar-thumb:hover {

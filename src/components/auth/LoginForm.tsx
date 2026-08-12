@@ -43,14 +43,14 @@ export const LoginForm: React.FC = () => {
   return (
     <div className="w-full max-w-md space-y-6">
       {/* Role Selection Tabs */}
-      <div className="bg-slate-100 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-1.5">
+      <div className="bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 flex items-center gap-1.5">
         <button
           type="button"
           onClick={() => handleRoleSelect('SUPER_ADMIN')}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
             selectedRole === 'SUPER_ADMIN'
-              ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm border border-emerald-500/20'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              ? 'bg-white text-emerald-600 shadow-sm border border-emerald-500/20'
+              : 'text-slate-500 hover:text-slate-800'
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
@@ -62,8 +62,8 @@ export const LoginForm: React.FC = () => {
           onClick={() => handleRoleSelect('COMPANY_ADMIN')}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
             selectedRole === 'COMPANY_ADMIN'
-              ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-500/20'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              ? 'bg-white text-indigo-600 shadow-sm border border-indigo-500/20'
+              : 'text-slate-500 hover:text-slate-800'
           }`}
         >
           <Building2 className="w-4 h-4" />
@@ -72,15 +72,15 @@ export const LoginForm: React.FC = () => {
       </div>
 
       {/* Role Hint Banner */}
-      <div className="p-3.5 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 flex items-start gap-3">
+      <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/60 flex items-start gap-3">
         <div className="p-1.5 bg-emerald-500 text-white rounded-lg shrink-0 mt-0.5">
           {selectedRole === 'SUPER_ADMIN' ? <ShieldCheck className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
         </div>
         <div>
-          <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+          <p className="text-xs font-semibold text-emerald-900">
             {selectedRole === 'SUPER_ADMIN' ? 'Super Admin Access' : 'Company Admin Access'}
           </p>
-          <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+          <p className="text-[11px] text-emerald-700 mt-0.5">
             {selectedRole === 'SUPER_ADMIN'
               ? 'Register new companies, manage subscriptions, and oversee nationwide Hazree network.'
               : 'Manage daily employee attendance logs, leaves, payroll & office geofencing.'}
@@ -114,7 +114,7 @@ export const LoginForm: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="text-xs text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 font-medium transition-colors"
+              className="text-xs text-slate-500 hover:text-emerald-600 flex items-center gap-1 font-medium transition-colors"
             >
               {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               <span>{showPassword ? 'Hide password' : 'Show password'}</span>
@@ -129,11 +129,11 @@ export const LoginForm: React.FC = () => {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-700 dark:bg-slate-800"
+              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
             />
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Remember this device</span>
+            <span className="text-xs font-medium text-slate-600">Remember this device</span>
           </label>
-          <a href="#" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+          <a href="#" className="text-xs font-semibold text-emerald-600 hover:underline">
             Forgot Password?
           </a>
         </div>

@@ -47,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, onRoleSwitch }) => {
       name: 'Attendance Logs',
       href: '/attendance',
       icon: CalendarCheck,
-      roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'],
+      roles: ['COMPANY_ADMIN'],
     },
     {
       name: 'Employees',
@@ -59,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, onRoleSwitch }) => {
       name: 'Leave Requests',
       href: '/leaves',
       icon: FileText,
-      roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'],
+      roles: ['COMPANY_ADMIN'],
       badgeCount: 3,
     },
     {
