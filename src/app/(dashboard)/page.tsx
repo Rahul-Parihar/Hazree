@@ -17,12 +17,8 @@ import { TopCompaniesSection } from '../../components/super-admin/TopCompaniesSe
 
 import { RegisterCompanyModal } from '../../components/super-admin/RegisterCompanyModal';
 
-// Company Admin Components
-import { StatsCard } from '../../components/dashboard/StatsCard';
-import { AttendanceChart } from '../../components/dashboard/AttendanceChart';
-import { RecentAttendanceTable } from '../../components/dashboard/RecentAttendanceTable';
-import { DepartmentOverview } from '../../components/dashboard/DepartmentOverview';
-import { QuickActions } from '../../components/dashboard/QuickActions';
+// Company Admin Dedicated Dashboard
+import { CompanyDashboard } from '../../components/company-admin/CompanyDashboard';
 
 import { Building2, Plus, ShieldCheck, RefreshCw, Home } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
@@ -30,24 +26,11 @@ import { Button } from '../../components/ui/Button';
 export default function DashboardPage() {
   const { userRole, toggleUserRole } = useUserRole();
   const [companies, setCompanies] = useState<Company[]>(initialCompanies);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(mockAttendanceRecords);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
-
-  // Date range filter state
   const [dateRange, setDateRange] = useState('last30');
 
   const handleRegisterCompanySuccess = (newCompany: Company) => {
     setCompanies([newCompany, ...companies]);
-  };
-
-  const handleCompanyStatusChange = (id: string, newStatus: Company['status']) => {
-    setCompanies(
-      companies.map((c) => (c.id === id ? { ...c, status: newStatus } : c))
-    );
-  };
-
-  const handleAddAttendanceRecord = (newRecord: AttendanceRecord) => {
-    setAttendanceRecords([newRecord, ...attendanceRecords]);
   };
 
   return (
@@ -159,48 +142,8 @@ export default function DashboardPage() {
           <TopCompaniesSection />
         </div>
       ) : (
-        /* COMPANY ADMIN VIEW */
-        <div className="space-y-6">
-          {/* Dashboard Title Bar */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Company Attendance Dashboard</h2>
-            <button
-              onClick={toggleUserRole}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-all active:scale-95 flex items-center gap-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-emerald-500" />
-              Switch to Super Admin
-            </button>
-          </div>
-
-          {/* KPI Stat Cards */}
-          <StatsCard />
-
-          {/* Attendance Chart & Department Breakdown */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <AttendanceChart />
-            </div>
-            <div className="lg:col-span-1">
-              <DepartmentOverview />
-            </div>
-          </div>
-
-          {/* Quick Actions Bar */}
-          <QuickActions userRole={userRole} />
-
-          {/* Live Attendance Table */}
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">Today&apos;s Live Attendance Logs</h3>
-              <p className="text-xs text-slate-500">
-                Real-time facial & GPS geofenced check-in stream
-              </p>
-            </div>
-
-            <RecentAttendanceTable records={attendanceRecords} onAddRecord={handleAddAttendanceRecord} />
-          </div>
-        </div>
+        /* COMPANY ADMIN DEDICATED VIEW */
+        <CompanyDashboard onRoleSwitch={toggleUserRole} />
       )}
 
       {/* Super Admin Company Registration Modal */}
