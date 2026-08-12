@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from fastapi import Request, HTTPException, status, Depends
+from fastapi import Request, Response, HTTPException, status, Depends
 from typing import Optional
 
 from app.core.config import settings
@@ -8,13 +8,20 @@ from app.core.database import get_db
 from app.core.security import (
     verify_password,
     get_password_hash,
+    create_token_pair,
     create_access_token,
     decode_access_token,
+    decode_refresh_token,
+    set_auth_cookies,
+    clear_auth_cookies,
     get_token_from_request,
 )
 from app.features.companies.company_management.models import Company
 from app.features.super_admin.super_admin_auth.models import AdminUser
-from app.features.super_admin.super_admin_auth.schemas import SuperAdminCreate
+from app.features.super_admin.super_admin_auth.schemas import SuperAdminCreate, RefreshResponse, RefreshTokenData
+
+
+
 
 
 def get_admin_by_email(db: Session, email: str) -> Optional[AdminUser]:
@@ -22,13 +29,37 @@ def get_admin_by_email(db: Session, email: str) -> Optional[AdminUser]:
     return db.query(AdminUser).filter(AdminUser.email == email).first()
 
 
-def authenticate_admin(db: Session, email: str, password: str) -> Optional[AdminUser]:
-    """Verify email and password for Super Admin."""
-    admin = get_admin_by_email(db, email)
+def get_admin_by_id(db: Session, admin_id: int) -> Optional[AdminUser]:
+    """Find admin user by ID."""
+    return db.query(AdminUser).filter(AdminUser.id == admin_id).first()
+
+
+def authenticate_admin(db: Session, email: str, password: str) -> AdminUser:
+    """
+    Verify email and password for Super Admin with distinct error messages:
+    - Wrong email -> Specific "Email not registered" message
+    - Wrong password -> Specific "Incorrect password" message
+    - Inactive account -> Specific "Account deactivated" message
+    """
+    admin = get_admin_by_email(db, email.strip().lower())
     if not admin:
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Email '{email}' not found. Please enter a registered Super Admin email."
+        )
+    
     if not verify_password(password, admin.hashed_password):
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password. Please enter the correct password."
+        )
+
+    if not admin.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your Super Admin account has been deactivated."
+        )
+
     return admin
 
 
@@ -42,7 +73,7 @@ def create_super_admin(db: Session, admin_in: SuperAdminCreate) -> AdminUser:
             detail="Registration disabled. Only 1 Super Admin account is allowed in the system."
         )
 
-    existing = get_admin_by_email(db, admin_in.email)
+    existing = get_admin_by_email(db, admin_in.email.strip().lower())
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -50,7 +81,7 @@ def create_super_admin(db: Session, admin_in: SuperAdminCreate) -> AdminUser:
         )
 
     db_admin = AdminUser(
-        email=admin_in.email,
+        email=admin_in.email.strip().lower(),
         full_name=admin_in.full_name,
         hashed_password=get_password_hash(admin_in.password),
         is_super_admin=True,
@@ -66,14 +97,16 @@ def get_current_super_admin(
     request: Request,
     db: Session = Depends(get_db)
 ) -> AdminUser:
-    """FastAPI Dependency: Validate JWT token from HTTP Cookie or Bearer header and return Super Admin."""
+    """
+    FastAPI Dependency: Validate 15-Minute Access Token from HTTP Cookie or Bearer header.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials. Please log in.",
+        detail="Access token expired or invalid. Please refresh token or log in.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    token = get_token_from_request(request)
+    token = get_token_from_request(request, cookie_name="access_token")
     if not token:
         raise credentials_exception
 
@@ -94,16 +127,100 @@ def get_current_super_admin(
     return admin
 
 
+def refresh_super_admin_session(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    body_refresh_token: Optional[str] = None,
+) -> RefreshResponse:
+    """
+    Refresh flow:
+    - Checks refresh_token from JSON Request Body first.
+    - If not in body, checks HTTP-Only cookie 'refresh_token'.
+    - Validates signature, expiry, and issues fresh 15-min access token in cookie and response data.
+    """
+    refresh_token = body_refresh_token
+    if not refresh_token:
+        refresh_token = get_token_from_request(request, cookie_name="refresh_token")
+
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is required. Please provide it in the JSON request body or as an HTTP cookie."
+        )
+
+    payload = decode_refresh_token(refresh_token)
+    if not payload:
+        clear_auth_cookies(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token. Please log in again."
+        )
+
+
+    email = payload.get("sub")
+    if not email:
+        clear_auth_cookies(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Malformed refresh token"
+        )
+
+    admin = get_admin_by_email(db, email=email)
+    if not admin or not admin.is_active or not admin.is_super_admin:
+        clear_auth_cookies(response)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin account is inactive or revoked."
+        )
+
+    # Generate fresh high-entropy token pair (15-min Access Token, 7-day Refresh Token)
+    user_claims = {
+        "sub": admin.email,
+        "user_id": admin.id,
+        "full_name": admin.full_name,
+        "role": "SUPER_ADMIN",
+    }
+    new_access_token, new_refresh_token = create_token_pair(user_claims)
+
+    # Set both in HTTP-Only cookies
+    set_auth_cookies(response, access_token=new_access_token, refresh_token=new_refresh_token)
+
+    return RefreshResponse(
+        data=RefreshTokenData(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+        ),
+        message="Token refreshed successfully",
+        status="success",
+    )
+
+
+
+
 def init_default_super_admin(db: Session) -> AdminUser:
-    """Initialize default Super Admin account if system has zero admins."""
+    """Initialize or update default Super Admin account."""
+    existing = db.query(AdminUser).filter(AdminUser.email == "admin@hazree.com").first()
+    if existing:
+        if existing.full_name != "Super Admin":
+            existing.full_name = "Super Admin"
+            db.commit()
+            db.refresh(existing)
+        return existing
+
     existing_count = db.query(AdminUser).count()
     if existing_count > 0:
-        return db.query(AdminUser).first()
+        admin = db.query(AdminUser).first()
+        if admin.full_name != "Super Admin":
+            admin.full_name = "Super Admin"
+            db.commit()
+            db.refresh(admin)
+        return admin
 
-    default_email = settings.admin_email or "admin@hazree.com"
+    default_email = (settings.admin_email or "admin@hazree.com").strip().lower()
     default_admin = AdminUser(
         email=default_email,
-        full_name="Default Super Admin",
+        full_name="Super Admin",
         hashed_password=get_password_hash("Admin@123456"),
         is_super_admin=True,
         is_active=True,
@@ -112,6 +229,7 @@ def init_default_super_admin(db: Session) -> AdminUser:
     db.commit()
     db.refresh(default_admin)
     return default_admin
+
 
 
 def get_super_admin_overview(db: Session) -> dict:

@@ -48,14 +48,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware for mobile/frontend integration
+# CORS middleware configured dynamically from .env settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.allowed_cors_origins,
+    allow_origin_regex=settings.cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+
 
 app.include_router(companies_router)
 app.include_router(super_admin_router)

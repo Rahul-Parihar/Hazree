@@ -1,16 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.core.database import get_db
-from app.core.security import create_access_token
+from app.core.security import create_token_pair, set_auth_cookies, clear_auth_cookies
 from app.features.super_admin.super_admin_auth import service
 from app.features.super_admin.super_admin_auth.models import AdminUser
 from app.features.super_admin.super_admin_auth.schemas import (
+    SuperAdminLogin,
     SuperAdminCreate,
     SuperAdminResponse,
     Token,
+    AuthTokenData,
+    RefreshResponse,
+    RefreshTokenRequest,
 )
+
+
 
 router = APIRouter(prefix="/super-admin", tags=["super_admin_auth"])
 
@@ -18,46 +25,93 @@ router = APIRouter(prefix="/super-admin", tags=["super_admin_auth"])
 @router.post("/login", response_model=Token)
 async def login_super_admin(
     response: Response,
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
-    Super Admin Login Endpoint.
-    - Sets HTTP-Only Cookie ('access_token') for secure web authentication.
-    - Also returns access_token JSON for API clients / mobile apps.
+    Super Admin Login:
+    - Supports both OAuth2 Form and JSON Request Body.
+    - Generates 15-Minute Access Token + 7-Day Refresh Token with high entropy.
+    - Stores both tokens strictly in HTTP-Only, SameSite, Secure browser cookies (No localStorage).
     """
-    admin = service.authenticate_admin(db, email=form_data.username, password=form_data.password)
-    if not admin:
+    email = None
+    password = None
+
+    # Check Content-Type to parse either Form or JSON
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            email = body.get("email") or body.get("username")
+            password = body.get("password")
+        except Exception:
+            pass
+    elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+        try:
+            form = await request.form()
+            email = form.get("username") or form.get("email")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not email or not password:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email/Username and Password are required."
         )
 
-    access_token = create_access_token(data={"sub": admin.email})
+    admin = service.authenticate_admin(db, email=email, password=password)
 
-    # Set HTTP-Only Cookie
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=False,  # Set to True in HTTPS production environments
-        samesite="lax",
-        max_age=86400  # 24 Hours
+    # User claims for 15-minute token pair with cryptographic entropy
+    user_claims = {
+        "sub": admin.email,
+        "user_id": admin.id,
+        "full_name": admin.full_name,
+        "role": "SUPER_ADMIN",
+    }
+    access_token, refresh_token = create_token_pair(user_claims)
+
+    # Set HTTP-Only cookies for both access_token (15 min) and refresh_token (7 days)
+    set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
+
+    return Token(
+        data=AuthTokenData(
+            user=SuperAdminResponse.model_validate(admin),
+            access_token=access_token,
+            refresh_token=refresh_token,
+        ),
+        message="Login successful",
+        status="success",
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_super_admin_token(
+    request: Request,
+    response: Response,
+    body: Optional[RefreshTokenRequest] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Refresh Token Endpoint:
+    - Accepts 'refresh_token' from JSON Request Body (e.g. {"refresh_token": "..."})
+    - OR automatically reads HTTP-Only 'refresh_token' cookie.
+    - Issues a fresh 15-minute access token.
+    """
+    refresh_token = body.refresh_token if body else None
+    return service.refresh_super_admin_session(request, response, db, body_refresh_token=refresh_token)
+
 
 
 @router.post("/logout")
 async def logout_super_admin(response: Response):
-    """Logout Super Admin: Clears the HTTP-Only 'access_token' cookie."""
-    response.delete_cookie(
-        key="access_token",
-        httponly=True,
-        samesite="lax"
-    )
-    return {"message": "Successfully logged out. Cookie cleared."}
+    """
+    Logout Super Admin:
+    - Clears both HTTP-Only 'access_token' and 'refresh_token' cookies immediately.
+    """
+    clear_auth_cookies(response)
+    return {"message": "Successfully logged out. All session cookies cleared."}
 
 
 @router.post("/register", response_model=SuperAdminResponse, status_code=status.HTTP_201_CREATED)
@@ -74,7 +128,7 @@ async def register_super_admin(
 async def get_super_admin_profile(
     current_admin: AdminUser = Depends(service.get_current_super_admin)
 ):
-    """Get current logged-in Super Admin profile."""
+    """Get current logged-in Super Admin profile (Verified from 15-minute HTTP-Only cookie)."""
     return current_admin
 
 

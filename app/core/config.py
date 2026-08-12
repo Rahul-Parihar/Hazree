@@ -29,7 +29,38 @@ class Settings(BaseSettings):
     app_name: str = "Hazree Backend"
     admin_email: str = "admin@example.com"
     debug: bool = True
-    secret_key: str = "hazree_default_secret_key_change_in_production"
+    secret_key: str = "hazree_super_secure_jwt_secret_key_2026_entropy_auth_protection"
+
+    # JWT & Auth Security Settings
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
+    jwt_algorithm: str = "HS256"
+    jwt_issuer: str = "hazree-auth-server"
+    jwt_audience: str = "hazree-admin-portal"
+
+    # Cookie Settings
+    cookie_secure: bool = False  # Set to True in production with HTTPS
+    cookie_samesite: str = "lax"  # 'lax' allows secure local dev & cross-site navigation
+    cookie_domain: Optional[str] = None
+
+    # CORS Settings (Loaded from .env)
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5173,http://127.0.0.1:5173"
+    cors_origin_regex: Optional[str] = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+
+    @property
+    def allowed_cors_origins(self) -> list[str]:
+        if not self.cors_origins:
+            return ["http://localhost:3000"]
+        stripped = self.cors_origins.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            import json
+            try:
+                return json.loads(stripped)
+            except Exception:
+                pass
+        return [origin.strip() for origin in stripped.split(",") if origin.strip()]
+
+
 
     # Database Configuration (Loaded from .env)
     database_url: Optional[str] = None

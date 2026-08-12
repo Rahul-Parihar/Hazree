@@ -26,10 +26,35 @@ class SuperAdminResponse(BaseModel):
         from_attributes = True
 
 
-class Token(BaseModel):
+class AuthTokenData(BaseModel):
+    user: Optional[SuperAdminResponse] = None
     access_token: str
-    token_type: str = "bearer"
+    refresh_token: str
+
+
+class Token(BaseModel):
+    data: AuthTokenData
+    message: str = "Login successful"
+    status: str = "success"
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: Optional[str] = None
+
+
+class RefreshTokenData(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+
+
+class RefreshResponse(BaseModel):
+    data: RefreshTokenData
+    message: str = "Token refreshed successfully"
+    status: str = "success"
 
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+    user_id: Optional[int] = None
+    role: Optional[str] = None
+    token_type: Optional[str] = None
