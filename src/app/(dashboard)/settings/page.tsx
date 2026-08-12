@@ -1,12 +1,36 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/Button';
-import { Settings, MapPin, Shield, Bell, Save } from 'lucide-react';
+import { Settings, MapPin, Shield, CheckCircle2, Save } from 'lucide-react';
+import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
+import { updateSettings } from '../../../redux/slices/settingsSlice';
 
 export default function SettingsPage() {
+  const dispatch = useAppDispatch();
+  const settings = useAppSelector((state) => state.settings);
+
+  const [coords, setCoords] = useState(settings.geofenceCoordinates);
+  const [radius, setRadius] = useState(settings.geofenceRadius);
+  const [threshold, setThreshold] = useState(settings.faceLivenessThreshold);
+  const [gracePeriod, setGracePeriod] = useState(settings.shiftGraceMinutes);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const handleSave = () => {
+    dispatch(
+      updateSettings({
+        geofenceCoordinates: coords,
+        geofenceRadius: radius,
+        faceLivenessThreshold: threshold,
+        shiftGraceMinutes: gracePeriod,
+      })
+    );
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Title */}
@@ -21,19 +45,36 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <Button variant="primary" icon={<Save className="w-4 h-4" />}>
-          Save Configuration
-        </Button>
+        <div className="flex items-center gap-3">
+          {savedSuccess && (
+            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 animate-fade-in bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+              <CheckCircle2 className="w-4 h-4" />
+              Settings Saved to Redux!
+            </span>
+          )}
+          <Button variant="primary" icon={<Save className="w-4 h-4" />} onClick={handleSave}>
+            Save Configuration
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* GPS Geofencing Configuration */}
         <Card title="Office Geofence & GPS Boundaries" subtitle="Configure geographic location radius for mobile punches">
           <div className="space-y-4">
-            <Input label="Primary HQ Location Coordinates" defaultValue="19.0660° N, 72.8691° E (BKC Mumbai)" icon={<MapPin className="w-4 h-4" />} />
-            <Input label="Allowed Geofence Radius (Meters)" defaultValue="150 meters" />
+            <Input
+              label="Primary HQ Location Coordinates"
+              value={coords}
+              onChange={(e) => setCoords(e.target.value)}
+              icon={<MapPin className="w-4 h-4" />}
+            />
+            <Input
+              label="Allowed Geofence Radius (Meters)"
+              value={radius}
+              onChange={(e) => setRadius(e.target.value)}
+            />
             <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200/60 text-xs text-emerald-800">
-              ✓ Employees punching inside this 150m boundary will be automatically marked as <strong>Verified HQ Present</strong>.
+              ✓ Employees punching inside this <strong>{radius}</strong> boundary will be automatically marked as <strong>Verified HQ Present</strong>.
             </div>
           </div>
         </Card>
@@ -41,10 +82,19 @@ export default function SettingsPage() {
         {/* AI Face Recognition Threshold */}
         <Card title="Facial Recognition Kiosk Parameters" subtitle="Camera biometric verification confidence score">
           <div className="space-y-4">
-            <Input label="Face Liveness Match Threshold" defaultValue="98.5% Confidence Score" icon={<Shield className="w-4 h-4" />} />
-            <Input label="Shift Grace Period (Minutes)" defaultValue="15 Minutes" />
+            <Input
+              label="Face Liveness Match Threshold"
+              value={threshold}
+              onChange={(e) => setThreshold(e.target.value)}
+              icon={<Shield className="w-4 h-4" />}
+            />
+            <Input
+              label="Shift Grace Period (Minutes)"
+              value={gracePeriod}
+              onChange={(e) => setGracePeriod(e.target.value)}
+            />
             <div className="p-3.5 rounded-xl bg-indigo-50 border border-indigo-200/60 text-xs text-indigo-800">
-              ✓ Punches within 15 minutes after 09:00 AM will not be flagged as late.
+              ✓ Punches within {gracePeriod} after 09:00 AM will not be flagged as late.
             </div>
           </div>
         </Card>
@@ -52,3 +102,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

@@ -7,19 +7,21 @@ import { CompanyDepartmentHealth } from './CompanyDepartmentHealth';
 import { CompanyQuickActions } from './CompanyQuickActions';
 import { CompanyKioskGeofenceStatus } from './CompanyKioskGeofenceStatus';
 import { RecentAttendanceTable } from '../dashboard/RecentAttendanceTable';
-import { mockAttendanceRecords } from '../../lib/mockData';
 import { AttendanceRecord } from '../../types';
 import { Building2, Plus, Calendar, Clock, MapPin, RefreshCw, Shield } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { useAppSelector, useAppDispatch } from '../../redux/hooks';
+import { addAttendanceRecord } from '../../redux/slices/attendanceSlice';
 
 interface CompanyDashboardProps {
   onRoleSwitch?: () => void;
 }
 
 export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ onRoleSwitch }) => {
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(mockAttendanceRecords);
+  const dispatch = useAppDispatch();
+  const attendanceRecords = useAppSelector((state) => state.attendance.records);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
 
   // Form states for manual punch
@@ -29,7 +31,7 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ onRoleSwitch
   const [checkInTime, setCheckInTime] = useState('09:00 AM');
 
   const handleAddRecord = (newRecord: AttendanceRecord) => {
-    setAttendanceRecords([newRecord, ...attendanceRecords]);
+    dispatch(addAttendanceRecord(newRecord));
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -52,10 +54,11 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ onRoleSwitch
       device: 'Company Admin Portal Web',
     };
 
-    handleAddRecord(newRec);
+    dispatch(addAttendanceRecord(newRec));
     setIsManualModalOpen(false);
     setEmpName('');
   };
+
 
   return (
     <div className="space-y-5 animate-fade-in pb-8">

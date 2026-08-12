@@ -1,17 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
-import { mockAttendanceRecords } from '../../../lib/mockData';
+import React from 'react';
 import { RecentAttendanceTable } from '../../../components/dashboard/RecentAttendanceTable';
 import { AttendanceRecord } from '../../../types';
-import { CalendarCheck, Download, Filter } from 'lucide-react';
+import { CalendarCheck, Download } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
+import { addAttendanceRecord } from '../../../redux/slices/attendanceSlice';
 
 export default function AttendancePage() {
-  const [records, setRecords] = useState<AttendanceRecord[]>(mockAttendanceRecords);
+  const dispatch = useAppDispatch();
+  const records = useAppSelector((state) => state.attendance.records);
 
   const handleAddRecord = (newRecord: AttendanceRecord) => {
-    setRecords([newRecord, ...records]);
+    dispatch(addAttendanceRecord(newRecord));
   };
 
   return (
@@ -39,3 +41,4 @@ export default function AttendancePage() {
     </div>
   );
 }
+

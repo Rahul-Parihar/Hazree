@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Company, AttendanceRecord } from '../../types';
-import { initialCompanies, mockAttendanceRecords } from '../../lib/mockData';
-import { useUserRole } from '../../context/UserRoleContext';
+import { Company } from '../../types';
+import { useAppSelector, useAppDispatch } from '../../redux/hooks';
+import { toggleUserRole } from '../../redux/slices/authSlice';
+import { addCompany } from '../../redux/slices/companiesSlice';
 
 // Super Admin Components
 import { SuperAdminStats } from '../../components/super-admin/SuperAdminStats';
@@ -24,14 +25,20 @@ import { Building2, Plus, ShieldCheck, RefreshCw, Home } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
 export default function DashboardPage() {
-  const { userRole, toggleUserRole } = useUserRole();
-  const [companies, setCompanies] = useState<Company[]>(initialCompanies);
+  const dispatch = useAppDispatch();
+  const userRole = useAppSelector((state) => state.auth.userRole);
+  const companies = useAppSelector((state) => state.companies.companies);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [dateRange, setDateRange] = useState('last30');
 
   const handleRegisterCompanySuccess = (newCompany: Company) => {
-    setCompanies([newCompany, ...companies]);
+    dispatch(addCompany(newCompany));
   };
+
+  const handleToggleRole = () => {
+    dispatch(toggleUserRole());
+  };
+
 
   return (
     <div className="space-y-5 animate-fade-in pb-8">
@@ -50,7 +57,7 @@ export default function DashboardPage() {
                 Register Company
               </button>
               <button
-                onClick={toggleUserRole}
+                onClick={handleToggleRole}
                 className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-all active:scale-95 flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5 text-emerald-500" />
@@ -143,7 +150,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         /* COMPANY ADMIN DEDICATED VIEW */
-        <CompanyDashboard onRoleSwitch={toggleUserRole} />
+        <CompanyDashboard onRoleSwitch={handleToggleRole} />
       )}
 
       {/* Super Admin Company Registration Modal */}

@@ -1,7 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext } from 'react';
 import { UserRole } from '../types';
+import { useAppSelector, useAppDispatch } from '../redux/hooks';
+import { setUserRole, toggleUserRole } from '../redux/slices/authSlice';
 
 interface UserRoleContextType {
   userRole: UserRole;
@@ -12,23 +14,15 @@ interface UserRoleContextType {
 const UserRoleContext = createContext<UserRoleContextType | undefined>(undefined);
 
 export const UserRoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [userRole, setUserRole] = useState<UserRole>('SUPER_ADMIN');
-
-  useEffect(() => {
-    const savedRole = localStorage.getItem('hazree_user_role') as UserRole;
-    if (savedRole) {
-      setUserRole(savedRole);
-    }
-  }, []);
+  const dispatch = useAppDispatch();
+  const userRole = useAppSelector((state) => state.auth.userRole);
 
   const handleSetUserRole = (role: UserRole) => {
-    setUserRole(role);
-    localStorage.setItem('hazree_user_role', role);
+    dispatch(setUserRole(role));
   };
 
-  const toggleUserRole = () => {
-    const nextRole = userRole === 'SUPER_ADMIN' ? 'COMPANY_ADMIN' : 'SUPER_ADMIN';
-    handleSetUserRole(nextRole);
+  const handleToggleUserRole = () => {
+    dispatch(toggleUserRole());
   };
 
   return (
@@ -36,7 +30,7 @@ export const UserRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       value={{
         userRole,
         setUserRole: handleSetUserRole,
-        toggleUserRole,
+        toggleUserRole: handleToggleUserRole,
       }}
     >
       {children}
@@ -45,9 +39,13 @@ export const UserRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 };
 
 export const useUserRole = () => {
-  const context = useContext(UserRoleContext);
-  if (!context) {
-    throw new Error('useUserRole must be used within a UserRoleProvider');
-  }
-  return context;
+  const dispatch = useAppDispatch();
+  const userRole = useAppSelector((state) => state.auth.userRole);
+
+  return {
+    userRole,
+    setUserRole: (role: UserRole) => dispatch(setUserRole(role)),
+    toggleUserRole: () => dispatch(toggleUserRole()),
+  };
 };
+

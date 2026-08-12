@@ -6,9 +6,12 @@ import { Mail, Lock, Eye, EyeOff, ShieldCheck, Building2, ArrowRight } from 'luc
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { UserRole } from '../../types';
+import { useAppDispatch } from '../../redux/hooks';
+import { login } from '../../redux/slices/authSlice';
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const [selectedRole, setSelectedRole] = useState<UserRole>('SUPER_ADMIN');
   const [email, setEmail] = useState('superadmin@hazree.com');
   const [password, setPassword] = useState('HazreeAdmin@2026');
@@ -31,14 +34,14 @@ export const LoginForm: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Save selected role to localStorage for mock session persistence
-    localStorage.setItem('hazree_user_role', selectedRole);
+    dispatch(login({ role: selectedRole, email }));
 
     setTimeout(() => {
       setIsLoading(false);
       router.push('/');
-    }, 900);
+    }, 600);
   };
+
 
   return (
     <div className="w-full max-w-md space-y-6">

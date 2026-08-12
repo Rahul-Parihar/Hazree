@@ -1,26 +1,26 @@
 'use client';
 
 import React, { useState } from 'react';
-import { initialCompanies } from '../../../lib/mockData';
 import { CompanyTable } from '../../../components/super-admin/CompanyTable';
 import { RegisterCompanyModal } from '../../../components/super-admin/RegisterCompanyModal';
 import { PlatformStats } from '../../../components/super-admin/PlatformStats';
 import { Company } from '../../../types';
 import { Building2, Plus } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
+import { addCompany, updateCompanyStatus } from '../../../redux/slices/companiesSlice';
 
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>(initialCompanies);
+  const dispatch = useAppDispatch();
+  const companies = useAppSelector((state) => state.companies.companies);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
   const handleRegisterCompanySuccess = (newCompany: Company) => {
-    setCompanies([newCompany, ...companies]);
+    dispatch(addCompany(newCompany));
   };
 
   const handleCompanyStatusChange = (id: string, newStatus: Company['status']) => {
-    setCompanies(
-      companies.map((c) => (c.id === id ? { ...c, status: newStatus } : c))
-    );
+    dispatch(updateCompanyStatus({ id, status: newStatus }));
   };
 
   return (
@@ -64,3 +64,4 @@ export default function CompaniesPage() {
     </div>
   );
 }
+

@@ -1,21 +1,62 @@
 'use client';
 
 import React, { useState } from 'react';
-import { mockEmployees } from '../../../lib/mockData';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
+import { Modal } from '../../../components/ui/Modal';
+import { Input } from '../../../components/ui/Input';
 import { Users, UserPlus, Mail, Phone, Search, Building } from 'lucide-react';
+import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
+import { addEmployee } from '../../../redux/slices/employeesSlice';
+import { Employee } from '../../../types';
 
 export default function EmployeesPage() {
+  const dispatch = useAppDispatch();
+  const employees = useAppSelector((state) => state.employees.employees);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const filteredEmployees = mockEmployees.filter(
+  // New Employee Form state
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState('');
+  const [department, setDepartment] = useState('Engineering');
+  const [companyName, setCompanyName] = useState('Tata Tech Solutions');
+
+  const filteredEmployees = employees.filter(
     (e) =>
       e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       e.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
       e.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleAddEmployeeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !email) return;
+
+    const newEmp: Employee = {
+      id: `emp_${Date.now()}`,
+      companyId: 'cmp_101',
+      companyName: companyName,
+      name: name,
+      email: email,
+      phone: phone || '+91 98000 00000',
+      role: role || 'Staff Member',
+      department: department,
+      avatar: `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 999999)}?w=100&auto=format&fit=crop&q=80`,
+      joinDate: new Date().toISOString().split('T')[0],
+      status: 'Active',
+    };
+
+    dispatch(addEmployee(newEmp));
+    setIsAddModalOpen(false);
+    setName('');
+    setEmail('');
+    setPhone('');
+    setRole('');
+  };
 
   return (
     <div className="space-y-6 animate-fade-in pb-8">
@@ -31,7 +72,11 @@ export default function EmployeesPage() {
           </p>
         </div>
 
-        <Button variant="primary" icon={<UserPlus className="w-4 h-4" />}>
+        <Button
+          variant="primary"
+          icon={<UserPlus className="w-4 h-4" />}
+          onClick={() => setIsAddModalOpen(true)}
+        >
           Add New Employee
         </Button>
       </div>
@@ -85,6 +130,87 @@ export default function EmployeesPage() {
           </Card>
         ))}
       </div>
+
+      {/* Add Employee Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add New Employee"
+        subtitle="Onboard staff member to Hazree workforce system"
+      >
+        <form onSubmit={handleAddEmployeeSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Full Name"
+              placeholder="e.g. Priyanshu Jain"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+            <Input
+              label="Email Address"
+              type="email"
+              placeholder="p.jain@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Phone Number"
+              placeholder="+91 98765 12345"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+            <Input
+              label="Job Designation / Role"
+              placeholder="Senior Engineer"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Department
+              </label>
+              <select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className="w-full rounded-xl bg-white border border-slate-200 text-slate-900 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              >
+                <option value="Engineering">Engineering</option>
+                <option value="Human Resources">Human Resources</option>
+                <option value="Sales & Marketing">Sales & Marketing</option>
+                <option value="Design & UI">Design & UI</option>
+                <option value="Finance & Accounts">Finance & Accounts</option>
+                <option value="Operations">Operations</option>
+              </select>
+            </div>
+
+            <Input
+              label="Company"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary">
+              Add Employee
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
+

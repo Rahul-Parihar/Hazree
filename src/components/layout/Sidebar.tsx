@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { UserRole } from '../../types';
+import { useAppSelector, useAppDispatch } from '../../redux/hooks';
+import { logout } from '../../redux/slices/authSlice';
 
 interface SidebarProps {
   userRole: UserRole;
@@ -27,7 +29,13 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ userRole, onRoleSwitch }) => {
   const pathname = usePathname();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const currentUser = useAppSelector((state) => state.auth.currentUser);
+  const pendingLeavesCount = useAppSelector(
+    (state) => state.leaves.leaves.filter((l) => l.status === 'Pending').length
+  );
 
   const navItems = [
     {
@@ -60,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, onRoleSwitch }) => {
       href: '/leaves',
       icon: FileText,
       roles: ['COMPANY_ADMIN'],
-      badgeCount: 3,
+      badgeCount: pendingLeavesCount > 0 ? pendingLeavesCount : undefined,
     },
     {
       name: 'Settings',
@@ -73,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, onRoleSwitch }) => {
   const filteredNav = navItems.filter((item) => item.roles.includes(userRole));
 
   const handleLogout = () => {
-    localStorage.removeItem('hazree_user_role');
+    dispatch(logout());
     router.push('/login');
   };
 
@@ -184,11 +192,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, onRoleSwitch }) => {
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-slate-700 flex items-center justify-center font-bold text-white shrink-0 overflow-hidden border border-slate-600">
               <img
-                src={
-                  userRole === 'SUPER_ADMIN'
-                    ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
-                    : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
-                }
+                src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
                 alt="Avatar"
                 className="w-full h-full object-cover"
               />
@@ -196,10 +200,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, onRoleSwitch }) => {
             {!isCollapsed && (
               <div className="min-w-0">
                 <p className="text-xs font-bold text-white truncate">
-                  {userRole === 'SUPER_ADMIN' ? 'Anand Patel' : 'Rajesh Sharma'}
+                  {currentUser?.name || (userRole === 'SUPER_ADMIN' ? 'Anand Patel' : 'Rajesh Sharma')}
                 </p>
                 <p className="text-[11px] text-slate-400 truncate">
-                  {userRole === 'SUPER_ADMIN' ? 'Platform HQ' : 'Tata Tech HR'}
+                  {currentUser?.companyName || (userRole === 'SUPER_ADMIN' ? 'Platform HQ' : 'Tata Tech HR')}
                 </p>
               </div>
             )}
@@ -219,3 +223,4 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, onRoleSwitch }) => {
     </aside>
   );
 };
+

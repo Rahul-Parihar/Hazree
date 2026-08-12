@@ -1,20 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
-import { mockLeaveRequests } from '../../../lib/mockData';
-import { LeaveRequest } from '../../../types';
+import React from 'react';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { FileText, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { FileText, CheckCircle2, XCircle } from 'lucide-react';
+import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
+import { updateLeaveStatus } from '../../../redux/slices/leavesSlice';
+import { LeaveRequest } from '../../../types';
 
 export default function LeavesPage() {
-  const [leaves, setLeaves] = useState<LeaveRequest[]>(mockLeaveRequests);
+  const dispatch = useAppDispatch();
+  const leaves = useAppSelector((state) => state.leaves.leaves);
 
   const handleStatusChange = (id: string, newStatus: LeaveRequest['status']) => {
-    setLeaves(
-      leaves.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
-    );
+    dispatch(updateLeaveStatus({ id, status: newStatus }));
   };
 
   return (
@@ -93,3 +93,4 @@ export default function LeavesPage() {
     </div>
   );
 }
+
