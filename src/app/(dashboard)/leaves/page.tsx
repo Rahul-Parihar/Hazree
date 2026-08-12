@@ -1,0 +1,95 @@
+'use client';
+
+import React, { useState } from 'react';
+import { mockLeaveRequests } from '../../../lib/mockData';
+import { LeaveRequest } from '../../../types';
+import { Card } from '../../../components/ui/Card';
+import { Badge } from '../../../components/ui/Badge';
+import { Button } from '../../../components/ui/Button';
+import { FileText, CheckCircle2, XCircle, Clock } from 'lucide-react';
+
+export default function LeavesPage() {
+  const [leaves, setLeaves] = useState<LeaveRequest[]>(mockLeaveRequests);
+
+  const handleStatusChange = (id: string, newStatus: LeaveRequest['status']) => {
+    setLeaves(
+      leaves.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
+    );
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in pb-8">
+      {/* Title */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <div>
+          <div className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-emerald-500" />
+            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Leave Requests & Approvals</h2>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Review time-off requests, sick leave certificates, and vacation applications
+          </p>
+        </div>
+      </div>
+
+      {/* Leave Cards */}
+      <div className="space-y-4">
+        {leaves.map((leave) => (
+          <Card key={leave.id} glass className="border border-slate-200/80 dark:border-slate-800">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              {/* Employee & Leave info */}
+              <div className="flex items-center gap-4">
+                <img
+                  src={leave.employeeAvatar}
+                  alt={leave.employeeName}
+                  className="w-12 h-12 rounded-2xl object-cover"
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-slate-900 dark:text-white">{leave.employeeName}</h4>
+                    <span className="text-xs text-slate-500 font-medium">({leave.department})</span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{leave.reason}</p>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-2 font-mono">
+                    <span>
+                      Duration: <strong>{leave.startDate}</strong> to <strong>{leave.endDate}</strong> ({leave.daysCount} days)
+                    </span>
+                    <span>Applied on: {leave.appliedOn}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Approve / Reject Actions */}
+              <div className="flex items-center gap-3 self-end md:self-center">
+                <Badge variant={leave.status === 'Approved' ? 'present' : leave.status === 'Pending' ? 'pending' : 'absent'}>
+                  {leave.status}
+                </Badge>
+
+                {leave.status === 'Pending' && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={<CheckCircle2 className="w-4 h-4" />}
+                      onClick={() => handleStatusChange(leave.id, 'Approved')}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      icon={<XCircle className="w-4 h-4" />}
+                      onClick={() => handleStatusChange(leave.id, 'Rejected')}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
