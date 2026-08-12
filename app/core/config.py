@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     debug: bool = True
     secret_key: str = "hazree_super_secure_jwt_secret_key_2026_entropy_auth_protection"
 
+    # Server Settings (Loaded from .env)
+    host: str = "0.0.0.0"
+    port: int = 8000
+    reload: bool = True
+
+
     # JWT & Auth Security Settings
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
