@@ -44,7 +44,6 @@ export const CompanyAttendanceTrend: React.FC = () => {
           </p>
         </div>
 
-        {/* Toggle View */}
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
           <button
             onClick={() => setViewType('weekly')}
