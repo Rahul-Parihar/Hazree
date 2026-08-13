@@ -1,33 +1,76 @@
+from typing import List
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from typing import List
 
 from app.core.database import get_db
 from app.features.companies.company_management import service
-from app.features.companies.company_management.schemas import CompanyCreate, CompanyResponse, CompanyUpdate
+from app.features.companies.company_management.schemas import (
+    CompanyCreate,
+    CompanyResponse,
+    CompanyUpdate,
+)
+from app.features.super_admin.super_admin_auth.models import AdminUser
+from app.features.super_admin.super_admin_auth.service import get_current_super_admin
 
-router = APIRouter(prefix="/companies", tags=["companies"])
+router = APIRouter(
+    prefix="/companies",
+    tags=["Company Management (Super Admin Only)"],
+)
 
 
-@router.get("/", response_model=List[CompanyResponse])
-async def read_companies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Fetch all companies from database."""
+@router.get("/", response_model=List[CompanyResponse], summary="List All Companies")
+async def read_companies(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_super_admin),
+):
+    """Fetch all registered companies (Super Admin only)."""
     return service.get_all_companies(db, skip=skip, limit=limit)
 
 
-@router.post("/", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
-async def create_company(company: CompanyCreate, db: Session = Depends(get_db)):
-    """Create a new company."""
+@router.post(
+    "/",
+    response_model=CompanyResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register New Company",
+)
+async def create_company(
+    company: CompanyCreate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_super_admin),
+):
+    """Register a new company on Hazree platform (Super Admin only)."""
     return service.create_company(db, company)
 
 
-@router.get("/{company_id}", response_model=CompanyResponse)
-async def get_company(company_id: int, db: Session = Depends(get_db)):
-    """Get company by ID."""
+@router.get("/{company_id}", response_model=CompanyResponse, summary="Get Company by ID")
+async def get_company(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_super_admin),
+):
+    """Get company details by ID (Super Admin only)."""
     return service.get_company_by_id(db, company_id)
 
 
-@router.put("/{company_id}", response_model=CompanyResponse)
-async def update_company(company_id: int, company_in: CompanyUpdate, db: Session = Depends(get_db)):
-    """Update company details by ID."""
+@router.put("/{company_id}", response_model=CompanyResponse, summary="Update Company Details")
+async def update_company(
+    company_id: int,
+    company_in: CompanyUpdate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_super_admin),
+):
+    """Update existing company details (Super Admin only)."""
     return service.update_company(db, company_id, company_in)
+
+
+@router.delete("/{company_id}", summary="Delete Company")
+async def delete_company(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_super_admin),
+):
+    """Delete a company from the system (Super Admin only)."""
+    return service.delete_company(db, company_id)
+

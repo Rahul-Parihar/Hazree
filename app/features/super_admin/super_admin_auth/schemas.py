@@ -13,13 +13,6 @@ class SuperAdminLogin(BaseModel):
     password: str = Field(..., min_length=6, description="Super Admin account password", examples=["Admin@123456"])
 
 
-class SuperAdminCreate(BaseModel):
-    """Payload schema for initial Super Admin registration."""
-    email: EmailStr = Field(..., description="Super Admin email address", examples=["admin@hazree.com"])
-    full_name: str = Field(..., min_length=2, max_length=255, description="Full display name", examples=["Super Admin"])
-    password: str = Field(..., min_length=8, description="Strong password (min 8 characters)", examples=["Admin@123456"])
-
-
 class RefreshTokenRequest(BaseModel):
     """Optional payload schema for explicit token refresh."""
     refresh_token: Optional[str] = Field(None, description="Optional refresh token string if not supplied in cookies")
@@ -34,17 +27,34 @@ class SuperAdminResponse(BaseModel):
     id: int
     email: str
     full_name: Optional[str] = None
-    is_super_admin: bool
-    is_active: bool
+    role: str = "SUPER_ADMIN"
+    is_super_admin: bool = True
+    is_active: bool = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
+class UserAuthResponse(BaseModel):
+    """Unified auth response representation for Super Admin & Company Admin."""
+    id: int
+    email: str
+    full_name: Optional[str] = None
+    role: str = "SUPER_ADMIN"
+    company_id: Optional[int] = None
+    company_name: Optional[str] = None
+    status: Optional[str] = "Active"
+    is_super_admin: bool = False
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AuthTokenData(BaseModel):
     """Nested payload for login responses."""
-    user: Optional[SuperAdminResponse] = None
+    user: Optional[UserAuthResponse] = None
     access_token: str
     refresh_token: str
 

@@ -89,8 +89,8 @@ class Settings(BaseSettings):
     # Rate Limiting Configuration
     rate_limit_enabled: bool = True
     rate_limit_default: str = "120/minute"
-    rate_limit_login: str = "5/minute"
-    rate_limit_refresh: str = "10/minute"
+    rate_limit_login: str = "60/minute"
+    rate_limit_refresh: str = "60/minute"
 
     def model_post_init(self, __context) -> None:
         """Automatically parse database_url to populate host, db, port if database_url is provided."""

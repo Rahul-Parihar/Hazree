@@ -13,12 +13,11 @@ from app.features.super_admin.super_admin_auth.schemas import (
     MessageResponse,
     RefreshResponse,
     RefreshTokenRequest,
-    SuperAdminCreate,
     SuperAdminOverviewResponse,
     SuperAdminResponse,
+    UserAuthResponse,
     Token,
 )
-
 router = APIRouter(prefix="/super-admin", tags=["Super Admin"])
 
 
@@ -84,37 +83,21 @@ async def logout_super_admin(response: Response) -> MessageResponse:
 
 
 # ---------------------------------------------------------------------------
-# Protected Super Admin Endpoints
+# Protected Super Admin Endpoints (Single Admin Operations)
 # ---------------------------------------------------------------------------
-
-@router.post(
-    "/register",
-    response_model=SuperAdminResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Register Super Admin",
-    description="Registers an initial Super Admin. Disabled if at least 1 Super Admin already exists in the system.",
-)
-async def register_super_admin(
-    admin_in: SuperAdminCreate,
-    db: Session = Depends(get_db),
-    current_admin: AdminUser = Depends(service.get_current_super_admin),
-) -> SuperAdminResponse:
-    """Register a new Super Admin account."""
-    admin = service.create_super_admin(db, admin_in)
-    return SuperAdminResponse.model_validate(admin)
 
 
 @router.get(
     "/me",
-    response_model=SuperAdminResponse,
-    summary="Current Super Admin Profile",
-    description="Fetches profile information of the currently authenticated Super Admin.",
+    response_model=UserAuthResponse,
+    summary="Current User Profile",
+    description="Fetches profile information of the currently authenticated Super Admin or Company Admin.",
 )
 async def get_super_admin_profile(
-    current_admin: AdminUser = Depends(service.get_current_super_admin),
-) -> SuperAdminResponse:
-    """Get active Super Admin profile."""
-    return SuperAdminResponse.model_validate(current_admin)
+    current_user: UserAuthResponse = Depends(service.get_current_user),
+) -> UserAuthResponse:
+    """Get active user profile."""
+    return current_user
 
 
 @router.get(

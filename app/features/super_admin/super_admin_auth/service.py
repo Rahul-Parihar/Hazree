@@ -24,14 +24,11 @@ from app.features.super_admin.super_admin_auth.schemas import (
     DatabaseStatusResponse,
     RefreshResponse,
     RefreshTokenData,
-    SuperAdminCreate,
     SuperAdminOverviewResponse,
     SuperAdminResponse,
+    UserAuthResponse,
     Token,
 )
-
-
-# ---------------------------------------------------------------------------
 # Query Helpers
 # ---------------------------------------------------------------------------
 
@@ -45,14 +42,8 @@ def get_admin_by_id(db: Session, admin_id: int) -> Optional[AdminUser]:
     return db.query(AdminUser).filter(AdminUser.id == admin_id).first()
 
 
-# ---------------------------------------------------------------------------
-# Authentication & Credentials
-# ---------------------------------------------------------------------------
-
 async def extract_login_credentials(request: Request) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Extract username/email and password from either JSON body or Form data.
-    """
+    """Extract username/email and password from either JSON body or Form data."""
     email = None
     password = None
     content_type = request.headers.get("content-type", "")
@@ -75,122 +66,147 @@ async def extract_login_credentials(request: Request) -> Tuple[Optional[str], Op
     return email, password
 
 
-def authenticate_admin(db: Session, email: str, password: str) -> AdminUser:
-    """
-    Verify Super Admin credentials and status:
-    - Non-existent email -> 404 Not Found
-    - Invalid password   -> 401 Unauthorized
-    - Inactive account   -> 403 Forbidden
-    """
-    admin = get_admin_by_email(db, email)
-    if not admin:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Email '{email}' not found. Please enter a registered Super Admin email.",
-        )
-
-    if not verify_password(password, admin.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect password. Please enter the correct password.",
-        )
-
-    if not admin.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your Super Admin account has been deactivated.",
-        )
-
-    return admin
-
-
 async def login_super_admin_service(
     request: Request,
     response: Response,
     db: Session,
 ) -> Token:
     """
-    Full login flow:
-    - Extracts credentials (JSON / Form).
-    - Verifies identity.
-    - Issues 15-minute access token and 7-day refresh token.
-    - Sets secure, HTTP-Only cookies.
+    Unified Login flow for Super Admin and Company Admin:
+    - Checks Super Admin account (AdminUser table)
+    - Checks Company Admin account (Company table with active status verification)
+    - Issues role-based JWT tokens and sets secure HTTP-Only cookies.
     """
-    email, password = await extract_login_credentials(request)
+    raw_email, password = await extract_login_credentials(request)
 
-    if not email or not password:
+    if not raw_email or not password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email/Username and Password are required.",
+            detail="Email and Password are required.",
         )
 
-    admin = authenticate_admin(db, email=email, password=password)
+    email = raw_email.strip().lower()
 
-    user_claims = {
-        "sub": admin.email,
-        "user_id": admin.id,
-        "full_name": admin.full_name,
-        "role": "SUPER_ADMIN",
-    }
-    access_token, refresh_token = create_token_pair(user_claims)
+    # 1. Check if user is Super Admin
+    admin = get_admin_by_email(db, email)
+    if admin:
+        if not verify_password(password, admin.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password. Please enter the correct Super Admin password.",
+            )
+        if not admin.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your Super Admin account has been deactivated.",
+            )
 
-    set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
+        user_claims = {
+            "sub": admin.email,
+            "user_id": admin.id,
+            "full_name": admin.full_name,
+            "role": "SUPER_ADMIN",
+        }
+        access_token, refresh_token = create_token_pair(user_claims)
+        set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
 
-    return Token(
-        data=AuthTokenData(
-            user=SuperAdminResponse.model_validate(admin),
-            access_token=access_token,
-            refresh_token=refresh_token,
-        ),
-        message="Login successful",
-        status="success",
+        user_response = UserAuthResponse(
+            id=admin.id,
+            email=admin.email,
+            full_name=admin.full_name,
+            role="SUPER_ADMIN",
+            company_name="Platform HQ",
+            is_super_admin=True,
+            is_active=admin.is_active,
+            created_at=admin.created_at,
+        )
+
+        return Token(
+            data=AuthTokenData(
+                user=user_response,
+                access_token=access_token,
+                refresh_token=refresh_token,
+            ),
+            message="Super Admin login successful",
+            status="success",
+        )
+
+    # 2. Check if user is Company Admin (Registered Organization)
+    company = db.query(Company).filter(Company.email == email).first()
+    if company:
+        if not company.hashed_password:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Company account does not have a password configured. Please contact Super Admin.",
+            )
+        if not verify_password(password, company.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password. Please enter the correct password for your company account.",
+            )
+
+        # Status & Active checks
+        if company.status == "Suspended" or not company.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your company account is Suspended. Please contact Hazree Super Admin.",
+            )
+        if company.status == "Pending":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your company registration is Pending activation. Please contact Hazree Super Admin.",
+            )
+
+        full_name = company.admin_name or f"{company.name} Admin"
+        user_claims = {
+            "sub": company.email,
+            "user_id": company.id,
+            "company_id": company.id,
+            "company_name": company.name,
+            "full_name": full_name,
+            "role": "COMPANY_ADMIN",
+        }
+        access_token, refresh_token = create_token_pair(user_claims)
+        set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
+
+        user_response = UserAuthResponse(
+            id=company.id,
+            email=company.email,
+            full_name=full_name,
+            role="COMPANY_ADMIN",
+            company_id=company.id,
+            company_name=company.name,
+            status=company.status,
+            is_super_admin=False,
+            is_active=company.is_active,
+            created_at=company.created_at,
+        )
+
+        return Token(
+            data=AuthTokenData(
+                user=user_response,
+                access_token=access_token,
+                refresh_token=refresh_token,
+            ),
+            message=f"Welcome {company.name}! Login successful",
+            status="success",
+        )
+
+    # 3. Neither Super Admin nor Company found
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Email '{email}' not found. Please enter a valid registered email address.",
     )
 
 
 # ---------------------------------------------------------------------------
-# Super Admin Registration & Initialization
+# Single Super Admin Initialization (No Public Registration)
 # ---------------------------------------------------------------------------
-
-def create_super_admin(db: Session, admin_in: SuperAdminCreate) -> AdminUser:
-    """
-    Create a new Super Admin account.
-    Enforces a strict system limit of exactly 1 Super Admin.
-    Invalidates overview cache.
-    """
-    existing_count = db.query(AdminUser).count()
-    if existing_count >= 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Registration disabled. Only 1 Super Admin account is allowed in the system.",
-        )
-
-    existing = get_admin_by_email(db, admin_in.email)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Admin with email '{admin_in.email}' already exists.",
-        )
-
-    db_admin = AdminUser(
-        email=admin_in.email.strip().lower(),
-        full_name=admin_in.full_name,
-        hashed_password=get_password_hash(admin_in.password),
-        is_super_admin=True,
-        is_active=True,
-    )
-    db.add(db_admin)
-    db.commit()
-    db.refresh(db_admin)
-
-    # Invalidate cached stats in Redis
-    delete_cache("super_admin:overview")
-
-    return db_admin
-
 
 def init_default_super_admin(db: Session) -> AdminUser:
     """
     Seed or verify the default Super Admin account during application startup.
+    Ensures exactly 1 Super Admin account exists in the platform.
     """
     default_email = (settings.admin_email or "admin@hazree.com").strip().lower()
     existing = get_admin_by_email(db, default_email)
@@ -228,12 +244,13 @@ def init_default_super_admin(db: Session) -> AdminUser:
 # Session & Token Management
 # ---------------------------------------------------------------------------
 
-def get_current_super_admin(
+def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
-) -> AdminUser:
+) -> UserAuthResponse:
     """
-    FastAPI Dependency: Authenticate active Super Admin from HTTP-Only cookie or Bearer header.
+    FastAPI Dependency: Authenticate active user (Super Admin or Company Admin)
+    from HTTP-Only cookie or Authorization Bearer header.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -250,16 +267,75 @@ def get_current_super_admin(
         raise credentials_exception
 
     email: Optional[str] = payload.get("sub")
+    role: str = payload.get("role", "SUPER_ADMIN")
     if not email:
         raise credentials_exception
 
-    admin = get_admin_by_email(db, email=email)
-    if admin is None or not admin.is_active or not admin.is_super_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive or insufficient permissions.",
+    if role == "SUPER_ADMIN":
+        admin = get_admin_by_email(db, email=email)
+        if admin is None or not admin.is_active or not admin.is_super_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Inactive or insufficient Super Admin permissions.",
+            )
+        return UserAuthResponse(
+            id=admin.id,
+            email=admin.email,
+            full_name=admin.full_name,
+            role="SUPER_ADMIN",
+            company_name="Platform HQ",
+            is_super_admin=True,
+            is_active=admin.is_active,
+            created_at=admin.created_at,
         )
 
+    elif role == "COMPANY_ADMIN":
+        company = db.query(Company).filter(Company.email == email).first()
+        if company is None:
+            raise credentials_exception
+
+        company_status = (company.status or "Active").strip().lower()
+        if company_status == "suspended" or company.is_active is False:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your company account is Suspended.",
+            )
+
+        return UserAuthResponse(
+            id=company.id,
+            email=company.email,
+            full_name=company.admin_name or f"{company.name} Admin",
+            role="COMPANY_ADMIN",
+            company_id=company.id,
+            company_name=company.name,
+            status=company.status,
+            is_super_admin=False,
+            is_active=company.is_active,
+            created_at=company.created_at,
+        )
+
+    raise credentials_exception
+
+
+def get_current_super_admin(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> AdminUser:
+    """
+    FastAPI Dependency: Authenticate strictly Super Admin accounts.
+    """
+    user = get_current_user(request, db)
+    if user.role != "SUPER_ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access restricted to Super Admin only.",
+        )
+    admin = get_admin_by_id(db, user.id)
+    if not admin or not admin.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super Admin account inactive or not found.",
+        )
     return admin
 
 
