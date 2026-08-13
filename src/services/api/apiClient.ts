@@ -81,9 +81,13 @@ class ApiClient {
     const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     const isUrlEncoded = typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams;
 
-    const requestHeaders: HeadersInit = {
+    // Get stored access token from localStorage for hybrid Cookie + Bearer authentication
+    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('hazree_access_token') : null;
+
+    const requestHeaders: Record<string, string> = {
       ...(isFormData || isUrlEncoded ? {} : { 'Content-Type': 'application/json' }),
-      ...headers,
+      ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+      ...(headers as Record<string, string>),
     };
 
     const config: RequestInit = {
@@ -115,14 +119,21 @@ class ApiClient {
           this.isRefreshing = true;
           try {
             // Attempt to refresh access token using 7-day HTTP-Only refresh cookie
-            await this.request('/super-admin/refresh', { method: 'POST', _retry: true });
+            const refreshRes: any = await this.request('/super-admin/refresh', { method: 'POST', _retry: true });
+            if (refreshRes?.data?.access_token && typeof window !== 'undefined') {
+              localStorage.setItem('hazree_access_token', refreshRes.data.access_token);
+            }
             this.isRefreshing = false;
             this.onRefreshed();
-            // Retry original request with newly set access token cookie
+            // Retry original request with newly set access token cookie / header
             return this.request<T>(endpoint, { ...options, _retry: true });
           } catch (refreshErr) {
             this.isRefreshing = false;
             this.refreshSubscribers = [];
+            if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+              localStorage.removeItem('hazree_access_token');
+              window.location.href = '/login';
+            }
             throw new ApiError('Session expired. Please log in again.', 401);
           }
         } else {

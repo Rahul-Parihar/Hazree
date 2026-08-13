@@ -117,29 +117,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole, onRoleSwitch }) => {
         </button>
       </div>
 
-      {/* Role Switcher Badge Button */}
+      {/* Authenticated Portal Identity Badge */}
       <div className="p-3">
-        <button
-          onClick={onRoleSwitch}
+        <div
           className={cn(
-            'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all',
+            'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold border shadow-sm',
             userRole === 'SUPER_ADMIN'
-              ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900/50'
-              : 'bg-indigo-950/40 text-indigo-300 border-indigo-800/60 hover:bg-indigo-900/50',
+              ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60'
+              : 'bg-indigo-950/40 text-indigo-300 border-indigo-800/60',
             isCollapsed && 'justify-center px-0'
           )}
-          title="Click to toggle perspective role"
         >
-          <ShieldCheck className="w-4 h-4 shrink-0" />
+          {userRole === 'SUPER_ADMIN' ? (
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          ) : (
+            <Building2 className="w-4 h-4 text-indigo-400 shrink-0" />
+          )}
+
           {!isCollapsed && (
-            <div className="flex items-center justify-between w-full">
+            <div className="flex items-center justify-between w-full min-w-0">
               <span className="truncate">
-                {userRole === 'SUPER_ADMIN' ? 'Super Admin Portal' : 'Tata Tech Admin'}
+                {userRole === 'SUPER_ADMIN' ? 'Super Admin Portal' : (currentUser?.companyName || 'Company Portal')}
               </span>
-              <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+              <span className={cn(
+                'w-2 h-2 rounded-full shrink-0',
+                userRole === 'SUPER_ADMIN' ? 'bg-emerald-400 animate-pulse' : 'bg-indigo-400 animate-pulse'
+              )} />
             </div>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Navigation List */}

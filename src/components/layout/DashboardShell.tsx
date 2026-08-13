@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { useAppSelector, useAppDispatch } from '../../redux/hooks';
-import { toggleUserRole } from '../../redux/slices/authSlice';
+import { useAppSelector } from '../../redux/hooks';
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -12,21 +12,38 @@ interface DashboardShellProps {
 }
 
 export const DashboardShell: React.FC<DashboardShellProps> = ({ children, pageTitle }) => {
-  const dispatch = useAppDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
   const userRole = useAppSelector((state) => state.auth.userRole);
+  const [mounted, setMounted] = useState(false);
 
-  const handleRoleSwitch = () => {
-    dispatch(toggleUserRole());
-  };
+  useEffect(() => {
+    setMounted(true);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('hazree_access_token') : null;
+    if (!token && !pathname.includes('/login')) {
+      router.push('/login');
+    }
+  }, [pathname, router]);
+
+  if (!mounted) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-900 text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-slate-400 font-medium">Verifying Hazree session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
       {/* Sidebar Navigation */}
-      <Sidebar userRole={userRole} onRoleSwitch={handleRoleSwitch} />
+      <Sidebar userRole={userRole} />
 
       {/* Main Content Workspace */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <Header userRole={userRole} onRoleSwitch={handleRoleSwitch} title={pageTitle} />
+        <Header userRole={userRole} title={pageTitle} />
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {children}

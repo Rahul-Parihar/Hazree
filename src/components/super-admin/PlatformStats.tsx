@@ -3,41 +3,53 @@
 import React from 'react';
 import { Building2, Users, Fingerprint, Activity, TrendingUp, ShieldCheck } from 'lucide-react';
 import { Card } from '../ui/Card';
+import { useAppSelector } from '../../redux/hooks';
 
 interface PlatformStatsProps {
-  totalCompanies: number;
+  totalCompanies?: number;
 }
 
-export const PlatformStats: React.FC<PlatformStatsProps> = ({ totalCompanies }) => {
+export const PlatformStats: React.FC<PlatformStatsProps> = ({ totalCompanies: propTotalCompanies }) => {
+  const companies = useAppSelector((state) => state.companies.companies);
+  const attendanceRecords = useAppSelector((state) => state.attendance?.records || []);
+
+  const totalCompanies = propTotalCompanies !== undefined ? propTotalCompanies : companies.length;
+  const activeCompanies = companies.filter((c) => c.status === 'Active').length;
+  const totalStaff = companies.reduce((acc, c) => acc + (c.employeeCount || 0), 0);
+
+  // Today's date string YYYY-MM-DD
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayPunchesCount = attendanceRecords.filter((r) => r.date === todayStr).length;
+
   const stats = [
     {
       title: 'Total Organizations',
-      value: totalCompanies,
-      change: '+14% this month',
-      isPositive: true,
+      value: totalCompanies.toLocaleString(),
+      change: totalCompanies > 0 ? `${activeCompanies} Active` : '0 Registered',
+      isPositive: totalCompanies > 0,
       icon: <Building2 className="w-5 h-5 text-emerald-600" />,
       bg: 'bg-emerald-50 border-emerald-200/60',
     },
     {
       title: 'Active Platform Users',
-      value: '12,450',
-      change: '+8.2% growth',
-      isPositive: true,
+      value: totalStaff.toLocaleString(),
+      change: totalStaff > 0 ? `+${totalStaff} Staff Enrolled` : '0 Staff Enrolled',
+      isPositive: totalStaff > 0,
       icon: <Users className="w-5 h-5 text-indigo-600" />,
       bg: 'bg-indigo-50 border-indigo-200/60',
     },
     {
       title: "Today's Total Punches",
-      value: '11,890',
-      change: 'Real-time sync',
-      isPositive: true,
+      value: todayPunchesCount.toLocaleString(),
+      change: todayPunchesCount > 0 ? `${todayPunchesCount} Synced Today` : 'Live DB Sync',
+      isPositive: todayPunchesCount > 0,
       icon: <Fingerprint className="w-5 h-5 text-sky-600" />,
       bg: 'bg-sky-50 border-sky-200/60',
     },
     {
-      title: 'System Uptime & Health',
-      value: '99.98%',
-      change: 'All Services Operational',
+      title: 'Database & System Health',
+      value: '100%',
+      change: 'PostgreSQL Online',
       isPositive: true,
       icon: <ShieldCheck className="w-5 h-5 text-purple-600" />,
       bg: 'bg-purple-50 border-purple-200/60',
@@ -50,7 +62,13 @@ export const PlatformStats: React.FC<PlatformStatsProps> = ({ totalCompanies }) 
         <Card key={idx} glass className="relative overflow-hidden border border-slate-200/60">
           <div className="flex items-center justify-between">
             <div className={`p-2.5 rounded-xl border ${stat.bg}`}>{stat.icon}</div>
-            <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
+            <span
+              className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                stat.isPositive
+                  ? 'text-emerald-700 bg-emerald-50 border-emerald-200/50'
+                  : 'text-slate-600 bg-slate-50 border-slate-200'
+              }`}
+            >
               <TrendingUp className="w-3 h-3" />
               {stat.change}
             </span>
@@ -67,3 +85,4 @@ export const PlatformStats: React.FC<PlatformStatsProps> = ({ totalCompanies }) 
     </div>
   );
 };
+

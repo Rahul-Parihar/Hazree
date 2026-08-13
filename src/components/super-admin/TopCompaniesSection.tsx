@@ -11,27 +11,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-// ---- Top Companies by Revenue ----
-const topCompaniesByRevenue = [
-  { name: 'Tata Tech Solutions', revenue: 245000 },
-  { name: 'NexGen Digital Works', revenue: 128000 },
-  { name: 'LogiSpeed Courier Pvt Ltd', revenue: 98000 },
-];
-
-// ---- Top Companies by Employees ----
-const topCompaniesByEmployees = [
-  { name: 'LogiSpeed Courier', employees: 420 },
-  { name: 'Tata Tech Solutions', employees: 240 },
-  { name: 'ChaiPoint Retail', employees: 110 },
-];
-
-// ---- Top Companies by Attendance Rate ----
-const topCompaniesByAttendance = [
-  { name: 'Tata Tech Solutions', rate: 94.2 },
-  { name: 'NexGen Digital Works', rate: 91.5 },
-  { name: 'LogiSpeed Courier', rate: 87.3 },
-];
-
 const formatCurrency = (val: number) => {
   if (val >= 100000) return `₹ ${(val / 100000).toFixed(1)}L`;
   if (val >= 1000) return `₹ ${(val / 1000).toFixed(0)}K`;
@@ -112,37 +91,73 @@ const TopCard: React.FC<TopCardProps> = ({ title, barColor, data, valueLabel, fo
   );
 };
 
+import { useAppSelector } from '../../redux/hooks';
+import { Building2 } from 'lucide-react';
+
 export const TopCompaniesSection: React.FC = () => {
+  const companies = useAppSelector((state) => state.companies.companies);
+
+  if (companies.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-8 text-center space-y-3 shadow-sm">
+        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+          <Building2 className="w-6 h-6" />
+        </div>
+        <h4 className="text-base font-bold text-slate-800">No Organization Statistics Yet</h4>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+          Once you register organizations on the platform, live revenue breakdown, employee counts, and attendance metrics will appear here.
+        </p>
+      </div>
+    );
+  }
+
+  // Dynamic ranking from live companies
+  const revenueRanking = companies.slice(0, 5).map((c) => ({
+    name: c.name,
+    value: c.plan === 'Enterprise' ? 14999 : c.plan === 'Growth' ? 4999 : 0,
+  }));
+
+  const employeeRanking = companies.slice(0, 5).map((c) => ({
+    name: c.name,
+    value: c.maxEmployees || c.employeeCount || 100,
+  }));
+
+  const activeRanking = companies.slice(0, 5).map((c) => ({
+    name: c.name,
+    value: c.status === 'Active' ? 100 : 0,
+  }));
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      {/* Top Companies by Revenue — Pink/Coral bars */}
+      {/* Top Companies by Plan Value */}
       <TopCard
-        title="Top Companies (by Revenue)"
+        title="Top Organizations (by Subscription)"
         barColor="#fb7185"
-        data={topCompaniesByRevenue.map((c) => ({ name: c.name, value: c.revenue }))}
-        valueLabel="Revenue"
+        data={revenueRanking}
+        valueLabel="Monthly Plan"
         formatFn={formatCurrency}
-        tableHeaders={['#', 'Company', 'Revenue']}
+        tableHeaders={['#', 'Company', 'Plan Value']}
       />
 
-      {/* Top Companies by Employees — Orange bars */}
+      {/* Top Companies by Employee Limit */}
       <TopCard
-        title="Top Companies (by Employees)"
+        title="Top Organizations (by Capacity)"
         barColor="#f97316"
-        data={topCompaniesByEmployees.map((c) => ({ name: c.name, value: c.employees }))}
-        valueLabel="Employees"
-        tableHeaders={['#', 'Company', 'Employees']}
+        data={employeeRanking}
+        valueLabel="Max Staff"
+        tableHeaders={['#', 'Company', 'Capacity']}
       />
 
-      {/* Top Companies by Attendance — Blue bars */}
+      {/* Top Companies by Status */}
       <TopCard
-        title="Top Companies (by Attendance %)"
+        title="Organization Status Health"
         barColor="#3b82f6"
-        data={topCompaniesByAttendance.map((c) => ({ name: c.name, value: c.rate }))}
-        valueLabel="Attendance %"
+        data={activeRanking}
+        valueLabel="Health %"
         formatFn={(v) => `${v}%`}
-        tableHeaders={['#', 'Company', 'Attendance']}
+        tableHeaders={['#', 'Company', 'Operational']}
       />
     </div>
   );
 };
+

@@ -19,10 +19,19 @@ interface CompanyDashboardProps {
   onRoleSwitch?: () => void;
 }
 
-export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ onRoleSwitch }) => {
+export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
   const dispatch = useAppDispatch();
+  const currentUser = useAppSelector((state) => state.auth.currentUser);
   const attendanceRecords = useAppSelector((state) => state.attendance.records);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+
+  const companyName = currentUser?.companyName || 'Registered Organization';
+  const companyInitials = companyName
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
 
   // Form states for manual punch
   const [empName, setEmpName] = useState('');
@@ -43,14 +52,14 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ onRoleSwitch
       employeeId: `emp_${Math.floor(100 + Math.random() * 900)}`,
       employeeName: empName,
       employeeAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-      companyId: 'cmp_101',
+      companyId: currentUser?.companyId || 'cmp_101',
       department: department,
       date: new Date().toISOString().split('T')[0],
       checkInTime: checkInTime,
       checkOutTime: '--',
       status: status,
       workHours: 'Active',
-      location: 'BKC HQ (HR Override)',
+      location: 'Official Premises (HR Override)',
       device: 'Company Admin Portal Web',
     };
 
@@ -59,25 +68,24 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ onRoleSwitch
     setEmpName('');
   };
 
-
   return (
     <div className="space-y-5 animate-fade-in pb-8">
       {/* Company Header Banner */}
       <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 text-white p-5 rounded-2xl border border-emerald-700/50 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-xl bg-white text-emerald-800 font-black text-xl flex items-center justify-center shadow-md shrink-0">
-            TT
+            {companyInitials || 'CO'}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-extrabold tracking-tight">Tata Tech Solutions</h2>
+              <h2 className="text-xl font-extrabold tracking-tight">{companyName}</h2>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
-                HAZ-1001 • Enterprise
+                Active Organization
               </span>
             </div>
             <p className="text-xs text-slate-300 flex items-center gap-3 mt-1">
               <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-emerald-400" /> BKC Office, Mumbai
+                <Shield className="w-3.5 h-3.5 text-emerald-400" /> Admin: {currentUser?.name || 'Administrator'}
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">
@@ -95,16 +103,6 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ onRoleSwitch
             <Plus className="w-3.5 h-3.5" />
             Mark Hazree
           </button>
-
-          {onRoleSwitch && (
-            <button
-              onClick={onRoleSwitch}
-              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-lg border border-white/20 transition-all flex items-center gap-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-emerald-300" />
-              Switch to Super Admin
-            </button>
-          )}
         </div>
       </div>
 

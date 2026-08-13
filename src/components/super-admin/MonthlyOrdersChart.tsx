@@ -10,34 +10,36 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-
-const data = [
-  { month: 'Jan', orders: 12 },
-  { month: 'Feb', orders: 8 },
-  { month: 'Mar', orders: 15 },
-  { month: 'Apr', orders: 10 },
-  { month: 'May', orders: 18 },
-  { month: 'Jun', orders: 22 },
-  { month: 'Jul', orders: 14 },
-  { month: 'Aug', orders: 9 },
-  { month: 'Sep', orders: 0 },
-  { month: 'Oct', orders: 0 },
-  { month: 'Nov', orders: 0 },
-  { month: 'Dec', orders: 0 },
-];
+import { useAppSelector } from '../../redux/hooks';
 
 export const MonthlyOrdersChart: React.FC = () => {
+  const companies = useAppSelector((state) => state.companies.companies);
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const data = months.map((month, idx) => {
+    const count = companies.filter((c) => {
+      if (!c.createdAt) return false;
+      const d = new Date(c.createdAt);
+      return !isNaN(d.getTime()) && d.getMonth() === idx;
+    }).length;
+    return { month, orders: count };
+  });
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm h-full">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-slate-900">Monthly Registrations (Year)</h3>
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">Tenant Registrations</h3>
+          <p className="text-xs text-slate-400">Monthly breakdown</p>
+        </div>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
           <span className="w-3 h-[3px] bg-cyan-500 rounded-full inline-block" />
-          Registrations
+          Onboarded
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={220}>
+      <ResponsiveContainer width="100%" height={200}>
         <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
           <XAxis
@@ -54,6 +56,7 @@ export const MonthlyOrdersChart: React.FC = () => {
           />
           <Tooltip
             contentStyle={{ borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+            formatter={(val: any) => [`${val} Organizations`, 'Registered']}
           />
           <Line
             type="monotone"
@@ -66,7 +69,8 @@ export const MonthlyOrdersChart: React.FC = () => {
         </LineChart>
       </ResponsiveContainer>
 
-      <p className="text-center text-[10px] font-medium text-slate-400 tracking-wider mt-1">Date</p>
+      <p className="text-center text-[10px] font-medium text-slate-400 tracking-wider mt-1">Months (Year)</p>
     </div>
   );
 };
+

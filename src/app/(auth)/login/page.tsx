@@ -79,8 +79,8 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-6">
           {/* Login Heading */}
           <div className="text-center">
-            <h2 className="text-4xl font-black text-white italic tracking-tight">Super Admin Login</h2>
-            <p className="text-base text-blue-100/70 mt-2 font-medium">Enter your credentials to access portal.</p>
+            <h2 className="text-4xl font-black text-white italic tracking-tight">Hazree Portal Login</h2>
+            <p className="text-base text-blue-100/70 mt-2 font-medium">Enter your credentials to access your dashboard.</p>
           </div>
 
           {/* Form Card */}
@@ -107,7 +107,7 @@ export default function LoginPage() {
                     setEmail(e.target.value);
                     if (errorMessage) setErrorMessage(null);
                   }}
-                  placeholder="admin@hazree.com"
+                  placeholder="Enter your email address"
                   className="w-full px-4 py-3.5 bg-white text-slate-900 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 border border-white/20 shadow-lg font-medium"
                   required
                 />
@@ -128,7 +128,7 @@ export default function LoginPage() {
                     setPassword(e.target.value);
                     if (errorMessage) setErrorMessage(null);
                   }}
-                  placeholder="••••••••••••"
+                  placeholder="Enter your password"
                   className="w-full px-4 py-3.5 bg-white text-slate-900 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 border border-white/20 shadow-lg pr-12 font-medium"
                   required
                 />

@@ -8,7 +8,6 @@ export const ENDPOINTS = {
     SUPER_ADMIN_LOGIN: '/super-admin/login',
     SUPER_ADMIN_LOGOUT: '/super-admin/logout',
     SUPER_ADMIN_ME: '/super-admin/me',
-    SUPER_ADMIN_REGISTER: '/super-admin/register',
     SUPER_ADMIN_OVERVIEW: '/super-admin/',
     DB_STATUS: '/super-admin/db-status',
   },

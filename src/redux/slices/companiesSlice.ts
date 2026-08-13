@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Company, CompanyStatus } from '../../types';
-import { initialCompanies } from '../../lib/mockData';
 import { companiesService, BackendCompanyCreate } from '../../services';
 
 interface CompaniesState {
@@ -9,72 +8,126 @@ interface CompaniesState {
   searchQuery: string;
   statusFilter: string;
   isLoading: boolean;
+  isCreating: boolean;
   error: string | null;
+  successMessage: string | null;
 }
 
 const initialState: CompaniesState = {
-  companies: initialCompanies,
-  selectedCompanyId: 'cmp_101',
+  companies: [],
+  selectedCompanyId: null,
   searchQuery: '',
   statusFilter: 'ALL',
   isLoading: false,
+  isCreating: false,
   error: null,
+  successMessage: null,
 };
 
 /**
- * Async Thunk to fetch companies from FastAPI backend
+ * Async Thunk to fetch companies from FastAPI PostgreSQL backend
  */
 export const fetchCompaniesAsync = createAsyncThunk(
   'companies/fetchCompanies',
   async (_, { rejectWithValue }) => {
     try {
       const backendCompanies = await companiesService.getAllCompanies();
-      if (backendCompanies && backendCompanies.length > 0) {
-        // Map backend schema to frontend Company format
-        const mapped: Company[] = backendCompanies.map((bc) => ({
-          id: `cmp_${bc.id}`,
-          name: bc.name,
-          code: bc.code,
-          adminName: bc.name + ' Admin',
-          adminEmail: bc.email || 'admin@company.com',
-          adminPhone: bc.phone || '+91 98000 00000',
-          plan: 'Growth',
-          status: bc.is_active ? 'Active' : 'Suspended',
-          employeeCount: 25,
-          maxEmployees: 100,
-          createdAt: bc.created_at ? bc.created_at.split('T')[0] : '2026-08-12',
-          location: 'Mumbai, India',
-          renewalDate: '2027-08-12',
-        }));
-        return mapped;
+      if (Array.isArray(backendCompanies)) {
+        if (backendCompanies.length > 0) {
+          // Map backend schema to frontend Company format
+          const mapped: Company[] = backendCompanies.map((bc) => ({
+            id: `cmp_${bc.id}`,
+            name: bc.name,
+            adminName: bc.admin_name || `${bc.name} Admin`,
+            adminEmail: bc.email || '',
+            adminPhone: bc.phone || '',
+            plan: (bc.plan as any) || 'Growth',
+            status: (bc.status as any) || (bc.is_active ? 'Active' : 'Suspended'),
+            employeeCount: bc.employee_count || 0,
+            maxEmployees: bc.max_employees || 100,
+            createdAt: bc.created_at ? bc.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+            location: bc.location || 'Mumbai, MH',
+            renewalDate: bc.renewal_date ? bc.renewal_date.split('T')[0] : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            logo: bc.logo,
+          }));
+          return mapped;
+        }
+        return [];
       }
-      return initialCompanies;
+      return [];
     } catch (err: any) {
-      // Fallback gracefully to mock data when backend is not connected
-      return initialCompanies;
+      console.warn('Backend fetch failed:', err?.message);
+      return [];
     }
   }
 );
 
 /**
- * Async Thunk to register a company on backend
+ * Async Thunk to register a company on FastAPI backend
  */
 export const createCompanyAsync = createAsyncThunk(
   'companies/createCompany',
-  async (newCompany: Company, { rejectWithValue }) => {
+  async (
+    newCompany: Omit<Company, 'id' | 'createdAt'> & { id?: string },
+    { rejectWithValue }
+  ) => {
     try {
       const payload: BackendCompanyCreate = {
-        name: newCompany.name,
-        code: newCompany.code,
-        email: newCompany.adminEmail,
-        phone: newCompany.adminPhone,
+        name: newCompany.name.trim(),
+        admin_name: newCompany.adminName?.trim(),
+        email: newCompany.adminEmail?.trim().toLowerCase(),
+        phone: newCompany.adminPhone?.trim(),
+        password: newCompany.password?.trim(),
+        plan: newCompany.plan,
+        status: newCompany.status,
+        location: newCompany.location?.trim(),
+        max_employees: newCompany.maxEmployees,
+        employee_count: newCompany.employeeCount || 0,
+        renewal_date: newCompany.renewalDate,
+        logo: newCompany.logo,
         is_active: newCompany.status === 'Active',
       };
-      await companiesService.createCompany(payload);
-      return newCompany;
+      const created = await companiesService.createCompany(payload);
+
+      const mapped: Company = {
+        id: `cmp_${created.id}`,
+        name: created.name,
+        adminName: created.admin_name || newCompany.adminName || `${created.name} Admin`,
+        adminEmail: created.email || newCompany.adminEmail || '',
+        adminPhone: created.phone || newCompany.adminPhone || '',
+        plan: (created.plan as any) || newCompany.plan || 'Growth',
+        status: (created.status as any) || (created.is_active ? 'Active' : 'Suspended'),
+        employeeCount: created.employee_count ?? newCompany.employeeCount ?? 0,
+        maxEmployees: created.max_employees ?? newCompany.maxEmployees ?? 100,
+        createdAt: created.created_at
+          ? created.created_at.split('T')[0]
+          : new Date().toISOString().split('T')[0],
+        location: created.location || newCompany.location || 'Mumbai, MH',
+        renewalDate: created.renewal_date
+          ? created.renewal_date.split('T')[0]
+          : (newCompany.renewalDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
+        logo: created.logo || newCompany.logo,
+      };
+      return mapped;
     } catch (err: any) {
-      // If backend fails, still return newCompany so frontend demo continues seamlessly
-      return newCompany;
+      const errorMsg = err?.message || 'Failed to register company on server.';
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
+/**
+ * Async Thunk to delete a company from backend
+ */
+export const deleteCompanyAsync = createAsyncThunk(
+  'companies/deleteCompany',
+  async (companyId: string, { rejectWithValue }) => {
+    try {
+      const rawId = companyId.replace('cmp_', '');
+      await companiesService.deleteCompany(rawId);
+      return companyId;
+    } catch (err: any) {
+      return rejectWithValue(err?.message || 'Failed to delete company.');
     }
   }
 );
@@ -116,9 +169,16 @@ export const companiesSlice = createSlice({
     setCompanyStatusFilter: (state, action: PayloadAction<string>) => {
       state.statusFilter = action.payload;
     },
+    clearCompanyError: (state) => {
+      state.error = null;
+    },
+    clearCompanySuccess: (state) => {
+      state.successMessage = null;
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Fetch Companies
       .addCase(fetchCompaniesAsync.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -129,10 +189,25 @@ export const companiesSlice = createSlice({
       })
       .addCase(fetchCompaniesAsync.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.error.message || 'Failed to fetch companies';
+        state.error = (action.payload as string) || action.error.message || 'Failed to fetch companies';
+      })
+      // Create Company
+      .addCase(createCompanyAsync.pending, (state) => {
+        state.isCreating = true;
+        state.error = null;
       })
       .addCase(createCompanyAsync.fulfilled, (state, action) => {
+        state.isCreating = false;
         state.companies.unshift(action.payload);
+        state.successMessage = `Company "${action.payload.name}" registered successfully!`;
+      })
+      .addCase(createCompanyAsync.rejected, (state, action) => {
+        state.isCreating = false;
+        state.error = (action.payload as string) || 'Failed to register company.';
+      })
+      // Delete Company
+      .addCase(deleteCompanyAsync.fulfilled, (state, action) => {
+        state.companies = state.companies.filter((c) => c.id !== action.payload);
       });
   },
 });
@@ -145,7 +220,10 @@ export const {
   setSelectedCompanyId,
   setCompanySearchQuery,
   setCompanyStatusFilter,
+  clearCompanyError,
+  clearCompanySuccess,
 } = companiesSlice.actions;
 
 export default companiesSlice.reducer;
+
 

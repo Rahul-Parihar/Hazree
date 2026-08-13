@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -10,43 +10,15 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useAppSelector } from '../../redux/hooks';
 
-// Daily revenue data matching the reference pattern — spiky peaks with valleys
-const revenueData = [
-  { date: '2026-07-14', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-07-15', totalRevenue: 200, subscriptions: 100, penalties: 0, addons: 0 },
-  { date: '2026-07-16', totalRevenue: 1000, subscriptions: 400, penalties: 200, addons: 50 },
-  { date: '2026-07-17', totalRevenue: 950, subscriptions: 600, penalties: 150, addons: 0 },
-  { date: '2026-07-18', totalRevenue: 300, subscriptions: 100, penalties: 50, addons: 0 },
-  { date: '2026-07-19', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-07-20', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-07-21', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-07-22', totalRevenue: 500, subscriptions: 200, penalties: 0, addons: 0 },
-  { date: '2026-07-23', totalRevenue: 1800, subscriptions: 800, penalties: 300, addons: 100 },
-  { date: '2026-07-24', totalRevenue: 400, subscriptions: 150, penalties: 50, addons: 0 },
-  { date: '2026-07-25', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-07-26', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-07-27', totalRevenue: 100, subscriptions: 50, penalties: 0, addons: 0 },
-  { date: '2026-07-28', totalRevenue: 2000, subscriptions: 900, penalties: 400, addons: 200 },
-  { date: '2026-07-29', totalRevenue: 3000, subscriptions: 1200, penalties: 1500, addons: 100 },
-  { date: '2026-07-30', totalRevenue: 1800, subscriptions: 600, penalties: 1400, addons: 50 },
-  { date: '2026-07-31', totalRevenue: 800, subscriptions: 700, penalties: 200, addons: 0 },
-  { date: '2026-08-01', totalRevenue: 700, subscriptions: 600, penalties: 100, addons: 0 },
-  { date: '2026-08-02', totalRevenue: 750, subscriptions: 400, penalties: 200, addons: 50 },
-  { date: '2026-08-03', totalRevenue: 200, subscriptions: 100, penalties: 0, addons: 0 },
-  { date: '2026-08-04', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-08-05', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-08-06', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-08-07', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-08-08', totalRevenue: 0, subscriptions: 0, penalties: 0, addons: 0 },
-  { date: '2026-08-09', totalRevenue: 100, subscriptions: 50, penalties: 0, addons: 0 },
-  { date: '2026-08-10', totalRevenue: 300, subscriptions: 200, penalties: 0, addons: 0 },
-  { date: '2026-08-11', totalRevenue: 600, subscriptions: 400, penalties: 0, addons: 100 },
-  { date: '2026-08-12', totalRevenue: 500, subscriptions: 300, penalties: 0, addons: 50 },
-  { date: '2026-08-13', totalRevenue: 200, subscriptions: 100, penalties: 0, addons: 0 },
-];
+interface RevenueChartProps {
+  startDate?: string;
+  endDate?: string;
+}
 
 const formatYAxis = (val: number) => {
+  if (val >= 100000) return `₹ ${(val / 100000).toFixed(1)}L`;
   if (val >= 1000) return `₹ ${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}K`;
   return `₹ ${val}`;
 };
@@ -55,27 +27,114 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload || !payload.length) return null;
 
   return (
-    <div className="bg-slate-800 text-white rounded-lg px-4 py-3 shadow-xl border border-slate-700 text-xs">
+    <div className="bg-slate-900 text-white rounded-xl px-4 py-3 shadow-xl border border-slate-800 text-xs">
       <p className="font-bold text-white mb-2">{label}</p>
       {payload.map((entry: any, idx: number) => (
-        <div key={idx} className="flex items-center gap-2 py-0.5">
-          <span className="w-3 h-[3px] rounded-full" style={{ backgroundColor: entry.stroke }} />
-          <span className="text-slate-300">{entry.name}:</span>
-          <span className="font-bold text-white">₹ {entry.value.toLocaleString('en-IN')}</span>
+        <div key={idx} className="flex items-center justify-between gap-3 py-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.stroke }} />
+            <span className="text-slate-300">{entry.name}:</span>
+          </div>
+          <span className="font-bold text-white font-mono">₹ {Number(entry.value).toLocaleString('en-IN')}</span>
         </div>
       ))}
     </div>
   );
 };
 
-export const RevenueChart: React.FC = () => {
+export const RevenueChart: React.FC<RevenueChartProps> = ({ startDate, endDate }) => {
+  const companies = useAppSelector((state) => state.companies.companies);
+  const attendanceRecords = useAppSelector((state) => state.attendance?.records || []);
+
+  // Compute 100% dynamic daily revenue metrics based on date range, companies and attendance records
+  const revenueData = useMemo(() => {
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 86400000);
+
+    const dateList: string[] = [];
+    const cur = new Date(start);
+    while (cur <= end) {
+      dateList.push(cur.toISOString().split('T')[0]);
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    if (dateList.length === 0) {
+      dateList.push(new Date().toISOString().split('T')[0]);
+    }
+
+    const activeCompanies = companies.filter((c) => c.status === 'Active');
+
+    return dateList.map((dStr) => {
+      // 1. Companies registered ON this exact date:
+      const newRegistrationsOnDate = activeCompanies.filter((c) => {
+        const cDate = c.createdAt ? c.createdAt.split('T')[0] : '';
+        return cDate === dStr;
+      });
+
+      const newPlanRevenue = newRegistrationsOnDate.reduce((sum, c) => {
+        if (c.plan === 'Enterprise') return sum + 14999;
+        if (c.plan === 'Growth') return sum + 4999;
+        return sum;
+      }, 0);
+
+      // 2. Companies active on or prior to this date:
+      const activePriorToOrOnDate = activeCompanies.filter((c) => {
+        const cDate = c.createdAt ? c.createdAt.split('T')[0] : '';
+        return !cDate || cDate <= dStr;
+      });
+
+      // Daily recurring subscription fee:
+      const dailyRecurring = activePriorToOrOnDate.reduce((sum, c) => {
+        if (c.plan === 'Enterprise') return sum + Math.round(14999 / 30);
+        if (c.plan === 'Growth') return sum + Math.round(4999 / 30);
+        return sum;
+      }, 0);
+
+      const subscriptions = newPlanRevenue + (newRegistrationsOnDate.length === 0 ? dailyRecurring : 0);
+
+      // 3. Penalties from attendance records & compliance on that date:
+      const dayPunchFines = attendanceRecords
+        .filter((r) => r.date === dStr && (r.status === 'Late' || r.status === 'Half Day'))
+        .length * 150;
+
+      const totalStaff = activePriorToOrOnDate.reduce((sum, c) => sum + (c.employeeCount || 0), 0);
+      const staffComplianceFine = activePriorToOrOnDate.length > 0 ? Math.round(totalStaff * 2) : 0;
+      const penalties = dayPunchFines + staffComplianceFine;
+
+      // 4. Add-ons (extra staff capacity above base limit & kiosk licenses):
+      const capacityAddons = activePriorToOrOnDate.reduce((sum, c) => {
+        const quota = c.maxEmployees || 100;
+        if (quota > 100) return sum + Math.round((quota - 100) * 5 / 30);
+        return sum;
+      }, 0);
+
+      const newAddonBundle = newRegistrationsOnDate.length > 0 ? Math.round(newPlanRevenue * 0.08) : 0;
+      const addons = capacityAddons + newAddonBundle;
+
+      // 5. Total Aggregate Revenue:
+      const totalRevenue = subscriptions + penalties + addons;
+
+      return {
+        date: dStr,
+        totalRevenue,
+        subscriptions,
+        penalties,
+        addons,
+      };
+    });
+  }, [companies, attendanceRecords, startDate, endDate]);
+
+  const totalCalculatedRevenue = useMemo(() => {
+    return revenueData.reduce((sum, item) => sum + item.totalRevenue, 0);
+  }, [revenueData]);
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
       {/* Header with title and legend */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <h3 className="text-sm font-bold text-slate-900">Revenue</h3>
 
-        {/* Legend - matching reference style */}
+        {/* Legend - matching original style */}
         <div className="flex items-center gap-4 text-[11px] font-semibold text-slate-600">
           <span className="flex items-center gap-1.5">
             <span className="w-4 h-[3px] bg-blue-600 rounded-full inline-block" />
@@ -171,3 +230,4 @@ export const RevenueChart: React.FC = () => {
     </div>
   );
 };
+

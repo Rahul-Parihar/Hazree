@@ -1,10 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Filter, MoreVertical, Building2, MapPin, Mail, Phone, Users, Plus } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Filter, MoreVertical, Building2, MapPin, Mail, Phone, Users, Plus, Trash2, Sparkles } from 'lucide-react';
 import { Company } from '../../types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { useAppDispatch } from '../../redux/hooks';
+import { deleteCompanyAsync } from '../../redux/slices/companiesSlice';
 
 interface CompanyTableProps {
   companies: Company[];
@@ -17,15 +20,22 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
   onOpenRegisterModal,
   onStatusChange,
 }) => {
+  const dispatch = useAppDispatch();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+
+  const handleDelete = (company: Company) => {
+    if (window.confirm(`Are you sure you want to delete "${company.name}" from the database?`)) {
+      dispatch(deleteCompanyAsync(company.id));
+    }
+  };
 
   const filteredCompanies = companies.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.adminName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.adminEmail.toLowerCase().includes(searchQuery.toLowerCase());
+      c.adminEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.location.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = selectedStatus === 'ALL' || c.status.toUpperCase() === selectedStatus;
 
@@ -42,7 +52,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
             <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
             <input
               type="text"
-              placeholder="Search companies, admin name, or HAZ code..."
+              placeholder="Enter company name, admin, or official email to search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -63,10 +73,17 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
           </div>
         </div>
 
-        {/* Register Button */}
-        <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={onOpenRegisterModal}>
-          Register New Company
-        </Button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" icon={<Plus className="w-4 h-4" />} onClick={onOpenRegisterModal}>
+            Quick Modal
+          </Button>
+          <Link href="/companies/register">
+            <Button variant="primary" icon={<Sparkles className="w-4 h-4" />}>
+              Register New Organization
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Table Container */}
@@ -96,7 +113,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
 
                   return (
                     <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
-                      {/* Company Name & Code */}
+                      {/* Company Name */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
@@ -104,7 +121,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
                           </div>
                           <div>
                             <p className="font-semibold text-slate-900 leading-snug">{c.name}</p>
-                            <p className="text-xs text-slate-500 font-mono mt-0.5">{c.code}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">Joined {c.createdAt}</p>
                           </div>
                         </div>
                       </td>
@@ -169,22 +186,29 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
 
                       {/* Quick Actions */}
                       <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           {c.status === 'Active' ? (
                             <button
                               onClick={() => onStatusChange(c.id, 'Suspended')}
-                              className="px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
                             >
                               Suspend
                             </button>
                           ) : (
                             <button
                               onClick={() => onStatusChange(c.id, 'Active')}
-                              className="px-2.5 py-1 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
                             >
                               Activate
                             </button>
                           )}
+                          <button
+                            onClick={() => handleDelete(c)}
+                            title="Delete Company"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>

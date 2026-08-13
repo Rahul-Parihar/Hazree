@@ -1,29 +1,52 @@
 import { apiClient } from './api/apiClient';
 import { ENDPOINTS } from './api/endpoints';
-import { Company } from '../types';
 
 export interface BackendCompanyCreate {
   name: string;
-  code: string;
+  admin_name?: string;
   email?: string;
   phone?: string;
+  password?: string;
+  plan?: string;
+  status?: string;
+  location?: string;
+  max_employees?: number;
+  employee_count?: number;
+  renewal_date?: string;
+  logo?: string;
   is_active?: boolean;
 }
 
 export interface BackendCompanyResponse {
   id: number;
   name: string;
-  code: string;
+  admin_name?: string;
   email?: string;
   phone?: string;
+  plan?: string;
+  status?: string;
+  location?: string;
+  max_employees?: number;
+  employee_count?: number;
+  renewal_date?: string;
+  logo?: string;
   is_active: boolean;
   created_at?: string;
 }
 
 export interface BackendCompanyUpdate {
   name?: string;
+  admin_name?: string;
   email?: string;
   phone?: string;
+  password?: string;
+  plan?: string;
+  status?: string;
+  location?: string;
+  max_employees?: number;
+  employee_count?: number;
+  renewal_date?: string;
+  logo?: string;
   is_active?: boolean;
 }
 
@@ -65,3 +88,4 @@ export const companiesService = {
     return apiClient.delete(ENDPOINTS.COMPANIES.DELETE(id));
   },
 };
+

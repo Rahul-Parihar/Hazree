@@ -40,14 +40,18 @@ export const loginSuperAdminAsync = createAsyncThunk(
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
       const response = await authService.loginSuperAdmin(credentials);
+      const token = response.data?.access_token;
+      if (token && typeof window !== 'undefined') {
+        localStorage.setItem('hazree_access_token', token);
+      }
       return {
         email: credentials.email || credentials.username || 'admin@hazree.com',
         user: response.data?.user || (response as any).user,
+        accessToken: token,
       };
     } catch (err: any) {
-
       const errorMsg =
-        (err.details && typeof err.details === 'object' && err.details.detail) ||
+        (err.details && typeof err.details === 'object' && (err.details.detail || err.details.message)) ||
         err.message ||
         'Authentication failed';
       return rejectWithValue(errorMsg);
@@ -92,41 +96,56 @@ export const authSlice = createSlice({
     },
     login: (
       state,
-      action: PayloadAction<{ role: UserRole; email?: string; name?: string }>
+      action: PayloadAction<{ role: UserRole; email?: string; name?: string; companyName?: string; companyId?: string }>
     ) => {
       state.userRole = action.payload.role;
       state.isAuthenticated = true;
-      if (action.payload.role === 'SUPER_ADMIN') {
-        state.currentUser = {
-          ...currentUserSuperAdmin,
-          email: action.payload.email || currentUserSuperAdmin.email,
-        };
-      } else {
-        state.currentUser = {
-          ...currentUserCompanyAdmin,
-          email: action.payload.email || currentUserCompanyAdmin.email,
-        };
-      }
+      state.currentUser = {
+        id: action.payload.companyId || (action.payload.role === 'SUPER_ADMIN' ? 'admin_1' : 'cmp_admin_1'),
+        name: action.payload.name || (action.payload.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Company Admin'),
+        email: action.payload.email || (action.payload.role === 'SUPER_ADMIN' ? 'admin@hazree.com' : 'admin@company.com'),
+        role: action.payload.role,
+        companyName: action.payload.companyName || (action.payload.role === 'SUPER_ADMIN' ? 'Platform HQ' : 'Company Portal'),
+        companyId: action.payload.companyId,
+        avatar: action.payload.role === 'SUPER_ADMIN'
+          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+          : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80',
+      };
       if (typeof window !== 'undefined') {
         localStorage.setItem('hazree_user_role', action.payload.role);
+        localStorage.setItem('hazree_current_user', JSON.stringify(state.currentUser));
       }
     },
     logout: (state) => {
       state.isAuthenticated = false;
       authService.logoutSuperAdmin().catch(() => {});
       if (typeof window !== 'undefined') {
+        localStorage.removeItem('hazree_access_token');
         localStorage.removeItem('hazree_user_role');
+        localStorage.removeItem('hazree_current_user');
       }
     },
     updateUserProfile: (state, action: PayloadAction<Partial<UserProfile>>) => {
       state.currentUser = { ...state.currentUser, ...action.payload };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('hazree_current_user', JSON.stringify(state.currentUser));
+      }
     },
     initializeAuth: (state) => {
       if (typeof window !== 'undefined') {
         const savedRole = localStorage.getItem('hazree_user_role') as UserRole;
+        const savedUserStr = localStorage.getItem('hazree_current_user');
         if (savedRole && (savedRole === 'SUPER_ADMIN' || savedRole === 'COMPANY_ADMIN')) {
           state.userRole = savedRole;
-          state.currentUser = savedRole === 'SUPER_ADMIN' ? currentUserSuperAdmin : currentUserCompanyAdmin;
+          if (savedUserStr) {
+            try {
+              state.currentUser = JSON.parse(savedUserStr);
+            } catch {
+              state.currentUser = savedRole === 'SUPER_ADMIN' ? currentUserSuperAdmin : currentUserCompanyAdmin;
+            }
+          } else {
+            state.currentUser = savedRole === 'SUPER_ADMIN' ? currentUserSuperAdmin : currentUserCompanyAdmin;
+          }
         }
       }
     },
@@ -141,14 +160,23 @@ export const authSlice = createSlice({
       .addCase(loginSuperAdminAsync.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
-        state.userRole = 'SUPER_ADMIN';
+        const rawUser = action.payload.user;
+        const role: UserRole = (rawUser?.role as UserRole) || 'SUPER_ADMIN';
+        state.userRole = role;
         state.currentUser = {
-          ...currentUserSuperAdmin,
-          email: action.payload.email,
-          name: action.payload.user?.full_name || currentUserSuperAdmin.name,
+          id: rawUser?.id ? String(rawUser.id) : (role === 'SUPER_ADMIN' ? 'admin_1' : 'cmp_1'),
+          name: rawUser?.full_name || (role === 'SUPER_ADMIN' ? 'Super Admin' : 'Company Admin'),
+          email: rawUser?.email || action.payload.email,
+          role: role,
+          companyId: rawUser?.company_id ? String(rawUser.company_id) : undefined,
+          companyName: rawUser?.company_name || (role === 'SUPER_ADMIN' ? 'Platform HQ' : 'Company Portal'),
+          avatar: role === 'SUPER_ADMIN'
+            ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80',
         };
         if (typeof window !== 'undefined') {
-          localStorage.setItem('hazree_user_role', 'SUPER_ADMIN');
+          localStorage.setItem('hazree_user_role', role);
+          localStorage.setItem('hazree_current_user', JSON.stringify(state.currentUser));
         }
       })
       .addCase(loginSuperAdminAsync.rejected, (state, action) => {

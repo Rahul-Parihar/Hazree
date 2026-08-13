@@ -6,11 +6,11 @@ export type CompanyStatus = 'Active' | 'Pending' | 'Suspended';
 export interface Company {
   id: string;
   name: string;
-  code: string; // e.g. HAZ-1001
   logo?: string;
   adminName: string;
   adminEmail: string;
   adminPhone: string;
+  password?: string;
   plan: PlanType;
   status: CompanyStatus;
   employeeCount: number;
@@ -88,4 +88,6 @@ export interface UserProfile {
   role: UserRole;
   avatar: string;
   companyName?: string;
+  companyId?: string;
+  status?: CompanyStatus;
 }

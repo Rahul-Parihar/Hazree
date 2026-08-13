@@ -1,17 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, Clock, RefreshCw } from 'lucide-react';
+import { Search, Bell, Clock } from 'lucide-react';
 import { UserRole } from '../../types';
+import { useAppSelector } from '../../redux/hooks';
 
 interface HeaderProps {
   userRole: UserRole;
-  onRoleSwitch: () => void;
+  onRoleSwitch?: () => void;
   title?: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ userRole, onRoleSwitch, title }) => {
+export const Header: React.FC<HeaderProps> = ({ userRole, title }) => {
   const [currentTime, setCurrentTime] = useState<string>('');
+  const currentUser = useAppSelector((state) => state.auth.currentUser);
 
   useEffect(() => {
     const updateTime = () => {
@@ -41,25 +43,17 @@ export const Header: React.FC<HeaderProps> = ({ userRole, onRoleSwitch, title })
       <div className="flex items-center gap-4">
         <div>
           <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-            {title || (userRole === 'SUPER_ADMIN' ? 'Super Admin Control Center' : 'Company Attendance Dashboard')}
+            {title || (userRole === 'SUPER_ADMIN' ? 'Super Admin Control Center' : `${currentUser?.companyName || 'Company'} Attendance Dashboard`)}
           </h2>
           <p className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
             <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <span>{currentTime || '12 Aug 2026 • Live'}</span>
+            <span>{currentTime || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
           </p>
         </div>
       </div>
 
       {/* Header Actions */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Role Switcher Pill Button */}
-        <button
-          onClick={onRoleSwitch}
-          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-all active:scale-95"
-        >
-          <RefreshCw className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Switch to {userRole === 'SUPER_ADMIN' ? 'Company HR Admin' : 'Super Admin'}</span>
-        </button>
 
         {/* Global Search Bar */}
         <div className="relative hidden sm:block w-48 md:w-64">

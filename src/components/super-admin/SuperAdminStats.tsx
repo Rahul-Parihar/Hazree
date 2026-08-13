@@ -2,34 +2,62 @@
 
 import React from 'react';
 import { Building2, Users, CreditCard, IndianRupee, Fingerprint, ShieldCheck } from 'lucide-react';
+import { useAppSelector } from '../../redux/hooks';
 
 interface SuperAdminStatsProps {
-  totalCompanies: number;
+  totalCompanies?: number;
 }
 
-export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({ totalCompanies }) => {
+export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({ totalCompanies: propTotalCompanies }) => {
+  const companies = useAppSelector((state) => state.companies.companies);
+  const attendanceRecords = useAppSelector((state) => state.attendance?.records || []);
+
+  const totalCompanies = propTotalCompanies !== undefined ? propTotalCompanies : companies.length;
+  const activeCompanies = companies.filter((c) => c.status === 'Active').length;
+  const pendingCompanies = companies.filter((c) => c.status === 'Pending' || c.status === 'Suspended').length;
+  const totalStaff = companies.reduce((acc, c) => acc + (c.employeeCount || 0), 0);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayPunchesCount = attendanceRecords.filter((r) => r.date === todayStr).length;
+
+  // Monthly Recurring Revenue (MRR) dynamically computed from active plans
+  const totalMrr = companies.reduce((acc, c) => {
+    if (c.status === 'Active') {
+      if (c.plan === 'Enterprise') return acc + 14999;
+      if (c.plan === 'Growth') return acc + 4999;
+    }
+    return acc;
+  }, 0);
+
+  const formattedMrr =
+    totalMrr === 0
+      ? '₹0'
+      : totalMrr >= 100000
+      ? `₹${(totalMrr / 100000).toFixed(1)}L`
+      : `₹${totalMrr.toLocaleString()}`;
+
   const row1 = [
     {
-      value: totalCompanies,
-      label: 'Total Companies',
+      value: totalCompanies.toLocaleString(),
+      label: 'Total Organizations',
       bg: 'bg-blue-600',
       icon: <Building2 className="w-10 h-10 text-white/30" />,
     },
     {
-      value: '12,450',
-      label: 'Total Employees',
+      value: totalStaff.toLocaleString(),
+      label: 'Total Staff Enrolled',
       bg: 'bg-orange-500',
       icon: <Users className="w-10 h-10 text-white/30" />,
     },
     {
-      value: 38,
+      value: activeCompanies.toLocaleString(),
       label: 'Active Subscriptions',
-      bg: 'bg-orange-500',
+      bg: 'bg-emerald-700',
       icon: <CreditCard className="w-10 h-10 text-white/30" />,
     },
     {
-      value: 22,
-      label: 'Pending Approvals',
+      value: pendingCompanies.toLocaleString(),
+      label: 'Pending / Suspended',
       bg: 'bg-slate-800',
       icon: <ShieldCheck className="w-10 h-10 text-white/30" />,
     },
@@ -37,14 +65,14 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({ totalCompanies
 
   const row2 = [
     {
-      value: '11,890',
+      value: todayPunchesCount.toLocaleString(),
       label: "Today's Total Punches",
-      bg: 'bg-emerald-600',
+      bg: 'bg-teal-600',
       icon: <Fingerprint className="w-10 h-10 text-white/30" />,
     },
     {
-      value: '₹18.4L',
-      label: 'Monthly Revenue',
+      value: formattedMrr,
+      label: 'Live Monthly Revenue',
       bg: 'bg-emerald-600',
       icon: <IndianRupee className="w-10 h-10 text-white/30" />,
     },
@@ -86,3 +114,4 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({ totalCompanies
     </div>
   );
 };
+
