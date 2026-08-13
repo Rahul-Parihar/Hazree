@@ -2,7 +2,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limiter import rate_limiter
 from app.core.security import clear_auth_cookies
 from app.features.super_admin.super_admin_auth import service
 from app.features.super_admin.super_admin_auth.models import AdminUser
@@ -30,15 +32,17 @@ router = APIRouter(prefix="/super-admin", tags=["Super Admin"])
     summary="Super Admin Login",
     description=(
         "Authenticates Super Admin using JSON payload or Form data. "
+        "Protected by Rate Limiter. "
         "Issues a 15-minute access token and a 7-day refresh token securely inside HTTP-Only cookies."
     ),
 )
+@rate_limiter.limit(settings.rate_limit_login)
 async def login_super_admin(
     response: Response,
     request: Request,
     db: Session = Depends(get_db),
 ) -> Token:
-    """Super Admin Login with Cookie & JSON/Form support."""
+    """Super Admin Login with Rate Limiting & Cookie / JSON support."""
     return await service.login_super_admin_service(request, response, db)
 
 
@@ -48,9 +52,11 @@ async def login_super_admin(
     summary="Refresh Access Token",
     description=(
         "Rotates and generates a fresh 15-minute access token using either the "
-        "HTTP-Only `refresh_token` cookie or the request body `refresh_token`."
+        "HTTP-Only `refresh_token` cookie or the request body `refresh_token`. "
+        "Protected by Rate Limiter."
     ),
 )
+@rate_limiter.limit(settings.rate_limit_refresh)
 async def refresh_super_admin_token(
     request: Request,
     response: Response,
@@ -115,13 +121,16 @@ async def get_super_admin_profile(
     "/",
     response_model=SuperAdminOverviewResponse,
     summary="Super Admin Dashboard Overview",
-    description="Provides platform statistics and database connectivity overview for Super Admin dashboard.",
+    description=(
+        "Provides platform statistics and database connectivity overview for Super Admin dashboard. "
+        "Cached in Redis for high-speed sub-millisecond response."
+    ),
 )
 async def read_super_admin(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(service.get_current_super_admin),
 ) -> SuperAdminOverviewResponse:
-    """Get platform overview statistics."""
+    """Get platform overview statistics (Redis-cached)."""
     return service.get_super_admin_overview(db)
 
 

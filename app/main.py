@@ -1,12 +1,23 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from slowapi.errors import RateLimitExceeded
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
 from app.core.database import init_db, get_db, SessionLocal
+from app.core.exception_handlers import (
+    http_exception_handler,
+    rate_limit_exceeded_handler,
+    unhandled_exception_handler,
+    validation_exception_handler,
+)
+from app.core.rate_limiter import rate_limiter
+from app.core.redis_cache import get_redis_client, is_redis_online
 from app.middlewares import (
     AuthProtectionMiddleware,
     RequestLoggingMiddleware,
@@ -22,7 +33,7 @@ from app.features.super_admin.super_admin_auth.router import router as super_adm
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("hazree.main")
 
 
 @asynccontextmanager
@@ -32,7 +43,14 @@ async def lifespan(app: FastAPI):
     try:
         init_db()
         logger.info("Database tables verified/created successfully.")
-        
+
+        # Initialize Redis Cache connection pool
+        redis_client = get_redis_client()
+        if redis_client and is_redis_online():
+            logger.info("Redis cache pool connected and ready.")
+        else:
+            logger.warning("Redis cache is offline or disabled. Running in database fallback mode.")
+
         # Seed default Super Admin account if not present
         db = SessionLocal()
         try:
@@ -42,7 +60,7 @@ async def lifespan(app: FastAPI):
             db.close()
 
     except Exception as e:
-        logger.error(f"Failed to initialize database or super admin: {e}")
+        logger.error(f"Failed during application startup: {e}", exc_info=True)
     yield
     # Shutdown actions
     logger.info("Shutting down Hazree backend...")
@@ -54,6 +72,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Attach Rate Limiter to FastAPI state
+app.state.limiter = rate_limiter
+
+# ---------------------------------------------------------------------------
+# Global Exception Handlers (500 Shield, 429 Rate Limit, 422 Validation)
+# ---------------------------------------------------------------------------
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
+
+# ---------------------------------------------------------------------------
+# Middlewares Execution Chain
+# ---------------------------------------------------------------------------
 # 1. Performance & Execution Timing Middleware (Outermost)
 app.add_middleware(RequestLoggingMiddleware)
 
@@ -74,7 +106,9 @@ app.add_middleware(
 # 4. Global Route Protection Middleware (Protects all private APIs after login)
 app.add_middleware(AuthProtectionMiddleware)
 
+# ---------------------------------------------------------------------------
 # Register Feature Routers
+# ---------------------------------------------------------------------------
 app.include_router(companies_router)
 app.include_router(super_admin_router)
 
@@ -85,7 +119,8 @@ async def root():
         "message": "Hazree backend is running",
         "app_name": settings.app_name,
         "database": "PostgreSQL",
-        "docs_url": "/docs"
+        "redis_cache": "online" if is_redis_online() else "offline",
+        "docs_url": "/docs",
     }
 
 
@@ -97,11 +132,16 @@ async def health_check(db: Session = Depends(get_db)):
         db_status = "healthy"
     except Exception as e:
         db_status = f"unhealthy: {str(e)}"
-    
+
+    redis_status = "healthy" if is_redis_online() else "offline"
+
+    overall_status = "ok" if db_status == "healthy" else "degraded"
+
     return {
-        "status": "ok" if db_status == "healthy" else "degraded",
+        "status": overall_status,
         "database_status": db_status,
-        "app_name": settings.app_name
+        "redis_status": redis_status,
+        "app_name": settings.app_name,
     }
 
 

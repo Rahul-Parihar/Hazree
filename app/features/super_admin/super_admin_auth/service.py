@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.redis_cache import delete_cache, get_cache, is_redis_online, set_cache
 from app.core.security import (
     clear_auth_cookies,
     create_token_pair,
@@ -154,6 +155,7 @@ def create_super_admin(db: Session, admin_in: SuperAdminCreate) -> AdminUser:
     """
     Create a new Super Admin account.
     Enforces a strict system limit of exactly 1 Super Admin.
+    Invalidates overview cache.
     """
     existing_count = db.query(AdminUser).count()
     if existing_count >= 1:
@@ -179,6 +181,10 @@ def create_super_admin(db: Session, admin_in: SuperAdminCreate) -> AdminUser:
     db.add(db_admin)
     db.commit()
     db.refresh(db_admin)
+
+    # Invalidate cached stats in Redis
+    delete_cache("super_admin:overview")
+
     return db_admin
 
 
@@ -318,11 +324,19 @@ def refresh_super_admin_session(
 
 
 # ---------------------------------------------------------------------------
-# Diagnostics & System Overview
+# Diagnostics & System Overview (with Redis Caching)
 # ---------------------------------------------------------------------------
 
 def get_super_admin_overview(db: Session) -> SuperAdminOverviewResponse:
-    """Collect platform statistics and overview info for Super Admin."""
+    """
+    Collect platform statistics and overview info for Super Admin.
+    Uses Redis cache with a 60-second TTL for sub-millisecond response times.
+    """
+    cache_key = "super_admin:overview"
+    cached = get_cache(cache_key)
+    if cached:
+        return SuperAdminOverviewResponse(**cached)
+
     db_connected = False
     company_count = 0
     admin_count = 0
@@ -335,7 +349,7 @@ def get_super_admin_overview(db: Session) -> SuperAdminOverviewResponse:
     except Exception:
         db_connected = False
 
-    return SuperAdminOverviewResponse(
+    overview = SuperAdminOverviewResponse(
         message=f"Hello {settings.app_name} super admin",
         debug=settings.debug,
         admin_email=settings.admin_email,
@@ -347,6 +361,11 @@ def get_super_admin_overview(db: Session) -> SuperAdminOverviewResponse:
             total_admin_users=admin_count,
         ),
     )
+
+    # Cache for 60 seconds
+    set_cache(cache_key, overview, expire_seconds=60)
+
+    return overview
 
 
 def get_database_status(db: Session) -> DatabaseStatusResponse:

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     port: int = 8000
     reload: bool = False
 
+    # Security & Tokens
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     jwt_algorithm: str = "HS256"
@@ -43,6 +44,7 @@ class Settings(BaseSettings):
     cookie_samesite: str = "lax"
     cookie_domain: Optional[str] = None
 
+    # CORS
     cors_origins: str = ""
     cors_origin_regex: Optional[str] = None
     cors_fallback_origin: str = ""
@@ -60,12 +62,8 @@ class Settings(BaseSettings):
                 pass
         return [origin.strip() for origin in stripped.split(",") if origin.strip()]
 
-
-
     # Database Configuration (Loaded from .env)
     database_url: Optional[str] = None
-
-    # Individual PostgreSQL settings
     postgres_user: str = "postgres"
     postgres_password: str = "postgres"
     postgres_server: str = "localhost"
@@ -82,6 +80,17 @@ class Settings(BaseSettings):
         if url.startswith("postgres://"):
             return url.replace("postgres://", "postgresql://", 1)
         return url
+
+    # Redis Cache Configuration
+    redis_url: str = "redis://localhost:6379/0"
+    redis_enabled: bool = True
+    redis_default_ttl: int = 300  # Default 5 minutes cache TTL
+
+    # Rate Limiting Configuration
+    rate_limit_enabled: bool = True
+    rate_limit_default: str = "120/minute"
+    rate_limit_login: str = "5/minute"
+    rate_limit_refresh: str = "10/minute"
 
     def model_post_init(self, __context) -> None:
         """Automatically parse database_url to populate host, db, port if database_url is provided."""
