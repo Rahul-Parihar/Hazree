@@ -15,14 +15,31 @@ import {
   Calendar,
   Layers,
   Sparkles,
+  Plus,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
 import { fetchCompaniesAsync } from '../../../redux/slices/companiesSlice';
+import {
+  fetchEmployeesAsync,
+  clearEmployeeError,
+  clearEmployeeSuccess,
+} from '../../../redux/slices/employeesSlice';
+import { AddEmployeeModal } from '../../../components/company-admin/AddEmployeeModal';
 
 export default function EmployeesPage() {
   const dispatch = useAppDispatch();
+  const userRole = useAppSelector((state) => state.auth.userRole);
+  const currentUser = useAppSelector((state) => state.auth.currentUser);
   const employees = useAppSelector((state) => state.employees.employees);
+  const isLoading = useAppSelector((state) => state.employees.isLoading);
+  const successMessage = useAppSelector((state) => state.employees.successMessage);
+  const errorMessage = useAppSelector((state) => state.employees.error);
   const companies = useAppSelector((state) => state.companies.companies);
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,9 +47,28 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     dispatch(fetchCompaniesAsync());
+    dispatch(fetchEmployeesAsync());
   }, [dispatch]);
 
-  // Extract distinct companies from data
+  const handleRefresh = () => {
+    dispatch(fetchEmployeesAsync());
+  };
+
+  // Scoped employees: Company Admin sees only their organization's employees, Super Admin sees all
+  const isCompanyAdmin = userRole === 'COMPANY_ADMIN';
+  const myCompanyId = currentUser?.companyId ? String(currentUser.companyId).replace('cmp_', '') : undefined;
+  const myCompanyName = currentUser?.companyName?.trim().toLowerCase();
+
+  const scopedEmployees = isCompanyAdmin
+    ? employees.filter((e) => {
+        const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
+        if (myCompanyId && empCompId && empCompId === myCompanyId) return true;
+        if (myCompanyName && e.companyName && e.companyName.trim().toLowerCase() === myCompanyName) return true;
+        return false;
+      })
+    : employees;
+
+  // Extract distinct companies from data (for Super Admin filter dropdown)
   const distinctCompanies = Array.from(
     new Set([
       ...companies.map((c) => c.name),
@@ -41,7 +77,7 @@ export default function EmployeesPage() {
   );
 
   // Filter Pipeline
-  const filteredEmployees = employees.filter((e) => {
+  const filteredEmployees = scopedEmployees.filter((e) => {
     const query = searchQuery.toLowerCase().trim();
     const matchesSearch =
       query === '' ||
@@ -53,49 +89,97 @@ export default function EmployeesPage() {
       (e.phone && e.phone.includes(query));
 
     const matchesCompany =
-      selectedCompany === 'ALL' ||
+      isCompanyAdmin || selectedCompany === 'ALL' ||
       (e.companyName && e.companyName.toLowerCase() === selectedCompany.toLowerCase());
 
     return matchesSearch && matchesCompany;
   });
 
-  const hasActiveFilters = searchQuery.trim() !== '' || selectedCompany !== 'ALL';
+  const hasActiveFilters = searchQuery.trim() !== '' || (!isCompanyAdmin && selectedCompany !== 'ALL');
 
   const handleResetFilters = () => {
     setSearchQuery('');
     setSelectedCompany('ALL');
   };
 
-  const totalEmployees = employees.length;
+  const totalEmployees = scopedEmployees.length;
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in pb-12">
+      {/* Toast Notifications */}
+      {successMessage && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs sm:text-sm flex items-center justify-between shadow-sm animate-fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span className="font-bold">{successMessage}</span>
+          </div>
+          <button
+            onClick={() => dispatch(clearEmployeeSuccess())}
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-950 ml-4"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs sm:text-sm flex items-center justify-between shadow-sm animate-shake">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            <span className="font-bold">{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => dispatch(clearEmployeeError())}
+            className="text-xs font-bold text-rose-700 hover:text-rose-950 ml-4"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-sm">
               <Users className="w-4 h-4" />
             </div>
-            <h2 className="text-xl font-extrabold text-slate-900">Employee Directory List</h2>
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">Employee Directory List</h2>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Super Admin View • Cross-organization staff roster, assigned roles, and official contact directory
+            {userRole === 'SUPER_ADMIN'
+              ? 'Super Admin View • Cross-organization staff roster, assigned roles, and official contact directory'
+              : `${currentUser?.companyName || 'Organization'} Staff Members, roles, departments and contact details`}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5">
-            <Building2 className="w-3.5 h-3.5 text-slate-500" />
-            Managed by Organization Admins
-          </span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />}
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            Refresh
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={() => setIsAddModalOpen(true)}
+            className="w-full sm:w-auto justify-center"
+          >
+            Add New Staff
+          </Button>
         </div>
       </div>
 
       {/* Multi-Tenant Filter Controls Bar */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
         {/* Search */}
-        <div className="relative flex-1 min-w-[260px]">
+        <div className="relative flex-1 min-w-[240px]">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
           <input
             type="text"
@@ -116,22 +200,24 @@ export default function EmployeesPage() {
 
         {/* Filter Controls Group */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Company Filter */}
-          <div className="flex items-center gap-1.5 bg-slate-50/80 px-2.5 py-1.5 rounded-xl border border-slate-200">
-            <Building2 className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={selectedCompany}
-              onChange={(e) => setSelectedCompany(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer max-w-[170px] truncate"
-            >
-              <option value="ALL">All Organizations</option>
-              {distinctCompanies.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Company Filter (Super Admin) */}
+          {userRole === 'SUPER_ADMIN' && (
+            <div className="flex items-center gap-1.5 bg-slate-50/80 px-2.5 py-1.5 rounded-xl border border-slate-200">
+              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={selectedCompany}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer max-w-[170px] truncate"
+              >
+                <option value="ALL">All Organizations</option>
+                {distinctCompanies.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Reset Filters */}
           {hasActiveFilters && (
@@ -162,13 +248,18 @@ export default function EmployeesPage() {
           </div>
           <h4 className="text-base font-extrabold text-slate-900">No Employees Found</h4>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            No employee records match the active search and filter criteria. Try resetting your filters.
+            No employee records match the active search and filter criteria. Try resetting your filters or onboard a new employee.
           </p>
-          {hasActiveFilters && (
-            <Button variant="outline" size="sm" onClick={handleResetFilters}>
-              Reset Filters
+          <div className="flex items-center justify-center gap-2 pt-2">
+            {hasActiveFilters && (
+              <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                Reset Filters
+              </Button>
+            )}
+            <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setIsAddModalOpen(true)}>
+              Add New Staff
             </Button>
-          )}
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
@@ -267,6 +358,16 @@ export default function EmployeesPage() {
           </div>
         </div>
       )}
+
+      {/* Add Employee Modal */}
+      <AddEmployeeModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => {
+          dispatch(fetchEmployeesAsync());
+          dispatch(fetchCompaniesAsync());
+        }}
+      />
     </div>
   );
 }

@@ -1,45 +1,81 @@
 'use client';
 
 import React from 'react';
-import { Users, UserCheck, Clock, UserX, CalendarOff, TrendingUp, TrendingDown, Hourglass } from 'lucide-react';
+import { Users, UserCheck, Clock, CalendarOff } from 'lucide-react';
+import { useAppSelector } from '../../redux/hooks';
 
 export const CompanyStatsCards: React.FC = () => {
+  const employees = useAppSelector((state) => state.employees.employees);
+  const attendanceRecords = useAppSelector((state) => state.attendance?.records || []);
+  const companies = useAppSelector((state) => state.companies.companies);
+  const currentUser = useAppSelector((state) => state.auth.currentUser);
+
+  const currentCompany =
+    companies.find(
+      (c) =>
+        c.id === currentUser?.companyId ||
+        c.name.toLowerCase() === (currentUser?.companyName || '').toLowerCase()
+    ) || (companies.length > 0 ? companies[0] : null);
+
+  const myCompanyId = currentUser?.companyId ? String(currentUser.companyId).replace('cmp_', '') : (currentCompany?.id ? String(currentCompany.id).replace('cmp_', '') : undefined);
+  const myCompanyName = (currentUser?.companyName || currentCompany?.name || '').trim().toLowerCase();
+
+  // Filter employees specifically for this company
+  const companyEmployees = employees.filter((e) => {
+    const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
+    if (myCompanyId && empCompId && empCompId === myCompanyId) return true;
+    if (myCompanyName && e.companyName && e.companyName.trim().toLowerCase() === myCompanyName) return true;
+    return false;
+  });
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // 1. Total Workforce specifically for this company
+  const totalEmployeesCount = companyEmployees.length > 0 ? companyEmployees.length : (currentCompany?.employeeCount || 0);
+  const maxQuota = currentCompany?.maxEmployees || 100;
+  const planName = currentCompany?.plan || 'Growth';
+
+  // 2. Present Today
+  const todayRecords = attendanceRecords.filter((r) => r.date === todayStr);
+  const presentCount = todayRecords.filter((r) => r.status === 'Present').length;
+  const attendanceRate = totalEmployeesCount > 0
+    ? ((presentCount / totalEmployeesCount) * 100).toFixed(1)
+    : '100.0';
+
+  // 3. Late Punch-Ins
+  const lateCount = todayRecords.filter((r) => r.status === 'Late').length;
+
+  // 4. On Approved Leave / Inactive for this company
+  const onLeaveCount = companyEmployees.filter((e) => e.status === 'On Leave').length;
+
   const stats = [
     {
       title: 'Total Workforce',
-      value: '240',
-      subtext: '500 Quota (Enterprise)',
-      change: '+6 this month',
-      isPositive: true,
+      value: totalEmployeesCount.toString(),
+      subtext: `${maxQuota} Quota (${planName})`,
       bg: 'bg-blue-600',
-      icon: <Users className="w-9 h-9 text-white/30" />,
+      icon: <Users className="w-8 h-8 sm:w-9 sm:h-9 text-white/30" />,
     },
     {
       title: 'Present Today',
-      value: '218',
-      subtext: '90.8% Attendance Rate',
-      change: '+2.4% vs yesterday',
-      isPositive: true,
+      value: presentCount.toString(),
+      subtext: `${attendanceRate}% Attendance Rate`,
       bg: 'bg-emerald-600',
-      icon: <UserCheck className="w-9 h-9 text-white/30" />,
+      icon: <UserCheck className="w-8 h-8 sm:w-9 sm:h-9 text-white/30" />,
     },
     {
       title: 'Late Punch-Ins',
-      value: '14',
+      value: lateCount.toString(),
       subtext: 'After 09:15 AM Grace',
-      change: '-3 vs yesterday',
-      isPositive: true,
       bg: 'bg-amber-500',
-      icon: <Clock className="w-9 h-9 text-white/30" />,
+      icon: <Clock className="w-8 h-8 sm:w-9 sm:h-9 text-white/30" />,
     },
     {
       title: 'On Approved Leave',
-      value: '8',
-      subtext: '4 Casual, 3 Sick, 1 Paid',
-      change: '2 pending reviews',
-      isPositive: false,
+      value: onLeaveCount.toString(),
+      subtext: `${onLeaveCount} Staff on Leave`,
       bg: 'bg-indigo-600',
-      icon: <CalendarOff className="w-9 h-9 text-white/30" />,
+      icon: <CalendarOff className="w-8 h-8 sm:w-9 sm:h-9 text-white/30" />,
     },
   ];
 

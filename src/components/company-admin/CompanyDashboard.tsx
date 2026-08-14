@@ -1,20 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CompanyStatsCards } from './CompanyStatsCards';
 import { CompanyAttendanceTrend } from './CompanyAttendanceTrend';
 import { SubscriptionAlertBanner } from './SubscriptionAlertBanner';
 import { CompanyDepartmentHealth } from './CompanyDepartmentHealth';
 import { CompanyQuickActions } from './CompanyQuickActions';
 import { CompanyKioskGeofenceStatus } from './CompanyKioskGeofenceStatus';
+import { AddEmployeeModal } from './AddEmployeeModal';
 import { RecentAttendanceTable } from '../dashboard/RecentAttendanceTable';
-import { AttendanceRecord } from '../../types';
-import { Building2, Plus, Calendar, Clock, MapPin, RefreshCw, Shield } from 'lucide-react';
+import { AttendanceRecord, Employee } from '../../types';
+import { Building2, Plus, Calendar, Clock, MapPin, RefreshCw, Shield, UserPlus } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
 import { addAttendanceRecord } from '../../redux/slices/attendanceSlice';
+import { fetchEmployeesAsync } from '../../redux/slices/employeesSlice';
 
 interface CompanyDashboardProps {
   onRoleSwitch?: () => void;
@@ -25,7 +27,14 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
   const currentUser = useAppSelector((state) => state.auth.currentUser);
   const companies = useAppSelector((state) => state.companies.companies);
   const attendanceRecords = useAppSelector((state) => state.attendance.records);
+  const employees = useAppSelector((state) => state.employees.employees);
+  
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
+
+  useEffect(() => {
+    dispatch(fetchEmployeesAsync());
+  }, [dispatch]);
 
   const currentCompany =
     companies.find(
@@ -78,39 +87,46 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
   };
 
   return (
-    <div className="space-y-5 animate-fade-in pb-8">
+    <div className="space-y-4 sm:space-y-5 animate-fade-in pb-8">
       {/* 5-Day Subscription Expiry Warning Banner */}
       <SubscriptionAlertBanner company={currentCompany} />
 
       {/* Company Header Banner */}
-      <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 text-white p-5 rounded-2xl border border-emerald-700/50 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-white text-emerald-800 font-black text-xl flex items-center justify-center shadow-md shrink-0">
+      <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-emerald-700/50 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-white text-emerald-800 font-black text-xl flex items-center justify-center shadow-md shrink-0">
             {companyInitials || 'CO'}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-extrabold tracking-tight">{companyName}</h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-extrabold tracking-tight truncate">{companyName}</h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 shrink-0">
                 Active Organization
               </span>
             </div>
-            <p className="text-xs text-slate-300 flex items-center gap-3 mt-1">
-              <span className="flex items-center gap-1">
-                <Shield className="w-3.5 h-3.5 text-emerald-400" /> Admin: {currentUser?.name || 'Administrator'}
+            <p className="text-xs text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+              <span className="flex items-center gap-1 truncate">
+                <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Admin: {currentUser?.name || 'Administrator'}
               </span>
               <span>•</span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-amber-400" /> Shift: 09:00 AM - 06:00 PM (15m Grace)
+              <span className="flex items-center gap-1 truncate">
+                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Shift: 09:00 AM - 06:00 PM (15m Grace)
               </span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => setIsAddEmployeeModalOpen(true)}
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Add Staff
+          </button>
           <button
             onClick={() => setIsManualModalOpen(true)}
-            className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-lg shadow transition-all flex items-center gap-1.5"
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" />
             Mark Hazree
@@ -122,14 +138,17 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
       <CompanyStatsCards />
 
       {/* 2. Quick Actions */}
-      <CompanyQuickActions onOpenManualPunch={() => setIsManualModalOpen(true)} />
+      <CompanyQuickActions
+        onOpenManualPunch={() => setIsManualModalOpen(true)}
+        onOpenAddEmployee={() => setIsAddEmployeeModalOpen(true)}
+      />
 
       {/* 3. Middle Analytics Grid: Attendance Trend (Left 8) + Department Breakdown (Right 4) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <div className="lg:col-span-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
+        <div className="lg:col-span-8 overflow-hidden">
           <CompanyAttendanceTrend />
         </div>
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 overflow-hidden">
           <CompanyDepartmentHealth />
         </div>
       </div>
@@ -151,12 +170,21 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
         <RecentAttendanceTable records={attendanceRecords} onAddRecord={handleAddRecord} />
       </div>
 
+      {/* Add Employee Modal */}
+      <AddEmployeeModal
+        isOpen={isAddEmployeeModalOpen}
+        onClose={() => setIsAddEmployeeModalOpen(false)}
+        onSuccess={() => {
+          dispatch(fetchEmployeesAsync());
+        }}
+      />
+
       {/* Manual Punch Modal */}
       <Modal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
         title="Mark Manual Employee Attendance"
-        subtitle="Override attendance log for Tata Tech staff"
+        subtitle={`Override attendance log for ${companyName} staff`}
       >
         <form onSubmit={handleManualSubmit} className="space-y-4">
           <Input

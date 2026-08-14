@@ -37,33 +37,22 @@ export const LoginForm: React.FC = () => {
     setIsLoading(true);
     setErrorMessage(null);
 
-    if (selectedRole === 'SUPER_ADMIN') {
-      try {
-        const resultAction = await dispatch(loginSuperAdminAsync({ email, password }));
-        if (loginSuperAdminAsync.fulfilled.match(resultAction)) {
-          setIsLoading(false);
-          router.push('/');
-          return;
-        } else {
-          // Backend returned error (e.g. email not found or wrong password)
-          const errorDetail = (resultAction.payload as string) || 'Authentication failed';
-          setErrorMessage(errorDetail);
-          setIsLoading(false);
-          return;
-        }
-      } catch (err: any) {
-        setErrorMessage(err?.message || 'Network connection failed. Please ensure backend is running.');
+    try {
+      const resultAction = await dispatch(loginSuperAdminAsync({ email, password }));
+      if (loginSuperAdminAsync.fulfilled.match(resultAction)) {
+        setIsLoading(false);
+        router.push('/');
+        return;
+      } else {
+        const errorDetail = (resultAction.payload as string) || 'Authentication failed';
+        setErrorMessage(errorDetail);
         setIsLoading(false);
         return;
       }
-
-    } else {
-      // Company Admin demo login
-      dispatch(login({ role: 'COMPANY_ADMIN', email }));
-      setTimeout(() => {
-        setIsLoading(false);
-        router.push('/');
-      }, 500);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Network connection failed. Please ensure backend is running.');
+      setIsLoading(false);
+      return;
     }
   };
 

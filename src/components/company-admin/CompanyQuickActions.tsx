@@ -6,17 +6,21 @@ import Link from 'next/link';
 
 interface CompanyQuickActionsProps {
   onOpenManualPunch: () => void;
+  onOpenAddEmployee?: () => void;
 }
 
-export const CompanyQuickActions: React.FC<CompanyQuickActionsProps> = ({ onOpenManualPunch }) => {
+export const CompanyQuickActions: React.FC<CompanyQuickActionsProps> = ({
+  onOpenManualPunch,
+  onOpenAddEmployee,
+}) => {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {/* 1. Mark Manual Punch */}
       <button
         onClick={onOpenManualPunch}
-        className="p-4 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-left transition-all group flex flex-col justify-between"
+        className="p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-left transition-all group flex flex-col justify-between"
       >
-        <div className="p-2 w-fit rounded-lg bg-emerald-600 text-white group-hover:scale-110 transition-transform shadow-sm">
+        <div className="p-2.5 w-fit rounded-xl bg-emerald-600 text-white group-hover:scale-110 transition-transform shadow-sm">
           <UserCheck className="w-4 h-4" />
         </div>
         <div className="mt-3">
@@ -28,9 +32,9 @@ export const CompanyQuickActions: React.FC<CompanyQuickActionsProps> = ({ onOpen
       {/* 2. Approve Leaves */}
       <Link
         href="/leaves"
-        className="p-4 rounded-xl bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200/80 text-left transition-all group flex flex-col justify-between"
+        className="p-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200/80 text-left transition-all group flex flex-col justify-between"
       >
-        <div className="p-2 w-fit rounded-lg bg-indigo-600 text-white group-hover:scale-110 transition-transform shadow-sm flex items-center gap-1">
+        <div className="p-2.5 w-fit rounded-xl bg-indigo-600 text-white group-hover:scale-110 transition-transform shadow-sm flex items-center gap-1">
           <CalendarCheck className="w-4 h-4" />
         </div>
         <div className="mt-3">
@@ -47,9 +51,9 @@ export const CompanyQuickActions: React.FC<CompanyQuickActionsProps> = ({ onOpen
       {/* 3. Export Monthly Payroll */}
       <button
         onClick={() => alert('Exporting monthly attendance log in Excel/CSV...')}
-        className="p-4 rounded-xl bg-sky-50 hover:bg-sky-100/80 border border-sky-200/80 text-left transition-all group flex flex-col justify-between"
+        className="p-4 rounded-2xl bg-sky-50 hover:bg-sky-100/80 border border-sky-200/80 text-left transition-all group flex flex-col justify-between"
       >
-        <div className="p-2 w-fit rounded-lg bg-sky-600 text-white group-hover:scale-110 transition-transform shadow-sm">
+        <div className="p-2.5 w-fit rounded-xl bg-sky-600 text-white group-hover:scale-110 transition-transform shadow-sm">
           <FileDown className="w-4 h-4" />
         </div>
         <div className="mt-3">
@@ -59,18 +63,33 @@ export const CompanyQuickActions: React.FC<CompanyQuickActionsProps> = ({ onOpen
       </button>
 
       {/* 4. Add Employee */}
-      <Link
-        href="/employees"
-        className="p-4 rounded-xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 text-left transition-all group flex flex-col justify-between"
-      >
-        <div className="p-2 w-fit rounded-lg bg-amber-500 text-white group-hover:scale-110 transition-transform shadow-sm">
-          <UserPlus className="w-4 h-4" />
-        </div>
-        <div className="mt-3">
-          <p className="font-bold text-xs text-slate-900">Add New Staff</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Create biometric employee profile</p>
-        </div>
-      </Link>
+      {onOpenAddEmployee ? (
+        <button
+          onClick={onOpenAddEmployee}
+          className="p-4 rounded-2xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 text-left transition-all group flex flex-col justify-between"
+        >
+          <div className="p-2.5 w-fit rounded-xl bg-amber-500 text-white group-hover:scale-110 transition-transform shadow-sm">
+            <UserPlus className="w-4 h-4" />
+          </div>
+          <div className="mt-3">
+            <p className="font-bold text-xs text-slate-900">Add New Staff</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Register employee profile</p>
+          </div>
+        </button>
+      ) : (
+        <Link
+          href="/employees"
+          className="p-4 rounded-2xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 text-left transition-all group flex flex-col justify-between"
+        >
+          <div className="p-2.5 w-fit rounded-xl bg-amber-500 text-white group-hover:scale-110 transition-transform shadow-sm">
+            <UserPlus className="w-4 h-4" />
+          </div>
+          <div className="mt-3">
+            <p className="font-bold text-xs text-slate-900">Add New Staff</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Register employee profile</p>
+          </div>
+        </Link>
+      )}
     </div>
   );
 };
