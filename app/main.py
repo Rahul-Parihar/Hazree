@@ -26,10 +26,14 @@ from app.middlewares import (
 
 import app.features.companies.company_management.models  # Register models
 import app.features.super_admin.super_admin_auth.models  # Register models
+import app.features.subscriptions.subscription_management.models  # Register models
 from app.features.super_admin.super_admin_auth.service import init_default_super_admin
+from app.features.subscriptions.subscription_management.service import seed_default_subscription_plans
+from app.features.companies.company_management.service import seed_default_companies
 
 from app.features.companies.company_management.router import router as companies_router
 from app.features.super_admin.super_admin_auth.router import router as super_admin_router
+from app.features.subscriptions.subscription_management.router import router as subscriptions_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -51,11 +55,12 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("Redis cache is offline or disabled. Running in database fallback mode.")
 
-        # Seed default Super Admin account if not present
+        # Seed default Super Admin account & subscription plans
         db = SessionLocal()
         try:
             admin = init_default_super_admin(db)
             logger.info(f"Default Super Admin verified/created: {admin.email}")
+            seed_default_subscription_plans(db)
         finally:
             db.close()
 
@@ -86,10 +91,10 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 from fastapi.middleware.gzip import GZipMiddleware
 
 # ---------------------------------------------------------------------------
-# Middlewares Execution Chain
+# Middlewares Execution Chain (Added in reverse order of execution)
 # ---------------------------------------------------------------------------
-# 1. Performance & Execution Timing Middleware (Outermost)
-app.add_middleware(RequestLoggingMiddleware)
+# 1. Global Route Protection Middleware (Protects private APIs after login)
+app.add_middleware(AuthProtectionMiddleware)
 
 # 2. GZip Compression Middleware (High speed payload delivery)
 app.add_middleware(GZipMiddleware, minimum_size=500)
@@ -97,7 +102,10 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 # 3. OWASP Security Defense Headers Middleware
 app.add_middleware(SecurityHeadersMiddleware)
 
-# 4. Dynamic CORS Middleware (Loaded from .env)
+# 4. Performance & Execution Timing Middleware
+app.add_middleware(RequestLoggingMiddleware)
+
+# 5. Dynamic CORS Middleware (Outermost - ensures CORS headers on ALL responses including 401/500/OPTIONS)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_cors_origins,
@@ -108,14 +116,12 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# 5. Global Route Protection Middleware (Protects all private APIs after login)
-app.add_middleware(AuthProtectionMiddleware)
-
 # ---------------------------------------------------------------------------
 # Register Feature Routers
 # ---------------------------------------------------------------------------
 app.include_router(companies_router)
 app.include_router(super_admin_router)
+app.include_router(subscriptions_router)
 
 
 @app.get("/")

@@ -222,3 +222,47 @@ def delete_company(db: Session, company_id: int) -> dict:
 
     return {"status": "success", "message": f"Company '{company.name}' deleted successfully."}
 
+
+def seed_default_companies(db: Session):
+    """Seed initial starter companies if the companies table is empty."""
+    existing_count = db.query(Company).count()
+    if existing_count > 0:
+        return
+
+    now = datetime.now(timezone.utc)
+    starter_companies = [
+        Company(
+            name="Tata Tech Solutions",
+            admin_name="Rajesh Sharma",
+            email="contact@tatatech.com",
+            phone="+91 98200 11223",
+            hashed_password=get_password_hash("Admin@123456"),
+            plan="Growth",
+            status="Active",
+            location="Mumbai, Maharashtra",
+            max_employees=150,
+            employee_count=5,
+            renewal_date=now + timedelta(days=365),
+            is_active=True,
+        ),
+        Company(
+            name="Smash Sports Academy",
+            admin_name="Suman Patel",
+            email="smashsportsacademyindore@gmail.com",
+            phone="+91 98930 44556",
+            hashed_password=get_password_hash("Admin@123456"),
+            plan="Growth Pro",
+            status="Active",
+            location="Indore, Madhya Pradesh",
+            max_employees=150,
+            employee_count=1,
+            renewal_date=now + timedelta(days=363),
+            is_active=True,
+        ),
+    ]
+    for c in starter_companies:
+        db.add(c)
+    db.commit()
+    delete_cache_pattern("companies:*")
+
+
