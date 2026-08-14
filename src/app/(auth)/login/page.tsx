@@ -50,10 +50,10 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-950/90 via-indigo-950/85 to-slate-950/90" />
 
       {/* Top-Left Logo */}
-      <div className="relative z-10 flex items-center gap-3 px-8 pt-8 lg:px-12 lg:pt-10">
+      <div className="relative z-10 flex items-center gap-3 px-4 pt-6 sm:px-8 sm:pt-8 lg:px-12 lg:pt-10">
         {/* Hazree Logo Icon */}
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="12" cy="6" r="2.5" fill="white"/>
             <circle cx="6" cy="12" r="2.5" fill="white"/>
             <circle cx="18" cy="12" r="2.5" fill="white"/>
@@ -65,26 +65,26 @@ export default function LoginPage() {
           </svg>
         </div>
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white leading-none">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white leading-none">
             HAZREE
           </h1>
-          <p className="text-[11px] text-blue-200/70 font-medium tracking-widest uppercase">
+          <p className="text-[10px] sm:text-[11px] text-blue-200/70 font-medium tracking-widest uppercase">
             Attendance Platform
           </p>
         </div>
       </div>
 
       {/* Centered Login Form */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md space-y-6">
+      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:py-12">
+        <div className="w-full max-w-md space-y-5 sm:space-y-6">
           {/* Login Heading */}
           <div className="text-center">
-            <h2 className="text-4xl font-black text-white italic tracking-tight">Hazree Portal Login</h2>
-            <p className="text-base text-blue-100/70 mt-2 font-medium">Enter your credentials to access your dashboard.</p>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white italic tracking-tight">Hazree Portal Login</h2>
+            <p className="text-xs sm:text-sm md:text-base text-blue-100/70 mt-1 sm:mt-2 font-medium">Enter your credentials to access your dashboard.</p>
           </div>
 
           {/* Form Card */}
-          <form onSubmit={handleSubmit} className="space-y-5 bg-white/10 backdrop-blur-xl p-8 rounded-2xl border border-white/20 shadow-2xl">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5 bg-white/10 backdrop-blur-xl p-5 sm:p-8 rounded-2xl border border-white/20 shadow-2xl">
             {/* Error Message Display */}
             {errorMessage && (
               <div className="p-4 rounded-xl bg-rose-500/20 border border-rose-500/50 text-xs font-bold text-rose-200 flex items-start gap-3 animate-fade-in shadow-lg">

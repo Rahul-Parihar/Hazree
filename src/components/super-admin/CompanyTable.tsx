@@ -225,7 +225,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
       {/* Table Container */}
       <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm min-w-[720px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
               <tr>
                 <th className="py-3.5 px-4">Company</th>

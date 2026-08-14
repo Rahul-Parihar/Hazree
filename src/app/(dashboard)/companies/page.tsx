@@ -81,7 +81,7 @@ export default function CompaniesPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
           <Button
             variant="outline"
             size="sm"
@@ -101,13 +101,14 @@ export default function CompaniesPage() {
             Quick Register
           </Button>
 
-          <Link href="/companies/register">
+          <Link href="/companies/register" className="w-full sm:w-auto">
             <Button
               variant="primary"
               size="sm"
               icon={<Sparkles className="w-4 h-4" />}
+              className="w-full sm:w-auto justify-center"
             >
-              Register New Organization
+              Register Organization
             </Button>
           </Link>
         </div>

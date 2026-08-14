@@ -57,7 +57,7 @@ export const PlatformStats: React.FC<PlatformStatsProps> = ({ totalCompanies: pr
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
       {stats.map((stat, idx) => (
         <Card key={idx} glass className="relative overflow-hidden border border-slate-200/60">
           <div className="flex items-center justify-between">

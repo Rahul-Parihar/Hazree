@@ -64,9 +64,11 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    dispatch(fetchCompaniesAsync());
-    dispatch(fetchSubscriptionPlansAsync());
-  }, [dispatch]);
+    if (userRole === 'SUPER_ADMIN') {
+      dispatch(fetchCompaniesAsync());
+      dispatch(fetchSubscriptionPlansAsync());
+    }
+  }, [dispatch, userRole]);
 
   const handleRegisterCompanySuccess = (newCompany: Company) => {
     dispatch(createCompanyAsync(newCompany));
@@ -76,22 +78,23 @@ export default function DashboardPage() {
     dispatch(toggleUserRole());
   };
 
-
-
   return (
-    <div className="space-y-5 animate-fade-in pb-8">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in pb-8">
       {/* SUPER ADMIN VIEW */}
       {userRole === 'SUPER_ADMIN' ? (
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-6">
           {/* Dashboard Title Bar */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Super Admin Dashboard</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <div>
+              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">Super Admin Dashboard</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Platform overview, organizations, revenue & live punch activity</p>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsRegisterModalOpen(true)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow transition-all active:scale-95 flex items-center gap-1.5"
+                className="w-full sm:w-auto justify-center px-4 py-2.5 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow transition-all active:scale-95 flex items-center gap-1.5"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
                 Register Company
               </button>
             </div>
@@ -101,33 +104,36 @@ export default function DashboardPage() {
           <SuperAdminStats totalCompanies={companies.length} />
 
           {/* Dynamic Date Range & Filter Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
-                <span className="font-semibold text-slate-700">Date Range:</span>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                    setDateRangePreset('custom');
-                  }}
-                  className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                />
-                <span className="text-slate-400">➔</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
-                    setDateRangePreset('custom');
-                  }}
-                  className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                />
+          <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+              {/* Date pickers */}
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 font-medium">
+                <span className="font-semibold text-slate-700 shrink-0">Date Range:</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setDateRangePreset('custom');
+                    }}
+                    className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                  />
+                  <span className="text-slate-400">➔</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setDateRangePreset('custom');
+                    }}
+                    className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                  />
+                </div>
               </div>
 
-              {/* Presets */}
-              <div className="flex items-center gap-1.5">
+              {/* Presets - horizontal scrollable on mobile */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
                 {[
                   { label: 'Today', val: 'today' },
                   { label: 'Last 7d', val: 'last7' },
@@ -138,7 +144,7 @@ export default function DashboardPage() {
                   <button
                     key={btn.val}
                     onClick={() => handlePresetSelect(btn.val as any)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                       dateRangePreset === btn.val
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60'
@@ -150,31 +156,39 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="text-xs text-slate-500 font-medium">
+            <div className="text-xs text-slate-500 font-medium truncate">
               Filter: <span className="font-bold text-slate-800">{startDate}</span> to <span className="font-bold text-slate-800">{endDate}</span>
             </div>
           </div>
 
           {/* Charts Row 1: Revenue (large) + Donut (small) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div className="lg:col-span-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
+            <div className="lg:col-span-8 overflow-hidden">
               <RevenueChart startDate={startDate} endDate={endDate} />
             </div>
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-4 overflow-hidden">
               <SubscriptionDonut />
             </div>
           </div>
 
           {/* Charts Row 2: Monthly Companies (line) + Monthly Punches (bar) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <MonthlyCompaniesChart />
-            <MonthlyPunchesChart />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+            <div className="overflow-hidden">
+              <MonthlyCompaniesChart />
+            </div>
+            <div className="overflow-hidden">
+              <MonthlyPunchesChart />
+            </div>
           </div>
 
           {/* Charts Row 3: Monthly Orders (line) + Status Distribution (donut) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <MonthlyOrdersChart />
-            <OrderStatusDistribution />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+            <div className="overflow-hidden">
+              <MonthlyOrdersChart />
+            </div>
+            <div className="overflow-hidden">
+              <OrderStatusDistribution />
+            </div>
           </div>
 
           {/* Row 4: Top Companies — 3 horizontal bar charts + tables */}

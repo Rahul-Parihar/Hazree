@@ -44,22 +44,24 @@ export const CompanyStatsCards: React.FC = () => {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
       {stats.map((stat, idx) => (
         <div
           key={idx}
-          className={`${stat.bg} rounded-xl p-5 text-white shadow-md hover:shadow-lg transition-all flex items-center justify-between`}
+          className={`${stat.bg} rounded-2xl p-3.5 sm:p-5 text-white shadow-md hover:shadow-lg transition-all flex items-center justify-between`}
         >
-          <div>
-            <p className="text-xs font-semibold text-white/80 uppercase tracking-wider">{stat.title}</p>
-            <p className="text-3xl font-extrabold mt-1 leading-none">{stat.value}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-[11px] text-white/90 font-medium bg-black/15 px-2 py-0.5 rounded-md">
+          <div className="min-w-0 pr-1.5 sm:pr-2">
+            <p className="text-[11px] sm:text-xs font-semibold text-white/80 uppercase tracking-wider truncate">{stat.title}</p>
+            <p className="text-2xl sm:text-3xl font-extrabold mt-1 leading-none truncate">{stat.value}</p>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-[10px] sm:text-[11px] text-white/90 font-medium bg-black/15 px-1.5 sm:px-2 py-0.5 rounded-md truncate">
                 {stat.subtext}
               </span>
             </div>
           </div>
-          {stat.icon}
+          <div className="hidden xs:block shrink-0">
+            {stat.icon}
+          </div>
         </div>
       ))}
     </div>

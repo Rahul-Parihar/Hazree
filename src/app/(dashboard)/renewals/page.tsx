@@ -227,7 +227,7 @@ function RenewalsPageInner() {
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Organizations</span>
@@ -343,7 +343,7 @@ function RenewalsPageInner() {
       {/* Subscriptions & Renewal Table */}
       <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm min-w-[700px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
               <tr>
                 <th className="py-3.5 px-4">Organization</th>

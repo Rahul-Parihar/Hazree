@@ -247,9 +247,9 @@ export default function RegisterCompanyPage() {
           </div>
 
           {/* Form Actions Footer */}
-          <div className="flex items-center justify-between pt-6 border-t border-slate-100">
-            <Link href="/companies">
-              <Button type="button" variant="outline">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-6 border-t border-slate-100">
+            <Link href="/companies" className="w-full sm:w-auto">
+              <Button type="button" variant="outline" className="w-full sm:w-auto justify-center">
                 Cancel
               </Button>
             </Link>
@@ -259,9 +259,10 @@ export default function RegisterCompanyPage() {
               variant="primary"
               size="lg"
               isLoading={isSubmitting}
-              icon={<Sparkles className="w-5 h-5" />}
+              icon={<ArrowRight className="w-4 h-4" />}
+              className="w-full sm:w-auto justify-center"
             >
-              Register & Choose Subscription Plan
+              Continue to Assign Subscription →
             </Button>
           </div>
         </form>

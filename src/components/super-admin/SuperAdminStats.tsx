@@ -50,25 +50,25 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({ totalCompanies
       value: totalCompanies.toLocaleString(),
       label: 'Total Organizations',
       bg: 'bg-blue-600',
-      icon: <Building2 className="w-10 h-10 text-white/30" />,
+      icon: <Building2 className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white/30 shrink-0" />,
     },
     {
       value: totalStaff.toLocaleString(),
       label: 'Total Staff Enrolled',
       bg: 'bg-orange-500',
-      icon: <Users className="w-10 h-10 text-white/30" />,
+      icon: <Users className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white/30 shrink-0" />,
     },
     {
       value: activeCompanies.toLocaleString(),
       label: 'Active Subscriptions',
       bg: 'bg-emerald-700',
-      icon: <CreditCard className="w-10 h-10 text-white/30" />,
+      icon: <CreditCard className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white/30 shrink-0" />,
     },
     {
       value: pendingCompanies.toLocaleString(),
       label: 'Pending / Suspended',
       bg: 'bg-slate-800',
-      icon: <ShieldCheck className="w-10 h-10 text-white/30" />,
+      icon: <ShieldCheck className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white/30 shrink-0" />,
     },
   ];
 
@@ -77,44 +77,44 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({ totalCompanies
       value: todayPunchesCount.toLocaleString(),
       label: "Today's Total Punches",
       bg: 'bg-teal-600',
-      icon: <Fingerprint className="w-10 h-10 text-white/30" />,
+      icon: <Fingerprint className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white/30 shrink-0" />,
     },
     {
       value: formattedMrr,
       label: 'Live Monthly Revenue',
       bg: 'bg-emerald-600',
-      icon: <IndianRupee className="w-10 h-10 text-white/30" />,
+      icon: <IndianRupee className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white/30 shrink-0" />,
     },
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Row 1 — 4 cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-2.5 sm:space-y-4">
+      {/* Row 1 — 4 cards in 2-column grid on mobile, 4-column on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {row1.map((stat, idx) => (
           <div
             key={idx}
-            className={`${stat.bg} rounded-xl p-5 flex items-center justify-between text-white shadow-md hover:shadow-lg transition-shadow`}
+            className={`${stat.bg} rounded-2xl p-3.5 sm:p-4 lg:p-5 flex items-center justify-between text-white shadow-md hover:shadow-lg transition-all`}
           >
-            <div>
-              <p className="text-3xl font-extrabold leading-none">{stat.value}</p>
-              <p className="text-sm font-medium text-white/80 mt-1.5">{stat.label}</p>
+            <div className="min-w-0 pr-1.5 sm:pr-2">
+              <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold leading-none truncate">{stat.value}</p>
+              <p className="text-[11px] sm:text-xs lg:text-sm font-medium text-white/90 mt-1 sm:mt-1.5 line-clamp-2 sm:truncate">{stat.label}</p>
             </div>
             {stat.icon}
           </div>
         ))}
       </div>
 
-      {/* Row 2 — 2 cards */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Row 2 — 2 cards in 2-column grid on mobile and desktop */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
         {row2.map((stat, idx) => (
           <div
             key={idx}
-            className={`${stat.bg} rounded-xl p-5 flex items-center justify-between text-white shadow-md hover:shadow-lg transition-shadow`}
+            className={`${stat.bg} rounded-2xl p-3.5 sm:p-4 lg:p-5 flex items-center justify-between text-white shadow-md hover:shadow-lg transition-all`}
           >
-            <div>
-              <p className="text-3xl font-extrabold leading-none">{stat.value}</p>
-              <p className="text-sm font-medium text-white/80 mt-1.5">{stat.label}</p>
+            <div className="min-w-0 pr-1.5 sm:pr-2">
+              <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold leading-none truncate">{stat.value}</p>
+              <p className="text-[11px] sm:text-xs lg:text-sm font-medium text-white/90 mt-1 sm:mt-1.5 line-clamp-2 sm:truncate">{stat.label}</p>
             </div>
             {stat.icon}
           </div>
@@ -123,4 +123,3 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({ totalCompanies
     </div>
   );
 };
-

@@ -29,8 +29,12 @@ const initialState: CompaniesState = {
  */
 export const fetchCompaniesAsync = createAsyncThunk(
   'companies/fetchCompanies',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
+      const state = getState() as any;
+      if (state.auth?.userRole && state.auth.userRole !== 'SUPER_ADMIN') {
+        return [];
+      }
       const backendCompanies = await companiesService.getAllCompanies();
       if (Array.isArray(backendCompanies)) {
         if (backendCompanies.length > 0) {
@@ -61,7 +65,9 @@ export const fetchCompaniesAsync = createAsyncThunk(
       }
       return [];
     } catch (err: any) {
-      console.warn('Backend fetch failed:', err?.message);
+      if (err?.status !== 403 && err?.status !== 401) {
+        console.warn('Backend fetch failed:', err?.message);
+      }
       return [];
     }
   }

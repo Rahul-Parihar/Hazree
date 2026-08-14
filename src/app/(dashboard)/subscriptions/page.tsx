@@ -336,7 +336,7 @@ function SubscriptionsPageInner() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
           <Button
             variant="outline"
             size="sm"
@@ -348,13 +348,13 @@ function SubscriptionsPageInner() {
 
           <Link href="/renewals">
             <Button variant="outline" size="sm" icon={<Building2 className="w-4 h-4" />}>
-              Organization Renewals
+              Renewals
             </Button>
           </Link>
 
           <Link href="/subscriptions/create">
             <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />}>
-              Add New Plan Tier
+              Add Plan Tier
             </Button>
           </Link>
         </div>
@@ -382,7 +382,7 @@ function SubscriptionsPageInner() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {plans.map((p) => {
               const enrolledCount = companies.filter(
                 (c) => c.plan.toLowerCase() === p.name.toLowerCase() || c.plan.toLowerCase() === p.code.toLowerCase()

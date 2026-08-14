@@ -266,20 +266,20 @@ export const RegisterCompanyModal: React.FC<RegisterCompanyModalProps> = ({
           </div>
 
           {/* Submit Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-100">
             <Link
               href="/companies/register"
               onClick={onClose}
-              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center justify-center sm:justify-start gap-1 py-1"
             >
               Open Full Registration Page <ExternalLink className="w-3 h-3" />
             </Link>
 
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+            <div className="flex items-center gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1 sm:flex-none justify-center">
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" isLoading={isSubmitting}>
+              <Button type="submit" variant="primary" isLoading={isSubmitting} className="flex-1 sm:flex-none justify-center">
                 Register Company
               </Button>
             </div>

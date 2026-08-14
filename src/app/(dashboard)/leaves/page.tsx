@@ -38,19 +38,19 @@ export default function LeavesPage() {
           <Card key={leave.id} glass className="border border-slate-200/80">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               {/* Employee & Leave info */}
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 min-w-0">
                 <img
                   src={leave.employeeAvatar}
                   alt={leave.employeeName}
-                  className="w-12 h-12 rounded-2xl object-cover"
+                  className="w-12 h-12 rounded-2xl object-cover shrink-0"
                 />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-slate-900">{leave.employeeName}</h4>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-bold text-slate-900 truncate">{leave.employeeName}</h4>
                     <span className="text-xs text-slate-500 font-medium">({leave.department})</span>
                   </div>
                   <p className="text-xs text-slate-600 mt-1">{leave.reason}</p>
-                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-2 font-mono">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-2 font-mono">
                     <span>
                       Duration: <strong>{leave.startDate}</strong> to <strong>{leave.endDate}</strong> ({leave.daysCount} days)
                     </span>
@@ -60,7 +60,7 @@ export default function LeavesPage() {
               </div>
 
               {/* Status & Approve / Reject Actions */}
-              <div className="flex items-center gap-3 self-end md:self-center">
+              <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
                 <Badge variant={leave.status === 'Approved' ? 'present' : leave.status === 'Pending' ? 'pending' : 'absent'}>
                   {leave.status}
                 </Badge>

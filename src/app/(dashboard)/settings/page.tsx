@@ -45,14 +45,14 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {savedSuccess && (
             <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 animate-fade-in bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
               <CheckCircle2 className="w-4 h-4" />
-              Settings Saved to Redux!
+              Settings Saved!
             </span>
           )}
-          <Button variant="primary" icon={<Save className="w-4 h-4" />} onClick={handleSave}>
+          <Button variant="primary" icon={<Save className="w-4 h-4" />} onClick={handleSave} className="w-full sm:w-auto justify-center">
             Save Configuration
           </Button>
         </div>
