@@ -1,6 +1,6 @@
 export type UserRole = 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'EMPLOYEE';
 
-export type PlanType = 'Trial' | 'Growth' | 'Enterprise';
+export type PlanType = 'Trial' | 'Growth' | 'Enterprise' | string;
 export type CompanyStatus = 'Active' | 'Pending' | 'Suspended';
 
 export interface Company {

@@ -5,6 +5,7 @@ import { Company } from '../../types';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
 import { toggleUserRole } from '../../redux/slices/authSlice';
 import { addCompany, fetchCompaniesAsync, createCompanyAsync } from '../../redux/slices/companiesSlice';
+import { fetchSubscriptionPlansAsync } from '../../redux/slices/subscriptionsSlice';
 
 // Super Admin Components
 import { SuperAdminStats } from '../../components/super-admin/SuperAdminStats';
@@ -64,6 +65,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     dispatch(fetchCompaniesAsync());
+    dispatch(fetchSubscriptionPlansAsync());
   }, [dispatch]);
 
   const handleRegisterCompanySuccess = (newCompany: Company) => {

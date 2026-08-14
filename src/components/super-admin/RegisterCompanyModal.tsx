@@ -9,7 +9,7 @@ import { Input } from '../ui/Input';
 import { Company, PlanType } from '../../types';
 import { useAppDispatch } from '../../redux/hooks';
 import { createCompanyAsync } from '../../redux/slices/companiesSlice';
-import { companiesService } from '../../services';
+import { companiesService, subscriptionsService, BackendSubscriptionPlan } from '../../services';
 
 interface RegisterCompanyModalProps {
   isOpen: boolean;
@@ -24,6 +24,8 @@ export const RegisterCompanyModal: React.FC<RegisterCompanyModalProps> = ({
 }) => {
   const dispatch = useAppDispatch();
 
+  const [availablePlans, setAvailablePlans] = useState<BackendSubscriptionPlan[]>([]);
+
   const [formData, setFormData] = useState({
     name: '',
     adminName: '',
@@ -34,6 +36,16 @@ export const RegisterCompanyModal: React.FC<RegisterCompanyModalProps> = ({
     plan: 'Growth' as PlanType,
     maxEmployees: 100,
   });
+
+  React.useEffect(() => {
+    if (isOpen) {
+      subscriptionsService.getPlans().then((data) => {
+        if (data && data.length > 0) {
+          setAvailablePlans(data);
+        }
+      }).catch((err) => console.error(err));
+    }
+  }, [isOpen]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -184,16 +196,48 @@ export const RegisterCompanyModal: React.FC<RegisterCompanyModalProps> = ({
             />
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Staff Limit (Quota)
+                Subscription Plan Tier *
               </label>
-              <Input
-                type="number"
-                placeholder="Enter your employee limit"
-                value={formData.maxEmployees}
-                onChange={(e) => handleChange('maxEmployees', e.target.value)}
-                icon={<Users className="w-4 h-4" />}
-              />
+              <select
+                value={formData.plan}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const found = availablePlans.find((p) => p.name === val || p.code === val);
+                  handleChange('plan', val);
+                  if (found) {
+                    handleChange('maxEmployees', found.max_employees || 100);
+                  }
+                }}
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                {availablePlans.length > 0 ? (
+                  availablePlans.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.name} ({p.currency}{p.price_amount} • Up to {p.max_employees} Staff)
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Trial">Free Trial (Up to 100 Staff)</option>
+                    <option value="Growth">Growth Pro (Up to 150 Staff)</option>
+                    <option value="Enterprise">Enterprise VIP (Up to 500 Staff)</option>
+                  </>
+                )}
+              </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+              Staff Limit (Quota)
+            </label>
+            <Input
+              type="number"
+              placeholder="Enter your employee limit"
+              value={formData.maxEmployees}
+              onChange={(e) => handleChange('maxEmployees', e.target.value)}
+              icon={<Users className="w-4 h-4" />}
+            />
           </div>
 
           {/* Admin Login Password */}
@@ -219,33 +263,6 @@ export const RegisterCompanyModal: React.FC<RegisterCompanyModalProps> = ({
               </button>
             </div>
             <p className="text-[11px] text-slate-400 mt-1">Used by company administrator to log into Company Portal.</p>
-          </div>
-
-          {/* Subscription & Capacity */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Subscription Plan
-              </label>
-              <select
-                value={formData.plan}
-                onChange={(e) => handleChange('plan', e.target.value as PlanType)}
-                className="w-full rounded-xl bg-white/80 border border-slate-200 text-slate-900 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              >
-                <option value="Trial">Free Trial (30 Days)</option>
-                <option value="Growth">Growth Plan (Up to 150 Employees)</option>
-                <option value="Enterprise">Enterprise Plan (Unlimited)</option>
-              </select>
-            </div>
-
-            <Input
-              label="Max Employee Limit"
-              type="number"
-              value={formData.maxEmployees}
-              onChange={(e) => handleChange('maxEmployees', e.target.value)}
-              icon={<Users className="w-4 h-4" />}
-              required
-            />
           </div>
 
           {/* Submit Actions */}

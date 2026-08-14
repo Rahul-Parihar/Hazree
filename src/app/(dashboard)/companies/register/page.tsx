@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -9,27 +9,21 @@ import {
   Mail,
   Phone,
   MapPin,
-  Layers,
-  Users,
   CheckCircle2,
   ArrowLeft,
-  Sparkles,
   ShieldCheck,
-  Zap,
-  Crown,
-  RefreshCw,
   AlertCircle,
   Lock,
   Eye,
   EyeOff,
   KeyRound,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { useAppDispatch } from '../../../../redux/hooks';
 import { createCompanyAsync } from '../../../../redux/slices/companiesSlice';
-import { companiesService } from '../../../../services';
-import { PlanType } from '../../../../types';
 
 export default function RegisterCompanyPage() {
   const router = useRouter();
@@ -42,13 +36,12 @@ export default function RegisterCompanyPage() {
     adminPhone: '',
     password: '',
     location: '',
-    plan: 'Growth' as PlanType,
-    maxEmployees: 100,
   });
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [registeredCompanyId, setRegisteredCompanyId] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const generateRandomPassword = () => {
@@ -66,10 +59,15 @@ export default function RegisterCompanyPage() {
     if (errorMessage) setErrorMessage(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
       setErrorMessage('Company Name is required.');
+      return;
+    }
+
+    if (!formData.adminEmail.trim()) {
+      setErrorMessage('Official Contact Email is required.');
       return;
     }
 
@@ -82,86 +80,29 @@ export default function RegisterCompanyPage() {
     setErrorMessage(null);
 
     try {
-      const actionResult = await dispatch(
-        createCompanyAsync({
+      // Save pending company onboarding data in sessionStorage
+      sessionStorage.setItem(
+        'pending_company_onboarding',
+        JSON.stringify({
           name: formData.name.trim(),
           adminName: formData.adminName.trim(),
           adminEmail: formData.adminEmail.trim().toLowerCase(),
           adminPhone: formData.adminPhone.trim(),
           password: formData.password.trim() || undefined,
-          plan: formData.plan,
-          status: 'Active',
-          employeeCount: 1,
-          maxEmployees: Number(formData.maxEmployees) || 100,
-          location: formData.location || 'Mumbai, MH',
-          renewalDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          location: formData.location.trim() || 'Mumbai, Maharashtra',
         })
       );
 
-      if (createCompanyAsync.fulfilled.match(actionResult)) {
-        setIsSuccess(true);
-      } else if (createCompanyAsync.rejected.match(actionResult)) {
-        setErrorMessage(
-          (actionResult.payload as string) ||
-            'Failed to register company on server.'
-        );
-      }
+      // Navigate to subscriptions catalog to select and finalize plan
+      router.push('/subscriptions?mode=onboarding');
     } catch (err: any) {
-      setErrorMessage(err?.message || 'An unexpected error occurred.');
-    } finally {
+      setErrorMessage(err?.message || 'Failed to proceed to subscription selection.');
       setIsSubmitting(false);
     }
   };
 
-  const plans = [
-    {
-      id: 'Trial' as PlanType,
-      name: 'Free Trial',
-      duration: '30 Days',
-      price: 'Free',
-      limit: 'Up to 25 Employees',
-      features: ['Basic Attendance Log', 'Web Punch In/Out', 'Standard Support'],
-      icon: Zap,
-      accent: 'border-slate-200 hover:border-slate-400',
-      badgeColor: 'bg-slate-100 text-slate-700',
-    },
-    {
-      id: 'Growth' as PlanType,
-      name: 'Growth Pro',
-      duration: 'Billed Yearly',
-      price: '₹4,999 / mo',
-      limit: 'Up to 150 Employees',
-      features: [
-        'Geo-fenced Punching',
-        'Automated Leaves & Shifts',
-        'Live Real-time Reports',
-        'Priority 24/7 SLA Support',
-      ],
-      icon: Sparkles,
-      recommended: true,
-      accent: 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20',
-      badgeColor: 'bg-emerald-100 text-emerald-800',
-    },
-    {
-      id: 'Enterprise' as PlanType,
-      name: 'Enterprise VIP',
-      duration: 'Billed Yearly',
-      price: '₹14,999 / mo',
-      limit: 'Unlimited Employees',
-      features: [
-        'Multi-Branch Multi-Tenant',
-        'Custom Biometric Hardware Sync',
-        'Dedicated Key Account Manager',
-        'Custom SSO & Role Workflows',
-      ],
-      icon: Crown,
-      accent: 'border-indigo-200 hover:border-indigo-400',
-      badgeColor: 'bg-indigo-100 text-indigo-800',
-    },
-  ];
-
   return (
-    <div className="space-y-6 animate-fade-in pb-12 max-w-5xl mx-auto">
+    <div className="space-y-6 animate-fade-in pb-12 max-w-4xl mx-auto">
       {/* Top Breadcrumb & Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -177,7 +118,7 @@ export default function RegisterCompanyPage() {
               Register New Organization
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Super Admin Multi-Tenant Onboarding • Automatic Database Sync & Provisioning
+              Super Admin Multi-Tenant Onboarding • Provision organization details first, then choose subscription
             </p>
           </div>
         </div>
@@ -189,69 +130,10 @@ export default function RegisterCompanyPage() {
         </Link>
       </div>
 
-      {isSuccess ? (
-        /* Success State Card */
-        <div className="bg-white rounded-3xl border border-emerald-200/80 shadow-xl shadow-emerald-500/5 p-10 text-center space-y-6 animate-fade-in">
-          <div className="w-20 h-20 bg-emerald-100/80 rounded-full flex items-center justify-center text-emerald-600 mx-auto ring-8 ring-emerald-50">
-            <CheckCircle2 className="w-12 h-12 animate-bounce" />
-          </div>
-
-          <div className="space-y-2 max-w-md mx-auto">
-            <h2 className="text-2xl font-extrabold text-slate-900">
-              {formData.name} Registered Successfully!
-            </h2>
-            <p className="text-sm text-slate-600">
-              Organization account has been provisioned on the PostgreSQL database.
-            </p>
-          </div>
-
-          {/* Quick Summary Box */}
-          <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 max-w-lg mx-auto grid grid-cols-2 gap-4 text-left text-xs">
-            <div>
-              <span className="text-slate-400 font-medium">Company Name:</span>
-              <p className="font-bold text-slate-800 text-sm mt-0.5">{formData.name}</p>
-            </div>
-            <div>
-              <span className="text-slate-400 font-medium">Active Plan:</span>
-              <p className="font-bold text-indigo-600 text-sm mt-0.5">{formData.plan} Plan</p>
-            </div>
-            <div>
-              <span className="text-slate-400 font-medium">Primary Admin Email:</span>
-              <p className="font-bold text-slate-800 text-sm mt-0.5">{formData.adminEmail || 'admin@hazree.com'}</p>
-            </div>
-            <div>
-              <span className="text-slate-400 font-medium">Headquarters:</span>
-              <p className="font-bold text-slate-800 text-sm mt-0.5">{formData.location || 'India'}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-center gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsSuccess(false);
-                setFormData({
-                  name: '',
-                  adminName: '',
-                  adminEmail: '',
-                  adminPhone: '',
-                  password: '',
-                  location: '',
-                  plan: 'Growth',
-                  maxEmployees: 100,
-                });
-              }}
-            >
-              Register Another Company
-            </Button>
-            <Button variant="primary" onClick={() => router.push('/companies')}>
-              Go to Organizations Directory
-            </Button>
-          </div>
-        </div>
-      ) : (
-        /* Single Unified Registration Form */
-        <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 sm:p-10 space-y-8 animate-fade-in">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 sm:p-10 space-y-8 animate-fade-in"
+        >
           {errorMessage && (
             <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-start gap-3 animate-shake">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
@@ -262,7 +144,7 @@ export default function RegisterCompanyPage() {
             </div>
           )}
 
-          {/* Section: Organization & Admin Profile */}
+          {/* Section: Organization Profile */}
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
@@ -270,8 +152,10 @@ export default function RegisterCompanyPage() {
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-extrabold text-slate-900">Organization & Administrator Details</h3>
-                  <p className="text-xs text-slate-500">Legal entity information, official contact details & portal login credentials</p>
+                  <h3 className="text-lg font-extrabold text-slate-900">Organization & Administrator Profile</h3>
+                  <p className="text-xs text-slate-500">
+                    Enter company information & admin login details. Subscription can be assigned next.
+                  </p>
                 </div>
               </div>
               <ShieldCheck className="w-5 h-5 text-emerald-500 hidden sm:block" />
@@ -281,7 +165,7 @@ export default function RegisterCompanyPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <Input
                 label="Company Name *"
-                placeholder="Enter your company name"
+                placeholder="e.g. Acme Technologies Pvt Ltd"
                 value={formData.name}
                 onChange={(e) => handleChange('name', e.target.value)}
                 icon={<Building2 className="w-4 h-4" />}
@@ -290,7 +174,7 @@ export default function RegisterCompanyPage() {
 
               <Input
                 label="Headquarters Location / City"
-                placeholder="Enter your headquarters location"
+                placeholder="e.g. Indore, Madhya Pradesh"
                 value={formData.location}
                 onChange={(e) => handleChange('location', e.target.value)}
                 icon={<MapPin className="w-4 h-4" />}
@@ -299,7 +183,7 @@ export default function RegisterCompanyPage() {
               <Input
                 label="Official Contact Email *"
                 type="email"
-                placeholder="Enter your company email"
+                placeholder="e.g. contact@acme.com"
                 value={formData.adminEmail}
                 onChange={(e) => handleChange('adminEmail', e.target.value)}
                 icon={<Mail className="w-4 h-4" />}
@@ -309,15 +193,15 @@ export default function RegisterCompanyPage() {
               <Input
                 label="Official Phone / Support"
                 type="tel"
-                placeholder="Enter your phone number"
+                placeholder="e.g. +91 98765 43210"
                 value={formData.adminPhone}
                 onChange={(e) => handleChange('adminPhone', e.target.value)}
                 icon={<Phone className="w-4 h-4" />}
               />
 
               <Input
-                label="Primary Admin Name"
-                placeholder="Enter your admin name"
+                label="Primary Admin Full Name"
+                placeholder="e.g. Rajesh Sharma"
                 value={formData.adminName}
                 onChange={(e) => handleChange('adminName', e.target.value)}
                 icon={<User className="w-4 h-4" />}
@@ -343,7 +227,7 @@ export default function RegisterCompanyPage() {
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => handleChange('password', e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder="Enter admin password"
                     className="w-full pl-10 pr-11 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                   <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
@@ -356,96 +240,9 @@ export default function RegisterCompanyPage() {
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Company Admin will use this password with their Official Email to log in.
+                  Company Admin will use this password with their Official Email to log into their portal.
                 </p>
               </div>
-            </div>
-          </div>
-
-          <hr className="border-slate-100" />
-
-          {/* Section: Subscription Tier & Employee Quotas */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shadow-sm">
-                  <Crown className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-slate-900">Subscription Plan & License Quota</h3>
-                  <p className="text-xs text-slate-500">Select license tier and maximum registered employee capacity</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Plan Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {plans.map((p) => {
-                const isSelected = formData.plan === p.id;
-                const IconComponent = p.icon;
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => {
-                      handleChange('plan', p.id);
-                      if (p.id === 'Trial') handleChange('maxEmployees', 25);
-                      if (p.id === 'Growth') handleChange('maxEmployees', 150);
-                      if (p.id === 'Enterprise') handleChange('maxEmployees', 1000);
-                    }}
-                    className={`cursor-pointer relative p-5 rounded-2xl border transition-all duration-200 ${
-                      isSelected
-                        ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20 shadow-md shadow-emerald-500/5'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    {p.recommended && (
-                      <span className="absolute -top-2.5 right-4 bg-emerald-600 text-white text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full shadow-sm">
-                        Popular
-                      </span>
-                    )}
-
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                          isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        <IconComponent className="w-5 h-5" />
-                      </div>
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${p.badgeColor}`}>
-                        {p.limit}
-                      </span>
-                    </div>
-
-                    <h4 className="font-extrabold text-slate-900 text-base">{p.name}</h4>
-                    <p className="text-xs text-slate-500">{p.duration}</p>
-
-                    <div className="my-3 text-lg font-black text-slate-900">{p.price}</div>
-
-                    <ul className="space-y-1.5 text-xs text-slate-600 pt-2 border-t border-slate-100">
-                      {p.features.map((feat, idx) => (
-                        <li key={idx} className="flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          <span>{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Custom Max Employees */}
-            <div className="max-w-xs pt-2">
-              <Input
-                label="Allowed Maximum Employee Capacity"
-                type="number"
-                placeholder="Enter your employee limit"
-                value={formData.maxEmployees}
-                onChange={(e) => handleChange('maxEmployees', e.target.value)}
-                icon={<Users className="w-4 h-4" />}
-                required
-              />
             </div>
           </div>
 
@@ -462,13 +259,12 @@ export default function RegisterCompanyPage() {
               variant="primary"
               size="lg"
               isLoading={isSubmitting}
-              icon={<Building2 className="w-5 h-5" />}
+              icon={<Sparkles className="w-5 h-5" />}
             >
-              Complete Company Registration
+              Register & Choose Subscription Plan
             </Button>
           </div>
         </form>
-      )}
     </div>
   );
 }

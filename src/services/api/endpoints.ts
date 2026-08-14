@@ -47,6 +47,15 @@ export const ENDPOINTS = {
     GET_BY_ID: (id: string) => `/leaves/${id}`,
   },
 
+  // Subscription Plans
+  SUBSCRIPTIONS: {
+    PLANS: '/subscriptions/plans',
+    GET_PLAN: (id: string | number) => `/subscriptions/plans/${id}`,
+    CREATE_PLAN: '/subscriptions/plans',
+    UPDATE_PLAN: (id: string | number) => `/subscriptions/plans/${id}`,
+    DELETE_PLAN: (id: string | number) => `/subscriptions/plans/${id}`,
+  },
+
   // Health check
   HEALTH: '/health',
   ROOT: '/',

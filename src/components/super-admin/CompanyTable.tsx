@@ -85,17 +85,30 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
     selectedPlan !== 'ALL' ||
     sortBy !== 'NEWEST';
 
-  const filteredCompanies = companies
-    .filter((c) => {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        c.name.toLowerCase().includes(query) ||
-        c.adminName.toLowerCase().includes(query) ||
-        c.adminEmail.toLowerCase().includes(query) ||
-        c.location.toLowerCase().includes(query);
+  const uniquePlans = Array.from(
+    new Set(['Trial', 'Growth', 'Enterprise', ...companies.map((c) => c.plan).filter(Boolean)])
+  );
 
-      const matchesStatus = selectedStatus === 'ALL' || c.status.toUpperCase() === selectedStatus;
-      const matchesPlan = selectedPlan === 'ALL' || c.plan.toUpperCase() === selectedPlan.toUpperCase();
+  // Filter and Sort Pipeline
+  const filteredCompanies = companies
+    .filter((company) => {
+      // 1. Search Query Filter
+      const matchesSearch =
+        searchQuery.trim() === '' ||
+        company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        company.adminEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        company.adminName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        company.location.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // 2. Status Filter
+      const matchesStatus =
+        selectedStatus === 'ALL' ||
+        company.status.toUpperCase() === selectedStatus.toUpperCase();
+
+      // 3. Plan Filter
+      const matchesPlan =
+        selectedPlan === 'ALL' ||
+        company.plan.toUpperCase() === selectedPlan.toUpperCase();
 
       return matchesSearch && matchesStatus && matchesPlan;
     })
@@ -166,9 +179,11 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
               className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Plans</option>
-              <option value="TRIAL">Trial</option>
-              <option value="GROWTH">Growth</option>
-              <option value="ENTERPRISE">Enterprise</option>
+              {uniquePlans.map((p) => (
+                <option key={p} value={p.toUpperCase()}>
+                  {p}
+                </option>
+              ))}
             </select>
           </div>
 

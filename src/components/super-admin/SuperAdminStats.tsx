@@ -20,11 +20,20 @@ export const SuperAdminStats: React.FC<SuperAdminStatsProps> = ({ totalCompanies
   const todayStr = new Date().toISOString().split('T')[0];
   const todayPunchesCount = attendanceRecords.filter((r) => r.date === todayStr).length;
 
+  const backendPlans = useAppSelector((state) => state.subscriptions?.plans || []);
+
   // Monthly Recurring Revenue (MRR) dynamically computed from active plans
   const totalMrr = companies.reduce((acc, c) => {
     if (c.status === 'Active') {
-      if (c.plan === 'Enterprise') return acc + 14999;
-      if (c.plan === 'Growth') return acc + 4999;
+      const planName = (c.plan || '').toLowerCase();
+      const matched = backendPlans.find(
+        (p) => p.name.toLowerCase() === planName || p.code.toLowerCase() === planName
+      );
+      if (matched) {
+        return acc + (Number(matched.price_amount) || 0);
+      }
+      if (planName === 'enterprise') return acc + 14999;
+      if (planName === 'growth') return acc + 4999;
     }
     return acc;
   }, 0);

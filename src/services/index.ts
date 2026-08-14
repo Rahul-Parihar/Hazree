@@ -22,3 +22,5 @@ export type { AttendancePunchPayload } from './attendanceService';
 
 export { employeesService } from './employeesService';
 export { leavesService } from './leavesService';
+export { subscriptionsService } from './subscriptionsService';
+export type { BackendSubscriptionPlan, CreateSubscriptionPlanInput } from './subscriptionsService';

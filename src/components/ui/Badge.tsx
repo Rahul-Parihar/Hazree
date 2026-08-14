@@ -12,7 +12,8 @@ type BadgeVariant =
   | 'enterprise'
   | 'growth'
   | 'trial'
-  | 'neutral';
+  | 'neutral'
+  | string;
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
