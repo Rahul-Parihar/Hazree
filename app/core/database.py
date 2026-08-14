@@ -10,13 +10,29 @@ Base = declarative_base()
 
 
 def get_engine():
-    """Create SQLAlchemy Engine with connection pooling suitable for cloud Postgres (Neon)"""
+    """
+    Create high-performance SQLAlchemy Engine with connection pooling optimized
+    for cloud PostgreSQL (Neon pooler).
+    Keeps persistent warm connections with TCP keepalives to eliminate connection lag.
+    """
     db_url = settings.sync_database_url
+    connect_args = {
+        "connect_timeout": 10,
+        "application_name": "hazree_backend",
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+    }
     return create_engine(
         db_url,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        echo=settings.debug,
+        pool_size=15,
+        max_overflow=25,
+        pool_timeout=15,
+        pool_recycle=1800,
+        pool_pre_ping=False,
+        connect_args=connect_args,
+        echo=False,
     )
 
 

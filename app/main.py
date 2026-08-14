@@ -83,16 +83,21 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
+from fastapi.middleware.gzip import GZipMiddleware
+
 # ---------------------------------------------------------------------------
 # Middlewares Execution Chain
 # ---------------------------------------------------------------------------
 # 1. Performance & Execution Timing Middleware (Outermost)
 app.add_middleware(RequestLoggingMiddleware)
 
-# 2. OWASP Security Defense Headers Middleware
+# 2. GZip Compression Middleware (High speed payload delivery)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# 3. OWASP Security Defense Headers Middleware
 app.add_middleware(SecurityHeadersMiddleware)
 
-# 3. Dynamic CORS Middleware (Loaded from .env)
+# 4. Dynamic CORS Middleware (Loaded from .env)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_cors_origins,
@@ -103,7 +108,7 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# 4. Global Route Protection Middleware (Protects all private APIs after login)
+# 5. Global Route Protection Middleware (Protects all private APIs after login)
 app.add_middleware(AuthProtectionMiddleware)
 
 # ---------------------------------------------------------------------------

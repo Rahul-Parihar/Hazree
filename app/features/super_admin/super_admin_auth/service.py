@@ -272,13 +272,18 @@ def get_current_user(
         raise credentials_exception
 
     if role == "SUPER_ADMIN":
+        cache_key = f"auth:admin:{email}"
+        cached_admin_data = get_cache(cache_key)
+        if cached_admin_data:
+            return UserAuthResponse(**cached_admin_data)
+
         admin = get_admin_by_email(db, email=email)
         if admin is None or not admin.is_active or not admin.is_super_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Inactive or insufficient Super Admin permissions.",
             )
-        return UserAuthResponse(
+        user_res = UserAuthResponse(
             id=admin.id,
             email=admin.email,
             full_name=admin.full_name,
@@ -288,8 +293,15 @@ def get_current_user(
             is_active=admin.is_active,
             created_at=admin.created_at,
         )
+        set_cache(cache_key, user_res.model_dump(mode="json"), expire_seconds=60)
+        return user_res
 
     elif role == "COMPANY_ADMIN":
+        cache_key = f"auth:company_admin:{email}"
+        cached_co_data = get_cache(cache_key)
+        if cached_co_data:
+            return UserAuthResponse(**cached_co_data)
+
         company = db.query(Company).filter(Company.email == email).first()
         if company is None:
             raise credentials_exception
@@ -301,7 +313,7 @@ def get_current_user(
                 detail="Your company account is Suspended.",
             )
 
-        return UserAuthResponse(
+        user_res = UserAuthResponse(
             id=company.id,
             email=company.email,
             full_name=company.admin_name or f"{company.name} Admin",
@@ -313,6 +325,8 @@ def get_current_user(
             is_active=company.is_active,
             created_at=company.created_at,
         )
+        set_cache(cache_key, user_res.model_dump(mode="json"), expire_seconds=60)
+        return user_res
 
     raise credentials_exception
 
@@ -323,6 +337,7 @@ def get_current_super_admin(
 ) -> AdminUser:
     """
     FastAPI Dependency: Authenticate strictly Super Admin accounts.
+    Uses verified JWT claims and high-speed cache to avoid redundant remote database latency.
     """
     user = get_current_user(request, db)
     if user.role != "SUPER_ADMIN":
@@ -330,13 +345,18 @@ def get_current_super_admin(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access restricted to Super Admin only.",
         )
-    admin = get_admin_by_id(db, user.id)
-    if not admin or not admin.is_active:
+    if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Super Admin account inactive or not found.",
+            detail="Super Admin account inactive or suspended.",
         )
-    return admin
+    return AdminUser(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        is_super_admin=True,
+        is_active=True,
+    )
 
 
 def refresh_super_admin_session(
@@ -406,7 +426,7 @@ def refresh_super_admin_session(
 def get_super_admin_overview(db: Session) -> SuperAdminOverviewResponse:
     """
     Collect platform statistics and overview info for Super Admin.
-    Uses Redis cache with a 60-second TTL for sub-millisecond response times.
+    Uses Redis/memory cache with a 120-second TTL for sub-millisecond response times.
     """
     cache_key = "super_admin:overview"
     cached = get_cache(cache_key)
@@ -418,10 +438,11 @@ def get_super_admin_overview(db: Session) -> SuperAdminOverviewResponse:
     admin_count = 0
 
     try:
-        db.execute(text("SELECT 1"))
+        row = db.execute(text("SELECT (SELECT count(*) FROM companies), (SELECT count(*) FROM admin_users)")).fetchone()
+        if row:
+            company_count = row[0] or 0
+            admin_count = row[1] or 0
         db_connected = True
-        company_count = db.query(Company).count()
-        admin_count = db.query(AdminUser).count()
     except Exception:
         db_connected = False
 
@@ -438,8 +459,8 @@ def get_super_admin_overview(db: Session) -> SuperAdminOverviewResponse:
         ),
     )
 
-    # Cache for 60 seconds
-    set_cache(cache_key, overview, expire_seconds=60)
+    # Cache for 120 seconds
+    set_cache(cache_key, overview, expire_seconds=120)
 
     return overview
 
