@@ -32,6 +32,24 @@ export interface BackendCompanyResponse {
   logo?: string;
   is_active: boolean;
   created_at?: string;
+  days_until_renewal?: number;
+  is_subscription_expiring_soon?: boolean;
+  is_subscription_expired?: boolean;
+  subscription_alert?: string;
+  subscription_alert_type?: 'warning' | 'danger' | 'info' | 'none';
+}
+
+export interface BackendSubscriptionStatusResponse {
+  company_id: number;
+  company_name: string;
+  plan: string;
+  status: string;
+  renewal_date?: string;
+  days_until_renewal?: number;
+  is_expiring_soon: boolean;
+  is_expired: boolean;
+  alert_message?: string;
+  alert_type?: 'warning' | 'danger' | 'info' | 'none';
 }
 
 export interface BackendCompanyUpdate {
@@ -72,6 +90,13 @@ export const companiesService = {
    */
   async getCompanyById(id: string | number): Promise<BackendCompanyResponse> {
     return apiClient.get<BackendCompanyResponse>(ENDPOINTS.COMPANIES.GET_BY_ID(id));
+  },
+
+  /**
+   * Get company subscription status & 5-day expiry alert from backend
+   */
+  async getSubscriptionStatus(id: string | number): Promise<BackendSubscriptionStatusResponse> {
+    return apiClient.get<BackendSubscriptionStatusResponse>(ENDPOINTS.COMPANIES.SUBSCRIPTION_STATUS(id));
   },
 
   /**

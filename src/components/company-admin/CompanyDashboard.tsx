@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { CompanyStatsCards } from './CompanyStatsCards';
 import { CompanyAttendanceTrend } from './CompanyAttendanceTrend';
+import { SubscriptionAlertBanner } from './SubscriptionAlertBanner';
 import { CompanyDepartmentHealth } from './CompanyDepartmentHealth';
 import { CompanyQuickActions } from './CompanyQuickActions';
 import { CompanyKioskGeofenceStatus } from './CompanyKioskGeofenceStatus';
@@ -22,10 +23,18 @@ interface CompanyDashboardProps {
 export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((state) => state.auth.currentUser);
+  const companies = useAppSelector((state) => state.companies.companies);
   const attendanceRecords = useAppSelector((state) => state.attendance.records);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
 
-  const companyName = currentUser?.companyName || 'Registered Organization';
+  const currentCompany =
+    companies.find(
+      (c) =>
+        c.id === currentUser?.companyId ||
+        c.name.toLowerCase() === (currentUser?.companyName || '').toLowerCase()
+    ) || (companies.length > 0 ? companies[0] : null);
+
+  const companyName = currentCompany?.name || currentUser?.companyName || 'Registered Organization';
   const companyInitials = companyName
     .split(' ')
     .map((w) => w[0])
@@ -70,6 +79,9 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
 
   return (
     <div className="space-y-5 animate-fade-in pb-8">
+      {/* 5-Day Subscription Expiry Warning Banner */}
+      <SubscriptionAlertBanner company={currentCompany} />
+
       {/* Company Header Banner */}
       <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 text-white p-5 rounded-2xl border border-emerald-700/50 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">

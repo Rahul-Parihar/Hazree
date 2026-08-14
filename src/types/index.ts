@@ -18,6 +18,11 @@ export interface Company {
   createdAt: string;
   location: string;
   renewalDate: string;
+  daysUntilRenewal?: number;
+  isSubscriptionExpiringSoon?: boolean;
+  isSubscriptionExpired?: boolean;
+  subscriptionAlert?: string;
+  subscriptionAlertType?: 'warning' | 'danger' | 'info' | 'none';
 }
 
 export type EmployeeStatus = 'Active' | 'On Leave' | 'Inactive';

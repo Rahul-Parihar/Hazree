@@ -107,7 +107,7 @@ export default function CompaniesPage() {
               size="sm"
               icon={<Sparkles className="w-4 h-4" />}
             >
-              Register Company Page
+              Register New Organization
             </Button>
           </Link>
         </div>
@@ -119,7 +119,6 @@ export default function CompaniesPage() {
       {/* Company Table */}
       <CompanyTable
         companies={companies}
-        onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
         onStatusChange={handleCompanyStatusChange}
       />
 

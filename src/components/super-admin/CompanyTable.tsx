@@ -1,28 +1,29 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { Search, Filter, MoreVertical, Building2, MapPin, Mail, Phone, Users, Plus, Trash2, Sparkles } from 'lucide-react';
+import { Search, MapPin, Mail, Trash2, Filter, ArrowUpDown, RotateCcw, X, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Company } from '../../types';
 import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
 import { useAppDispatch } from '../../redux/hooks';
-import { deleteCompanyAsync } from '../../redux/slices/companiesSlice';
+import { deleteCompanyAsync, updateCompanyStatusAsync } from '../../redux/slices/companiesSlice';
+import { SuspendCompanyModal } from './SuspendCompanyModal';
 
 interface CompanyTableProps {
   companies: Company[];
-  onOpenRegisterModal: () => void;
-  onStatusChange: (id: string, newStatus: Company['status']) => void;
+  onStatusChange?: (id: string, newStatus: Company['status']) => void;
 }
 
 export const CompanyTable: React.FC<CompanyTableProps> = ({
   companies,
-  onOpenRegisterModal,
   onStatusChange,
 }) => {
   const dispatch = useAppDispatch();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [selectedPlan, setSelectedPlan] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<string>('NEWEST');
+  const [suspendTargetCompany, setSuspendTargetCompany] = useState<Company | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const handleDelete = (company: Company) => {
     if (window.confirm(`Are you sure you want to delete "${company.name}" from the database?`)) {
@@ -30,40 +31,124 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
     }
   };
 
-  const filteredCompanies = companies.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.adminName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.adminEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.location.toLowerCase().includes(searchQuery.toLowerCase());
+  const handleOpenSuspendModal = (company: Company) => {
+    setSuspendTargetCompany(company);
+  };
 
-    const matchesStatus = selectedStatus === 'ALL' || c.status.toUpperCase() === selectedStatus;
+  const handleConfirmSuspend = async (companyId: string, reason: string, notes: string) => {
+    setIsUpdatingStatus(true);
+    try {
+      await dispatch(
+        updateCompanyStatusAsync({
+          id: companyId,
+          status: 'Suspended',
+          reason,
+          notes,
+        })
+      );
+      if (onStatusChange) {
+        onStatusChange(companyId, 'Suspended');
+      }
+    } finally {
+      setIsUpdatingStatus(false);
+      setSuspendTargetCompany(null);
+    }
+  };
 
-    return matchesSearch && matchesStatus;
-  });
+  const handleActivateCompany = async (company: Company) => {
+    setIsUpdatingStatus(true);
+    try {
+      await dispatch(
+        updateCompanyStatusAsync({
+          id: company.id,
+          status: 'Active',
+        })
+      );
+      if (onStatusChange) {
+        onStatusChange(company.id, 'Active');
+      }
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedStatus('ALL');
+    setSelectedPlan('ALL');
+    setSortBy('NEWEST');
+  };
+
+  const hasActiveFilters =
+    searchQuery.trim() !== '' ||
+    selectedStatus !== 'ALL' ||
+    selectedPlan !== 'ALL' ||
+    sortBy !== 'NEWEST';
+
+  const filteredCompanies = companies
+    .filter((c) => {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch =
+        c.name.toLowerCase().includes(query) ||
+        c.adminName.toLowerCase().includes(query) ||
+        c.adminEmail.toLowerCase().includes(query) ||
+        c.location.toLowerCase().includes(query);
+
+      const matchesStatus = selectedStatus === 'ALL' || c.status.toUpperCase() === selectedStatus;
+      const matchesPlan = selectedPlan === 'ALL' || c.plan.toUpperCase() === selectedPlan.toUpperCase();
+
+      return matchesSearch && matchesStatus && matchesPlan;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'NAME_ASC') {
+        return a.name.localeCompare(b.name);
+      }
+      if (sortBy === 'NAME_DESC') {
+        return b.name.localeCompare(a.name);
+      }
+      if (sortBy === 'STAFF_DESC') {
+        return b.employeeCount - a.employeeCount;
+      }
+      if (sortBy === 'OLDEST') {
+        return (a.createdAt || '').localeCompare(b.createdAt || '');
+      }
+      // Default: NEWEST
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
 
   return (
     <div className="space-y-4">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        {/* Search & Filter */}
-        <div className="flex items-center gap-3 w-full sm:w-auto flex-1 max-w-lg">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Enter company name, admin, or official email to search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
+      {/* Header Search & Filter Bar */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
+        {/* Search Input */}
+        <div className="relative flex-1 min-w-[260px]">
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by organization name, admin, email, city..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-9 py-2 bg-slate-50/70 border border-slate-200/90 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
-          <div className="relative">
+        {/* Filter Controls Group */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5 bg-slate-50/80 px-2.5 py-1.5 rounded-xl border border-slate-200">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Status</option>
               <option value="ACTIVE">Active</option>
@@ -71,18 +156,54 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
               <option value="SUSPENDED">Suspended</option>
             </select>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" icon={<Plus className="w-4 h-4" />} onClick={onOpenRegisterModal}>
-            Quick Modal
-          </Button>
-          <Link href="/companies/register">
-            <Button variant="primary" icon={<Sparkles className="w-4 h-4" />}>
-              Register New Organization
-            </Button>
-          </Link>
+          {/* Plan Filter */}
+          <div className="flex items-center gap-1.5 bg-slate-50/80 px-2.5 py-1.5 rounded-xl border border-slate-200">
+            <span className="text-[11px] font-bold text-slate-400 uppercase">Plan:</span>
+            <select
+              value={selectedPlan}
+              onChange={(e) => setSelectedPlan(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Plans</option>
+              <option value="TRIAL">Trial</option>
+              <option value="GROWTH">Growth</option>
+              <option value="ENTERPRISE">Enterprise</option>
+            </select>
+          </div>
+
+          {/* Sort By Filter */}
+          <div className="flex items-center gap-1.5 bg-slate-50/80 px-2.5 py-1.5 rounded-xl border border-slate-200">
+            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+            >
+              <option value="NEWEST">Newest First</option>
+              <option value="OLDEST">Oldest First</option>
+              <option value="NAME_ASC">Name (A to Z)</option>
+              <option value="NAME_DESC">Name (Z to A)</option>
+              <option value="STAFF_DESC">Most Staff</option>
+            </select>
+          </div>
+
+          {/* Clear / Reset Filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={handleResetFilters}
+              title="Reset all filters"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+
+          {/* Results Count Tag */}
+          <div className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded-xl">
+            {filteredCompanies.length} of {companies.length}
+          </div>
         </div>
       </div>
 
@@ -189,16 +310,20 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
                         <div className="flex items-center justify-end gap-1.5">
                           {c.status === 'Active' ? (
                             <button
-                              onClick={() => onStatusChange(c.id, 'Suspended')}
-                              className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
+                              onClick={() => handleOpenSuspendModal(c)}
+                              disabled={isUpdatingStatus}
+                              className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 hover:text-amber-900 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
                             >
+                              <ShieldAlert className="w-3.5 h-3.5" />
                               Suspend
                             </button>
                           ) : (
                             <button
-                              onClick={() => onStatusChange(c.id, 'Active')}
-                              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+                              onClick={() => handleActivateCompany(c)}
+                              disabled={isUpdatingStatus}
+                              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-900 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
                             >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
                               Activate
                             </button>
                           )}
@@ -219,6 +344,15 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Suspend Confirmation & Reason Modal */}
+      <SuspendCompanyModal
+        isOpen={!!suspendTargetCompany}
+        company={suspendTargetCompany}
+        onClose={() => setSuspendTargetCompany(null)}
+        onConfirm={handleConfirmSuspend}
+        isLoading={isUpdatingStatus}
+      />
     </div>
   );
 };

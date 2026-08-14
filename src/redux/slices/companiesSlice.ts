@@ -49,6 +49,11 @@ export const fetchCompaniesAsync = createAsyncThunk(
             location: bc.location || 'Mumbai, MH',
             renewalDate: bc.renewal_date ? bc.renewal_date.split('T')[0] : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             logo: bc.logo,
+            daysUntilRenewal: bc.days_until_renewal,
+            isSubscriptionExpiringSoon: bc.is_subscription_expiring_soon,
+            isSubscriptionExpired: bc.is_subscription_expired,
+            subscriptionAlert: bc.subscription_alert,
+            subscriptionAlertType: bc.subscription_alert_type,
           }));
           return mapped;
         }
@@ -107,11 +112,50 @@ export const createCompanyAsync = createAsyncThunk(
           ? created.renewal_date.split('T')[0]
           : (newCompany.renewalDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
         logo: created.logo || newCompany.logo,
+        daysUntilRenewal: created.days_until_renewal,
+        isSubscriptionExpiringSoon: created.is_subscription_expiring_soon,
+        isSubscriptionExpired: created.is_subscription_expired,
+        subscriptionAlert: created.subscription_alert,
+        subscriptionAlertType: created.subscription_alert_type,
       };
       return mapped;
     } catch (err: any) {
       const errorMsg = err?.message || 'Failed to register company on server.';
       return rejectWithValue(errorMsg);
+    }
+  }
+);
+
+/**
+ * Async Thunk to update company status (e.g., Suspend or Activate) with optional reason
+ */
+export const updateCompanyStatusAsync = createAsyncThunk(
+  'companies/updateCompanyStatus',
+  async (
+    {
+      id,
+      status,
+      reason,
+      notes,
+    }: {
+      id: string;
+      status: CompanyStatus;
+      reason?: string;
+      notes?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const rawId = id.replace('cmp_', '');
+      await companiesService.updateCompany(rawId, {
+        status,
+        is_active: status === 'Active',
+      });
+      return { id, status, reason, notes };
+    } catch (err: any) {
+      console.warn('Backend updateCompanyStatus warning:', err?.message);
+      // Fallback for optimistic state update
+      return { id, status, reason, notes };
     }
   }
 );
@@ -204,6 +248,17 @@ export const companiesSlice = createSlice({
       .addCase(createCompanyAsync.rejected, (state, action) => {
         state.isCreating = false;
         state.error = (action.payload as string) || 'Failed to register company.';
+      })
+      // Update Company Status (Suspend / Activate)
+      .addCase(updateCompanyStatusAsync.fulfilled, (state, action) => {
+        const company = state.companies.find((c) => c.id === action.payload.id);
+        if (company) {
+          company.status = action.payload.status;
+          state.successMessage =
+            action.payload.status === 'Suspended'
+              ? `Organization "${company.name}" has been suspended. (${action.payload.reason || 'Reason recorded'})`
+              : `Organization "${company.name}" has been activated successfully!`;
+        }
       })
       // Delete Company
       .addCase(deleteCompanyAsync.fulfilled, (state, action) => {

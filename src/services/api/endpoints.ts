@@ -19,6 +19,7 @@ export const ENDPOINTS = {
     GET_BY_ID: (id: string | number) => `/companies/${id}`,
     UPDATE: (id: string | number) => `/companies/${id}`,
     DELETE: (id: string | number) => `/companies/${id}`,
+    SUBSCRIPTION_STATUS: (id: string | number) => `/companies/${id}/subscription-status`,
   },
 
   // Attendance & Check-ins
