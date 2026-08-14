@@ -7,9 +7,66 @@ from app.features.companies.company_management.models import Company
 from app.features.companies.company_management.schemas import CompanyCreate, CompanyUpdate
 
 
+from datetime import datetime, timezone, timedelta
+from app.core.security import get_password_hash
+
+
+def compute_subscription_metadata(company: Company) -> dict:
+    """
+    Compute subscription expiration status and 5-day warning alerts for company.
+    """
+    days_until_renewal = None
+    is_expiring_soon = False
+    is_expired = False
+    alert_message = None
+    alert_type = "none"
+
+    if company.renewal_date:
+        now = datetime.now(timezone.utc)
+        renewal_dt = company.renewal_date if company.renewal_date.tzinfo else company.renewal_date.replace(tzinfo=timezone.utc)
+        delta = renewal_dt - now
+        days_until_renewal = delta.days
+
+        if days_until_renewal < 0:
+            is_expired = True
+            alert_type = "danger"
+            alert_message = f"Subscription Expired: Your {company.plan} plan expired {abs(days_until_renewal)} days ago. Please renew immediately to avoid service interruption."
+        elif days_until_renewal <= 5:
+            is_expiring_soon = True
+            alert_type = "warning"
+            if days_until_renewal == 0:
+                alert_message = f"Urgent: Your {company.plan} subscription expires today! Renew now to prevent service cutoff."
+            elif days_until_renewal == 1:
+                alert_message = f"Urgent: Your {company.plan} subscription expires tomorrow ({renewal_dt.strftime('%d %b %Y')}). Please renew your plan."
+            else:
+                alert_message = f"Subscription Notice: Your {company.plan} subscription will expire in {days_until_renewal} days ({renewal_dt.strftime('%d %b %Y')}). Please renew your plan."
+
+    return {
+        "days_until_renewal": days_until_renewal,
+        "is_subscription_expiring_soon": is_expiring_soon,
+        "is_subscription_expired": is_expired,
+        "subscription_alert": alert_message,
+        "subscription_alert_type": alert_type,
+    }
+
+
+def enrich_company_response(company: Company) -> Company:
+    """Attach computed subscription metadata directly onto the company instance."""
+    meta = compute_subscription_metadata(company)
+    company.days_until_renewal = meta["days_until_renewal"]
+    company.is_subscription_expiring_soon = meta["is_subscription_expiring_soon"]
+    company.is_subscription_expired = meta["is_subscription_expired"]
+    company.subscription_alert = meta["subscription_alert"]
+    company.subscription_alert_type = meta["subscription_alert_type"]
+    return company
+
+
 def get_all_companies(db: Session, skip: int = 0, limit: int = 100) -> List[Company]:
     """Fetch all companies from PostgreSQL database with pagination."""
-    return db.query(Company).order_by(Company.id.desc()).offset(skip).limit(limit).all()
+    companies = db.query(Company).order_by(Company.id.desc()).offset(skip).limit(limit).all()
+    for company in companies:
+        enrich_company_response(company)
+    return companies
 
 
 def get_company_by_id(db: Session, company_id: int) -> Company:
@@ -20,11 +77,25 @@ def get_company_by_id(db: Session, company_id: int) -> Company:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Company with ID {company_id} not found."
         )
-    return company
+    return enrich_company_response(company)
 
 
-from datetime import datetime, timezone, timedelta
-from app.core.security import get_password_hash
+def get_company_subscription_status(db: Session, company_id: int) -> dict:
+    """Get standalone subscription status and 5-day expiry alert for company portal."""
+    company = get_company_by_id(db, company_id)
+    meta = compute_subscription_metadata(company)
+    return {
+        "company_id": company.id,
+        "company_name": company.name,
+        "plan": company.plan,
+        "status": company.status,
+        "renewal_date": company.renewal_date,
+        "days_until_renewal": meta["days_until_renewal"],
+        "is_expiring_soon": meta["is_subscription_expiring_soon"],
+        "is_expired": meta["is_subscription_expired"],
+        "alert_message": meta["subscription_alert"],
+        "alert_type": meta["subscription_alert_type"],
+    }
 
 
 def create_company(db: Session, company_in: CompanyCreate) -> Company:
@@ -69,7 +140,7 @@ def create_company(db: Session, company_in: CompanyCreate) -> Company:
     # Invalidate dashboard overview cache in Redis
     delete_cache("super_admin:overview")
 
-    return db_company
+    return enrich_company_response(db_company)
 
 
 def update_company(db: Session, company_id: int, company_in: CompanyUpdate) -> Company:
@@ -95,7 +166,7 @@ def update_company(db: Session, company_id: int, company_in: CompanyUpdate) -> C
     # Invalidate dashboard overview cache in Redis
     delete_cache("super_admin:overview")
 
-    return company
+    return enrich_company_response(company)
 
 
 def delete_company(db: Session, company_id: int) -> dict:

@@ -8,6 +8,7 @@ from app.features.companies.company_management.schemas import (
     CompanyCreate,
     CompanyResponse,
     CompanyUpdate,
+    SubscriptionStatusResponse,
 )
 from app.features.super_admin.super_admin_auth.models import AdminUser
 from app.features.super_admin.super_admin_auth.service import get_current_super_admin
@@ -52,6 +53,22 @@ async def get_company(
 ):
     """Get company details by ID (Super Admin only)."""
     return service.get_company_by_id(db, company_id)
+
+
+@router.get(
+    "/{company_id}/subscription-status",
+    response_model=SubscriptionStatusResponse,
+    summary="Get Company Subscription Status & 5-Day Expiry Alert",
+)
+async def get_company_subscription_status(
+    company_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Fetch subscription expiration details and 5-day warning alert for the company side.
+    Available to check if company subscription is expiring within 5 days or expired.
+    """
+    return service.get_company_subscription_status(db, company_id)
 
 
 @router.put("/{company_id}", response_model=CompanyResponse, summary="Update Company Details")

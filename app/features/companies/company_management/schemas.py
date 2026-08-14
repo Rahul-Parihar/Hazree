@@ -42,9 +42,27 @@ class CompanyUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class SubscriptionStatusResponse(BaseModel):
+    company_id: int
+    company_name: str
+    plan: str
+    status: str
+    renewal_date: Optional[datetime] = None
+    days_until_renewal: Optional[int] = None
+    is_expiring_soon: bool = False
+    is_expired: bool = False
+    alert_message: Optional[str] = None
+    alert_type: Optional[str] = None
+
+
 class CompanyResponse(CompanyBase):
     id: int
     created_at: Optional[datetime] = None
+    days_until_renewal: Optional[int] = None
+    is_subscription_expiring_soon: bool = False
+    is_subscription_expired: bool = False
+    subscription_alert: Optional[str] = None
+    subscription_alert_type: Optional[str] = None
 
     class Config:
         from_attributes = True
