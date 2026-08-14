@@ -10,8 +10,8 @@ from app.features.companies.company_management.schemas import (
     CompanyUpdate,
     SubscriptionStatusResponse,
 )
-from app.features.super_admin.super_admin_auth.models import AdminUser
-from app.features.super_admin.super_admin_auth.service import get_current_super_admin
+from app.features.super_admin.super_admin_auth.schemas import UserAuthResponse
+from app.features.super_admin.super_admin_auth.service import get_current_super_admin, get_current_user
 
 router = APIRouter(
     prefix="/companies",
@@ -63,6 +63,7 @@ async def get_company(
 async def get_company_subscription_status(
     company_id: int,
     db: Session = Depends(get_db),
+    current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """
     Fetch subscription expiration details and 5-day warning alert for the company side.

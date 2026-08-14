@@ -25,6 +25,7 @@ from app.middlewares import (
 )
 
 import app.features.companies.company_management.models  # Register models
+import app.features.companies.employee_management.models  # Register models
 import app.features.super_admin.super_admin_auth.models  # Register models
 import app.features.subscriptions.subscription_management.models  # Register models
 from app.features.super_admin.super_admin_auth.service import init_default_super_admin
@@ -32,6 +33,7 @@ from app.features.subscriptions.subscription_management.service import seed_defa
 from app.features.companies.company_management.service import seed_default_companies
 
 from app.features.companies.company_management.router import router as companies_router
+from app.features.companies.employee_management.router import router as employees_router
 from app.features.super_admin.super_admin_auth.router import router as super_admin_router
 from app.features.subscriptions.subscription_management.router import router as subscriptions_router
 
@@ -120,6 +122,7 @@ app.add_middleware(
 # Register Feature Routers
 # ---------------------------------------------------------------------------
 app.include_router(companies_router)
+app.include_router(employees_router)
 app.include_router(super_admin_router)
 app.include_router(subscriptions_router)
 

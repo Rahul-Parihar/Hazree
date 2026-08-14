@@ -125,6 +125,7 @@ async def read_super_admin(
 )
 async def db_status(
     db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(service.get_current_super_admin),
 ) -> DatabaseStatusResponse:
     """Check live status of the database connection."""
     return service.get_database_status(db)
