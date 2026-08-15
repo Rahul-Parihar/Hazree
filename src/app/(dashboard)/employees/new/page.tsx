@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   Users,
   AlertCircle,
+  Plus,
+  X,
 } from 'lucide-react';
 import { Input } from '../../../../components/ui/Input';
 import { Button } from '../../../../components/ui/Button';
@@ -25,6 +27,10 @@ import { useAppDispatch, useAppSelector } from '../../../../redux/hooks';
 import { createEmployeeAsync } from '../../../../redux/slices/employeesSlice';
 import { fetchCompaniesAsync } from '../../../../redux/slices/companiesSlice';
 import { fetchEmployeesAsync } from '../../../../redux/slices/employeesSlice';
+import {
+  fetchDepartmentsAsync,
+  createDepartmentAsync,
+} from '../../../../redux/slices/departmentsSlice';
 import { BackendEmployeeCreate } from '../../../../services/employeesService';
 
 const AVATAR_PRESETS = [
@@ -38,7 +44,7 @@ const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=120&auto=format&fit=crop&q=80',
 ];
 
-const DEPARTMENTS = [
+const FALLBACK_DEPARTMENTS = [
   'Engineering & Development',
   'Operations & Logistics',
   'Sales & Marketing',
@@ -56,11 +62,21 @@ export default function NewEmployeePage() {
   const userRole = useAppSelector((state) => state.auth.userRole);
   const companies = useAppSelector((state) => state.companies.companies);
   const isCreating = useAppSelector((state) => state.employees.isCreating);
+  const dbDepartments = useAppSelector((state) => state.departments.departments);
+
+  // Combine dynamic backend departments with fallbacks
+  const departmentList = React.useMemo(() => {
+    if (dbDepartments && dbDepartments.length > 0) {
+      return dbDepartments.map((d) => d.name);
+    }
+    return FALLBACK_DEPARTMENTS;
+  }, [dbDepartments]);
 
   useEffect(() => {
     dispatch(fetchCompaniesAsync());
     dispatch(fetchEmployeesAsync());
-  }, [dispatch]);
+    dispatch(fetchDepartmentsAsync(currentUser?.companyId));
+  }, [dispatch, currentUser?.companyId]);
 
   const currentCompany =
     companies.find(
@@ -83,12 +99,60 @@ export default function NewEmployeePage() {
     selectedCompanyId: currentCompany ? currentCompany.id.replace('cmp_', '') : '1',
   });
 
+  // Set initial default department once loaded
+  useEffect(() => {
+    if (departmentList.length > 0 && !departmentList.includes(formData.department)) {
+      setFormData((prev) => ({ ...prev, department: departmentList[0] }));
+    }
+  }, [departmentList]);
+
+  // Inline Quick Department Add State
+  const [isAddingCustomDept, setIsAddingCustomDept] = useState(false);
+  const [customDeptName, setCustomDeptName] = useState('');
+  const [isSavingDept, setIsSavingDept] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const handleChange = (field: string, value: any) => {
+    if (field === 'department' && value === '__ADD_NEW__') {
+      setIsAddingCustomDept(true);
+      return;
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errorMessage) setErrorMessage(null);
+  };
+
+  const handleCreateCustomDept = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customDeptName.trim()) return;
+
+    setIsSavingDept(true);
+    try {
+      const resolvedCompanyId = currentUser?.companyId
+        ? Number(String(currentUser.companyId).replace('cmp_', ''))
+        : currentCompany?.id
+        ? Number(String(currentCompany.id).replace('cmp_', ''))
+        : undefined;
+
+      const action = await dispatch(
+        createDepartmentAsync({
+          name: customDeptName.trim(),
+          description: `Custom department added by ${userRole || 'Admin'}`,
+          company_id: userRole === 'SUPER_ADMIN' ? undefined : resolvedCompanyId,
+        })
+      );
+
+      if (createDepartmentAsync.fulfilled.match(action)) {
+        setFormData((prev) => ({ ...prev, department: action.payload.name }));
+        setCustomDeptName('');
+        setIsAddingCustomDept(false);
+      }
+    } catch (err) {
+      console.error('Failed to create custom department:', err);
+    } finally {
+      setIsSavingDept(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -298,31 +362,95 @@ export default function NewEmployeePage() {
 
         {/* Section 2: Department & Designation */}
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-5">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-emerald-600" />
-              2. Designation & Department Role
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Specify the assigned team and role responsibilities (HR, Manager, Lead, Developer)
-            </p>
+          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-emerald-600" />
+                2. Designation & Department Role
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Specify the assigned team (dynamic from database) and job role
+              </p>
+            </div>
+
+            {!isAddingCustomDept && (
+              <button
+                type="button"
+                onClick={() => setIsAddingCustomDept(true)}
+                className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Add Department</span>
+              </button>
+            )}
           </div>
+
+          {/* Quick Inline Department Creation Form */}
+          {isAddingCustomDept && (
+            <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-3 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  Add New Dynamic Department to Organization
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingCustomDept(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. Artificial Intelligence & ML, Legal & Compliance..."
+                  value={customDeptName}
+                  onChange={(e) => setCustomDeptName(e.target.value)}
+                  className="flex-1 px-3.5 py-2 bg-white border border-emerald-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  autoFocus
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  onClick={handleCreateCustomDept}
+                  disabled={!customDeptName.trim() || isSavingDept}
+                >
+                  {isSavingDept ? 'Adding...' : 'Save Department'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsAddingCustomDept(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                Department *
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                <span>Department *</span>
+                <span className="text-[10px] text-emerald-600 font-bold lowercase">
+                  {departmentList.length} dynamic departments
+                </span>
               </label>
               <select
                 value={formData.department}
                 onChange={(e) => handleChange('department', e.target.value)}
                 className="w-full rounded-xl bg-slate-50 border border-slate-200 text-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold cursor-pointer"
               >
-                {DEPARTMENTS.map((dept) => (
+                {departmentList.map((dept) => (
                   <option key={dept} value={dept}>
                     {dept}
                   </option>
                 ))}
+                <option value="__ADD_NEW__">+ Create New Department...</option>
               </select>
             </div>
 

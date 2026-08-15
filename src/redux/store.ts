@@ -6,6 +6,7 @@ import employeesReducer from './slices/employeesSlice';
 import leavesReducer from './slices/leavesSlice';
 import settingsReducer from './slices/settingsSlice';
 import subscriptionsReducer from './slices/subscriptionsSlice';
+import departmentsReducer from './slices/departmentsSlice';
 
 export const makeStore = () => {
   return configureStore({
@@ -17,6 +18,7 @@ export const makeStore = () => {
       leaves: leavesReducer,
       settings: settingsReducer,
       subscriptions: subscriptionsReducer,
+      departments: departmentsReducer,
     },
     devTools: process.env.NODE_ENV !== 'production',
   });

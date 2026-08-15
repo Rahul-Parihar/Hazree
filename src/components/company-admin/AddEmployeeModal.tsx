@@ -57,12 +57,30 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
       c.name.toLowerCase() === (currentUser?.companyName || '').toLowerCase()
   ) || (companies.length > 0 ? companies[0] : null);
 
+  const dbDepartments = useAppSelector((state) => state.departments.departments);
+
+  const departmentList = React.useMemo(() => {
+    if (dbDepartments && dbDepartments.length > 0) {
+      return dbDepartments.map((d) => d.name);
+    }
+    return [
+      'Engineering & Development',
+      'Operations & Logistics',
+      'Sales & Marketing',
+      'Human Resources (HR)',
+      'Finance & Accounts',
+      'Product & Design',
+      'Customer Support',
+      'Executive Management',
+    ];
+  }, [dbDepartments]);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     role: '',
-    department: 'Engineering',
+    department: 'Engineering & Development',
     joinDate: new Date().toISOString().split('T')[0],
     status: 'Active',
     avatar: AVATAR_PRESETS[0],
@@ -257,13 +275,11 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
                 className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                 required
               >
-                <option value="Engineering">Engineering & Development</option>
-                <option value="Human Resources">Human Resources (HR)</option>
-                <option value="Sales & Marketing">Sales & Marketing</option>
-                <option value="Design & UI">Design & UI/UX</option>
-                <option value="Operations">Operations & Logistics</option>
-                <option value="Finance">Finance & Accounts</option>
-                <option value="Customer Support">Customer Support</option>
+                {departmentList.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
