@@ -7,6 +7,7 @@ import { useAppSelector } from '../../redux/hooks';
 export const CompanyStatsCards: React.FC = () => {
   const employees = useAppSelector((state) => state.employees.employees);
   const attendanceRecords = useAppSelector((state) => state.attendance?.records || []);
+  const leaves = useAppSelector((state) => state.leaves?.leaves || []);
   const companies = useAppSelector((state) => state.companies.companies);
   const currentUser = useAppSelector((state) => state.auth.currentUser);
 
@@ -46,7 +47,8 @@ export const CompanyStatsCards: React.FC = () => {
   const lateCount = todayRecords.filter((r) => r.status === 'Late').length;
 
   // 4. On Approved Leave / Inactive for this company
-  const onLeaveCount = companyEmployees.filter((e) => e.status === 'On Leave').length;
+  const approvedLeavesCount = leaves.filter((l) => l.status === 'Approved').length;
+  const onLeaveCount = Math.max(companyEmployees.filter((e) => e.status === 'On Leave').length, approvedLeavesCount);
 
   const stats = [
     {

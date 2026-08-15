@@ -8,15 +8,15 @@ import { CompanyDepartmentHealth } from './CompanyDepartmentHealth';
 import { CompanyQuickActions } from './CompanyQuickActions';
 import { CompanyKioskGeofenceStatus } from './CompanyKioskGeofenceStatus';
 import { AddEmployeeModal } from './AddEmployeeModal';
-import { RecentAttendanceTable } from '../dashboard/RecentAttendanceTable';
 import { AttendanceRecord, Employee } from '../../types';
 import { Building2, Plus, Calendar, Clock, MapPin, RefreshCw, Shield, UserPlus } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
-import { addAttendanceRecord } from '../../redux/slices/attendanceSlice';
+import { addAttendanceRecord, fetchAttendanceAsync, markAttendanceAsync } from '../../redux/slices/attendanceSlice';
 import { fetchEmployeesAsync } from '../../redux/slices/employeesSlice';
+import { fetchLeavesAsync } from '../../redux/slices/leavesSlice';
 
 interface CompanyDashboardProps {
   onRoleSwitch?: () => void;
@@ -34,6 +34,8 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
 
   useEffect(() => {
     dispatch(fetchEmployeesAsync());
+    dispatch(fetchAttendanceAsync());
+    dispatch(fetchLeavesAsync());
   }, [dispatch]);
 
   const currentCompany =
@@ -57,31 +59,22 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
   const [status, setStatus] = useState<AttendanceRecord['status']>('Present');
   const [checkInTime, setCheckInTime] = useState('09:00 AM');
 
-  const handleAddRecord = (newRecord: AttendanceRecord) => {
-    dispatch(addAttendanceRecord(newRecord));
-  };
-
-  const handleManualSubmit = (e: React.FormEvent) => {
+  const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!empName) return;
 
-    const newRec: AttendanceRecord = {
-      id: `att_${Date.now()}`,
-      employeeId: `emp_${Math.floor(100 + Math.random() * 900)}`,
-      employeeName: empName,
-      employeeAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-      companyId: currentUser?.companyId || 'cmp_101',
-      department: department,
-      date: new Date().toISOString().split('T')[0],
-      checkInTime: checkInTime,
-      checkOutTime: '--',
-      status: status,
-      workHours: 'Active',
-      location: 'Official Premises (HR Override)',
-      device: 'Company Admin Portal Web',
-    };
+    await dispatch(
+      markAttendanceAsync({
+        employee_name: empName.trim(),
+        department: department,
+        status: status,
+        check_in_time: checkInTime,
+        location: 'Official Premises (HR Override)',
+        device: 'Company Admin Portal Web',
+        company_id: currentUser?.companyId ? Number(String(currentUser.companyId).replace('cmp_', '')) : undefined,
+      })
+    );
 
-    dispatch(addAttendanceRecord(newRec));
     setIsManualModalOpen(false);
     setEmpName('');
   };
@@ -155,20 +148,6 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
 
       {/* 4. Hardware Kiosk & Geofence Status */}
       <CompanyKioskGeofenceStatus />
-
-      {/* 5. Live Punch Attendance Stream */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Today&apos;s Live Employee Attendance Stream</h3>
-            <p className="text-xs text-slate-500">
-              Real-time check-in punch log verified with facial biometric & GPS geofencing
-            </p>
-          </div>
-        </div>
-
-        <RecentAttendanceTable records={attendanceRecords} onAddRecord={handleAddRecord} />
-      </div>
 
       {/* Add Employee Modal */}
       <AddEmployeeModal
