@@ -49,9 +49,14 @@ async def create_company(
 async def get_company(
     company_id: int,
     db: Session = Depends(get_db),
-    current_admin: AdminUser = Depends(get_current_super_admin),
+    current_user: UserAuthResponse = Depends(get_current_user),
 ):
-    """Get company details by ID (Super Admin only)."""
+    """Get company details by ID (Super Admin or Company Admin for own company)."""
+    if current_user.role != "SUPER_ADMIN" and current_user.company_id != company_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access restricted. You may only view your own company details."
+        )
     return service.get_company_by_id(db, company_id)
 
 
@@ -73,13 +78,19 @@ async def get_company_subscription_status(
 
 
 @router.put("/{company_id}", response_model=CompanyResponse, summary="Update Company Details")
+@router.patch("/{company_id}", response_model=CompanyResponse, summary="Partial Update Company Details")
 async def update_company(
     company_id: int,
     company_in: CompanyUpdate,
     db: Session = Depends(get_db),
-    current_admin: AdminUser = Depends(get_current_super_admin),
+    current_user: UserAuthResponse = Depends(get_current_user),
 ):
-    """Update existing company details (Super Admin only)."""
+    """Update existing company details (Super Admin or Company Admin for own company)."""
+    if current_user.role != "SUPER_ADMIN" and current_user.company_id != company_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access restricted. You may only edit your own company details."
+        )
     return service.update_company(db, company_id, company_in)
 
 

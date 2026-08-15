@@ -15,6 +15,9 @@ class CompanyBase(BaseModel):
     employee_count: Optional[int] = 0
     renewal_date: Optional[datetime] = None
     logo: Optional[str] = None
+    shift_count: Optional[int] = 1
+    shift_type: Optional[str] = "1 Shift (General Day)"
+    shift_timings: Optional[str] = None
     is_active: bool = True
 
 
@@ -39,6 +42,9 @@ class CompanyUpdate(BaseModel):
     employee_count: Optional[int] = None
     renewal_date: Optional[datetime] = None
     logo: Optional[str] = None
+    shift_count: Optional[int] = None
+    shift_type: Optional[str] = None
+    shift_timings: Optional[str] = None
     is_active: Optional[bool] = None
 
 

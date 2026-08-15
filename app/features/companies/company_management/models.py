@@ -19,6 +19,9 @@ class Company(Base):
     employee_count = Column(Integer, default=0, nullable=False)
     renewal_date = Column(DateTime, nullable=True)
     logo = Column(String(500), nullable=True)
+    shift_count = Column(Integer, default=1, nullable=False)
+    shift_type = Column(String(100), default="1 Shift (General Day)", nullable=True)
+    shift_timings = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

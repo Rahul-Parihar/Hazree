@@ -170,6 +170,9 @@ def create_company(db: Session, company_in: CompanyCreate) -> Company:
         employee_count=company_in.employee_count or 0,
         renewal_date=renewal_dt,
         logo=company_in.logo,
+        shift_count=company_in.shift_count or 1,
+        shift_type=company_in.shift_type or "1 Shift (General Day)",
+        shift_timings=company_in.shift_timings,
         is_active=company_in.is_active,
     )
     db.add(db_company)
@@ -185,26 +188,55 @@ def create_company(db: Session, company_in: CompanyCreate) -> Company:
 
 def update_company(db: Session, company_id: int, company_in: CompanyUpdate) -> Company:
     """Update existing company details and invalidate caches."""
-    company = get_company_by_id(db, company_id)
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Company with ID {company_id} not found."
+        )
+
     update_data = company_in.model_dump(exclude_unset=True)
+
+    # Validate email uniqueness if changing email
+    if "email" in update_data and update_data["email"]:
+        clean_email = update_data["email"].strip().lower()
+        existing = db.query(Company).filter(Company.email == clean_email, Company.id != company_id).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Company with email '{clean_email}' already exists."
+            )
+        company.email = clean_email
+
     for field, value in update_data.items():
-        if field == "email" and value:
-            setattr(company, field, value.strip().lower())
-        elif field == "name" and value:
+        if field == "email":
+            continue
+        elif field == "name" and value is not None:
             setattr(company, field, value.strip())
-        elif field == "admin_name" and value:
+        elif field == "admin_name":
             setattr(company, field, value.strip() if value else None)
-        elif field == "location" and value:
+        elif field == "location":
             setattr(company, field, value.strip() if value else None)
         elif field == "password" and value:
             setattr(company, "hashed_password", get_password_hash(value))
-        else:
+        elif field == "status" and value is not None:
             setattr(company, field, value)
+            setattr(company, "is_active", value == "Active")
+        elif field == "is_active" and value is not None:
+            setattr(company, field, value)
+            if value is False and company.status == "Active":
+                setattr(company, "status", "Suspended")
+            elif value is True and company.status == "Suspended":
+                setattr(company, "status", "Active")
+        elif value is not None:
+            setattr(company, field, value)
+
     db.commit()
     db.refresh(company)
 
-    # Invalidate all company caches & overview in Redis
+    # Invalidate all company caches, auth caches & overview in Redis
     delete_cache_pattern("companies:*")
+    delete_cache_pattern("auth:company_admin:*")
     delete_cache("super_admin:overview")
 
     return enrich_company_response(company)
