@@ -40,7 +40,7 @@ def record_punch(
     punch_in: AttendancePunchCreate,
     company_id: int,
 ) -> AttendanceRecordResponse:
-    """Record manual or biometric attendance punch."""
+    """Record manual or biometric attendance punch (Clock In / Clock Out)."""
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(
@@ -54,6 +54,38 @@ def record_punch(
     avatar_url = punch_in.employee_avatar
     if not avatar_url:
         avatar_url = f"https://ui-avatars.com/api/?name={punch_in.employee_name.replace(' ', '+')}&background=059669&color=fff"
+
+    # Check if there is an existing attendance record for this employee today
+    existing_record = (
+        db.query(Attendance)
+        .filter(
+            Attendance.company_id == company_id,
+            Attendance.employee_id == punch_in.employee_id,
+            Attendance.date == today_str,
+        )
+        .first()
+    )
+
+    if existing_record:
+        if punch_in.check_out_time and punch_in.check_out_time != "--":
+            existing_record.check_out_time = punch_in.check_out_time
+        elif existing_record.check_in_time and (not existing_record.check_out_time or existing_record.check_out_time == "--"):
+            # Clocking out existing check-in session
+            existing_record.check_out_time = punch_in.check_in_time or current_time_str
+
+        if punch_in.status:
+            existing_record.status = punch_in.status
+        if punch_in.location:
+            existing_record.location = punch_in.location
+        if punch_in.device:
+            existing_record.device = punch_in.device
+
+        if existing_record.check_in_time and existing_record.check_out_time and existing_record.check_out_time != "--":
+            existing_record.work_hours = "Completed"
+
+        db.commit()
+        db.refresh(existing_record)
+        return _to_response(existing_record, company_name=company.name)
 
     new_record = Attendance(
         company_id=company_id,
