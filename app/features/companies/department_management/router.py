@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user_payload
+from app.features.super_admin.super_admin_auth.schemas import UserAuthResponse
+from app.features.super_admin.super_admin_auth.service import get_current_user
 from app.features.companies.department_management.schemas import (
     DepartmentCreate,
     DepartmentResponse,
@@ -21,11 +22,11 @@ router = APIRouter(
 def list_departments(
     company_id: Optional[int] = Query(None, description="Filter by company ID or get global"),
     db: Session = Depends(get_db),
-    user_payload: dict = Depends(get_current_user_payload),
+    current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Retrieve global departments and company-specific departments."""
-    user_role = user_payload.get("role", "")
-    token_company_id = user_payload.get("company_id")
+    user_role = current_user.role
+    token_company_id = current_user.company_id
 
     effective_company_id = company_id
     if user_role == "COMPANY_ADMIN" and token_company_id is not None:
@@ -38,11 +39,11 @@ def list_departments(
 def create_department(
     dept_in: DepartmentCreate,
     db: Session = Depends(get_db),
-    user_payload: dict = Depends(get_current_user_payload),
+    current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Create a new department (Super Admin or Company Admin)."""
-    user_role = user_payload.get("role", "COMPANY_ADMIN")
-    token_company_id = user_payload.get("company_id")
+    user_role = current_user.role
+    token_company_id = current_user.company_id
 
     if user_role == "COMPANY_ADMIN" and token_company_id is not None:
         dept_in.company_id = int(str(token_company_id).replace("cmp_", ""))
@@ -58,10 +59,10 @@ def create_department(
 def delete_department(
     department_id: int,
     db: Session = Depends(get_db),
-    user_payload: dict = Depends(get_current_user_payload),
+    current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Delete department (Super Admin or authorized admin)."""
-    user_role = user_payload.get("role", "")
+    user_role = current_user.role
     if user_role not in ["SUPER_ADMIN", "COMPANY_ADMIN"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
