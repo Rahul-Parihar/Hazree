@@ -29,7 +29,7 @@ export const CompanyQuickActions: React.FC<CompanyQuickActionsProps> = ({
           <UserCheck className="w-4 h-4" />
         </div>
         <div className="mt-3">
-          <p className="font-bold text-xs text-slate-900">Mark Manual Hazree</p>
+          <p className="font-bold text-xs text-slate-900">Staff Clock In / Out</p>
           <p className="text-[11px] text-slate-500 mt-0.5">Punch in / out override</p>
         </div>
       </button>
