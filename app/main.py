@@ -26,6 +26,8 @@ from app.middlewares import (
 
 import app.features.companies.company_management.models  # Register models
 import app.features.companies.employee_management.models  # Register models
+import app.features.companies.attendance_management.models  # Register models
+import app.features.companies.leave_management.models  # Register models
 import app.features.super_admin.super_admin_auth.models  # Register models
 import app.features.subscriptions.subscription_management.models  # Register models
 from app.features.super_admin.super_admin_auth.service import init_default_super_admin
@@ -34,6 +36,8 @@ from app.features.companies.company_management.service import seed_default_compa
 
 from app.features.companies.company_management.router import router as companies_router
 from app.features.companies.employee_management.router import router as employees_router
+from app.features.companies.attendance_management.router import router as attendance_router
+from app.features.companies.leave_management.router import router as leaves_router
 from app.features.super_admin.super_admin_auth.router import router as super_admin_router
 from app.features.subscriptions.subscription_management.router import router as subscriptions_router
 
@@ -63,6 +67,7 @@ async def lifespan(app: FastAPI):
             admin = init_default_super_admin(db)
             logger.info(f"Default Super Admin verified/created: {admin.email}")
             seed_default_subscription_plans(db)
+            seed_default_companies(db)
         finally:
             db.close()
 
@@ -123,6 +128,8 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 app.include_router(companies_router)
 app.include_router(employees_router)
+app.include_router(attendance_router)
+app.include_router(leaves_router)
 app.include_router(super_admin_router)
 app.include_router(subscriptions_router)
 
