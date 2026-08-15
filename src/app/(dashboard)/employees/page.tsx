@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import {
@@ -21,6 +22,7 @@ import {
   AlertCircle,
   LogIn,
   LogOut,
+  Clock,
 } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
 import { fetchCompaniesAsync } from '../../../redux/slices/companiesSlice';
@@ -179,26 +181,24 @@ export default function EmployeesPage() {
             <Button
               variant="outline"
               size="sm"
-              icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+              icon={<Clock className="w-4 h-4 text-emerald-600" />}
               onClick={() => {
                 setSelectedEmpForPunch(null);
                 setIsAttendanceModalOpen(true);
               }}
             >
-              Mark Hazree
+              Clock In / Out
             </Button>
           )}
 
           {isCompanyAdmin && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<Plus className="w-4 h-4" />}
-              onClick={() => setIsAddModalOpen(true)}
-              className="w-full sm:w-auto justify-center"
+            <Link
+              href="/employees/new"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
             >
-              Add New Staff
-            </Button>
+              <Plus className="w-4 h-4" />
+              <span>Add New Staff</span>
+            </Link>
           )}
         </div>
       </div>
@@ -286,9 +286,13 @@ export default function EmployeesPage() {
               </Button>
             )}
             {isCompanyAdmin && (
-              <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setIsAddModalOpen(true)}>
-                Add New Staff
-              </Button>
+              <Link
+                href="/employees/new"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New Staff</span>
+              </Link>
             )}
           </div>
         </div>
