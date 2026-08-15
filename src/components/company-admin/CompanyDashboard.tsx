@@ -116,7 +116,7 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
             className="flex-1 sm:flex-none px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
           >
             <Clock className="w-3.5 h-3.5" />
-            Clock In / Out
+            Clock In
           </button>
         </div>
       </div>

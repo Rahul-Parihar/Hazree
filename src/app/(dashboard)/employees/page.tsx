@@ -187,7 +187,7 @@ export default function EmployeesPage() {
                 setIsAttendanceModalOpen(true);
               }}
             >
-              Clock In / Out
+              Clock In
             </Button>
           )}
 

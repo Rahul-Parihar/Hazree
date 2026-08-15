@@ -72,7 +72,7 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
 
           {isCompanyAdmin && (
             <Button variant="primary" size="sm" icon={<Clock className="w-3.5 h-3.5" />} onClick={() => setIsModalOpen(true)}>
-              Clock In / Out
+              Clock In
             </Button>
           )}
         </div>
