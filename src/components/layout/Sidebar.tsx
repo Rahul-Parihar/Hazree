@@ -12,6 +12,7 @@ import {
   CreditCard,
   RefreshCw,
   Settings,
+  Layers,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -60,6 +61,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Building2,
       roles: ['SUPER_ADMIN'],
       badge: 'Multi-Tenant',
+    },
+    {
+      name: 'Departments',
+      href: '/departments',
+      icon: Layers,
+      roles: ['SUPER_ADMIN'],
+      badge: 'Master',
     },
     {
       name: 'Attendance Logs',
