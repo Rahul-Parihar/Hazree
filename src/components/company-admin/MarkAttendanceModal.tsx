@@ -7,12 +7,13 @@ import { Button } from '../ui/Button';
 import { AttendanceRecord, Employee } from '../../types';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { markAttendanceAsync } from '../../redux/slices/attendanceSlice';
-import { Calendar, Clock, MapPin, Smartphone, User, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Smartphone, User, CheckCircle2, LogIn, LogOut } from 'lucide-react';
 
 interface MarkAttendanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   preSelectedEmployee?: Employee | null;
+  initialPunchType?: 'CLOCK_IN' | 'CLOCK_OUT';
   onSuccess?: () => void;
 }
 
@@ -20,6 +21,7 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
   isOpen,
   onClose,
   preSelectedEmployee,
+  initialPunchType = 'CLOCK_IN',
   onSuccess,
 }) => {
   const dispatch = useAppDispatch();
@@ -27,6 +29,7 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
   const userRole = useAppSelector((state) => state.auth.userRole);
   const allEmployees = useAppSelector((state) => state.employees.employees);
   const isPunching = useAppSelector((state) => state.attendance.isPunching);
+  const attendanceRecords = useAppSelector((state) => state.attendance.records);
 
   // Scoped employees for current company
   const isCompanyAdmin = userRole === 'COMPANY_ADMIN';
@@ -43,6 +46,7 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
     : allEmployees;
 
   // Form State
+  const [punchType, setPunchType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>(initialPunchType);
   const [selectedEmpId, setSelectedEmpId] = useState<string>('');
   const [empName, setEmpName] = useState('');
   const [empAvatar, setEmpAvatar] = useState('');
@@ -55,12 +59,14 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
   const [device, setDevice] = useState('Company Admin Portal Web');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // When modal opens or preSelectedEmployee changes, set defaults
+  // When modal opens or preSelectedEmployee / initialPunchType changes, set defaults
   useEffect(() => {
     if (isOpen) {
       setErrorMessage(null);
-      setDate(new Date().toISOString().split('T')[0]);
-      
+      const todayStr = new Date().toISOString().split('T')[0];
+      setDate(todayStr);
+      setPunchType(initialPunchType);
+
       // Calculate formatted current time
       const now = new Date();
       const hours = now.getHours();
@@ -70,29 +76,44 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
       const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
       const currentTimeStr = `${formattedHours}:${formattedMinutes} ${ampm}`;
 
-      setCheckInTime(currentTimeStr);
-      setCheckOutTime('--');
-      setStatus('Present');
+      let targetEmp: Employee | undefined = preSelectedEmployee || undefined;
+      if (!targetEmp && companyEmployees.length > 0) {
+        targetEmp = companyEmployees[0];
+      }
 
-      if (preSelectedEmployee) {
-        setSelectedEmpId(preSelectedEmployee.id);
-        setEmpName(preSelectedEmployee.name);
-        setEmpAvatar(preSelectedEmployee.avatar || '');
-        setDepartment(preSelectedEmployee.department || 'Engineering');
-      } else if (companyEmployees.length > 0) {
-        const first = companyEmployees[0];
-        setSelectedEmpId(first.id);
-        setEmpName(first.name);
-        setEmpAvatar(first.avatar || '');
-        setDepartment(first.department || 'Engineering');
+      if (targetEmp) {
+        setSelectedEmpId(targetEmp.id);
+        setEmpName(targetEmp.name);
+        setEmpAvatar(targetEmp.avatar || '');
+        setDepartment(targetEmp.department || 'Engineering');
+
+        // Look for existing attendance record for today
+        const existingRec = attendanceRecords.find(
+          (r) =>
+            (r.employeeId === targetEmp?.id || r.employeeId === String(targetEmp?.id).replace('emp_', '')) &&
+            (r.date === todayStr || !r.date)
+        );
+
+        if (initialPunchType === 'CLOCK_OUT') {
+          setCheckInTime(existingRec?.checkIn || '09:00 AM');
+          setCheckOutTime(currentTimeStr);
+          setStatus(existingRec?.status || 'Present');
+        } else {
+          setCheckInTime(currentTimeStr);
+          setCheckOutTime('--');
+          setStatus('Present');
+        }
       } else {
         setSelectedEmpId('');
         setEmpName('');
         setEmpAvatar('');
         setDepartment('Engineering');
+        setCheckInTime(currentTimeStr);
+        setCheckOutTime('--');
+        setStatus('Present');
       }
     }
-  }, [isOpen, preSelectedEmployee, companyEmployees.length]);
+  }, [isOpen, preSelectedEmployee, initialPunchType, companyEmployees.length]);
 
   const handleEmployeeSelect = (empId: string) => {
     setSelectedEmpId(empId);
@@ -101,6 +122,45 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
       setEmpName(emp.name);
       setEmpAvatar(emp.avatar || '');
       setDepartment(emp.department || 'Engineering');
+
+      const todayStr = date || new Date().toISOString().split('T')[0];
+      const existingRec = attendanceRecords.find(
+        (r) =>
+          (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
+          (r.date === todayStr || !r.date)
+      );
+
+      if (existingRec && existingRec.checkIn && (!existingRec.checkOut || existingRec.checkOut === '--')) {
+        setPunchType('CLOCK_OUT');
+        setCheckInTime(existingRec.checkIn);
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const formattedHours = hours % 12 || 12;
+        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+        setCheckOutTime(`${formattedHours}:${formattedMinutes} ${ampm}`);
+      }
+    }
+  };
+
+  const handleTogglePunchType = (type: 'CLOCK_IN' | 'CLOCK_OUT') => {
+    setPunchType(type);
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12;
+    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+    const currentTimeStr = `${formattedHours}:${formattedMinutes} ${ampm}`;
+
+    if (type === 'CLOCK_OUT') {
+      if (checkOutTime === '--' || !checkOutTime) {
+        setCheckOutTime(currentTimeStr);
+      }
+    } else {
+      setCheckInTime(currentTimeStr);
+      setCheckOutTime('--');
     }
   };
 
@@ -128,9 +188,9 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
         company_id: targetCompanyId,
         date: date,
         check_in_time: checkInTime,
-        check_out_time: checkOutTime || '--',
+        check_out_time: punchType === 'CLOCK_OUT' ? checkOutTime || '--' : '--',
         status: status,
-        work_hours: status === 'Absent' ? '0h' : status === 'Half Day' ? '4h 00m' : 'Active',
+        work_hours: status === 'Absent' ? '0h' : status === 'Half Day' ? '4h 00m' : punchType === 'CLOCK_OUT' ? 'Completed' : 'Active',
         location: location,
         device: device,
       })
@@ -140,7 +200,7 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
       onClose();
       if (onSuccess) onSuccess();
     } else if (markAttendanceAsync.rejected.match(result)) {
-      setErrorMessage((result.payload as string) || 'Failed to mark attendance');
+      setErrorMessage((result.payload as string) || 'Failed to record punch');
     }
   };
 
@@ -148,8 +208,8 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Mark Employee Hazree (Attendance)"
-      subtitle={`Record attendance punch for ${currentUser?.companyName || 'Organization'} staff`}
+      title={punchType === 'CLOCK_OUT' ? 'Clock Out Attendance Punch' : 'Clock In Attendance Punch'}
+      subtitle={`Record ${punchType === 'CLOCK_OUT' ? 'Clock Out' : 'Clock In'} punch for ${empName || currentUser?.companyName || 'Staff Member'}`}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {errorMessage && (
@@ -157,6 +217,35 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
             {errorMessage}
           </div>
         )}
+
+        {/* Punch Type Selector Switch */}
+        <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => handleTogglePunchType('CLOCK_IN')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              punchType === 'CLOCK_IN'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <LogIn className="w-4 h-4" />
+            <span>Clock In (Punch In)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTogglePunchType('CLOCK_OUT')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              punchType === 'CLOCK_OUT'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Clock Out (Punch Out)</span>
+          </button>
+        </div>
 
         {/* 1. Employee Selection */}
         <div>
@@ -302,9 +391,14 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
             type="submit"
             variant="primary"
             disabled={isPunching}
-            icon={<CheckCircle2 className="w-4 h-4" />}
+            icon={punchType === 'CLOCK_OUT' ? <LogOut className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
+            className={punchType === 'CLOCK_OUT' ? '!bg-amber-600 hover:!bg-amber-700 !border-amber-600' : ''}
           >
-            {isPunching ? 'Saving Punch...' : 'Confirm Attendance'}
+            {isPunching
+              ? 'Saving Punch...'
+              : punchType === 'CLOCK_OUT'
+              ? 'Confirm Clock Out'
+              : 'Confirm Clock In'}
           </Button>
         </div>
       </form>

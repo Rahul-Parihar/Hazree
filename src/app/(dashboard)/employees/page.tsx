@@ -19,6 +19,8 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
 import { fetchCompaniesAsync } from '../../../redux/slices/companiesSlice';
@@ -27,6 +29,7 @@ import {
   clearEmployeeError,
   clearEmployeeSuccess,
 } from '../../../redux/slices/employeesSlice';
+import { fetchAttendanceAsync } from '../../../redux/slices/attendanceSlice';
 import { AddEmployeeModal } from '../../../components/company-admin/AddEmployeeModal';
 import { MarkAttendanceModal } from '../../../components/company-admin/MarkAttendanceModal';
 import { Employee } from '../../../types';
@@ -40,10 +43,12 @@ export default function EmployeesPage() {
   const successMessage = useAppSelector((state) => state.employees.successMessage);
   const errorMessage = useAppSelector((state) => state.employees.error);
   const companies = useAppSelector((state) => state.companies.companies);
+  const attendanceRecords = useAppSelector((state) => state.attendance.records);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [selectedEmpForPunch, setSelectedEmpForPunch] = useState<Employee | null>(null);
+  const [punchType, setPunchType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>('CLOCK_IN');
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,10 +57,12 @@ export default function EmployeesPage() {
   useEffect(() => {
     dispatch(fetchCompaniesAsync());
     dispatch(fetchEmployeesAsync());
+    dispatch(fetchAttendanceAsync());
   }, [dispatch]);
 
   const handleRefresh = () => {
     dispatch(fetchEmployeesAsync());
+    dispatch(fetchAttendanceAsync());
   };
 
   // Scoped employees: Company Admin sees only their organization's employees, Super Admin sees all
@@ -380,20 +387,62 @@ export default function EmployeesPage() {
                     </td>
 
                     {/* Attendance Action (Company Admin Only) */}
-                    {isCompanyAdmin && (
-                      <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => {
-                            setSelectedEmpForPunch(emp);
-                            setIsAttendanceModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Mark Hazree</span>
-                        </button>
-                      </td>
-                    )}
+                    {isCompanyAdmin && (() => {
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      const todayPunch = attendanceRecords.find(
+                        (r) =>
+                          (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
+                          (r.date === todayStr || !r.date)
+                      );
+
+                      const isClockedIn = todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--';
+                      const isClockedOut = isClockedIn && todayPunch.checkOut && todayPunch.checkOut !== '--';
+
+                      return (
+                        <td className="py-3.5 px-4 text-right">
+                          {!isClockedIn ? (
+                            <button
+                              onClick={() => {
+                                setSelectedEmpForPunch(emp);
+                                setPunchType('CLOCK_IN');
+                                setIsAttendanceModalOpen(true);
+                              }}
+                              title="Clock in staff for today"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                            >
+                              <LogIn className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Clock In</span>
+                            </button>
+                          ) : !isClockedOut ? (
+                            <button
+                              onClick={() => {
+                                setSelectedEmpForPunch(emp);
+                                setPunchType('CLOCK_OUT');
+                                setIsAttendanceModalOpen(true);
+                              }}
+                              title={`Clocked In at ${todayPunch.checkIn}. Click to Clock Out.`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                            >
+                              <LogOut className="w-3.5 h-3.5 text-amber-700" />
+                              <span>Clock Out</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSelectedEmpForPunch(emp);
+                                setPunchType('CLOCK_OUT');
+                                setIsAttendanceModalOpen(true);
+                              }}
+                              title="Attendance session complete. Click to adjust punch details."
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Clocked Out ({todayPunch.checkOut})</span>
+                            </button>
+                          )}
+                        </td>
+                      );
+                    })()}
                   </tr>
                 ))}
               </tbody>
@@ -420,6 +469,10 @@ export default function EmployeesPage() {
           isOpen={isAttendanceModalOpen}
           onClose={() => setIsAttendanceModalOpen(false)}
           preSelectedEmployee={selectedEmpForPunch}
+          initialPunchType={punchType}
+          onSuccess={() => {
+            dispatch(fetchAttendanceAsync());
+          }}
         />
       )}
     </div>

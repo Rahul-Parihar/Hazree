@@ -54,6 +54,8 @@ export const mapBackendToAttendanceRecord = (be: BackendAttendanceRecord): Atten
   date: be.date,
   checkInTime: be.check_in_time,
   checkOutTime: be.check_out_time || '--',
+  checkIn: be.check_in_time,
+  checkOut: be.check_out_time || '--',
   status: (be.status as AttendanceRecord['status']) || 'Present',
   workHours: be.work_hours || 'Active',
   location: be.location || 'Office Premises (Verified)',

@@ -56,6 +56,8 @@ export interface AttendanceRecord {
   date: string;
   checkInTime: string;
   checkOutTime?: string;
+  checkIn?: string;
+  checkOut?: string;
   status: AttendanceStatus;
   workHours?: string;
   location: string;
