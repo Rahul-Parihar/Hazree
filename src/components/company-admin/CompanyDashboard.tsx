@@ -44,6 +44,8 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
     companies.find(
       (c) =>
         c.id === currentUser?.companyId ||
+        c.id === `cmp_${currentUser?.companyId}` ||
+        String(c.id).replace('cmp_', '') === String(currentUser?.companyId || '').replace('cmp_', '') ||
         c.name.toLowerCase() === (currentUser?.companyName || '').toLowerCase()
     ) || (companies.length > 0 ? companies[0] : null);
 
@@ -54,6 +56,9 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
     .join('')
     .substring(0, 2)
     .toUpperCase();
+
+  const shiftDisplayText = currentCompany?.shiftType || (currentCompany?.shiftCount ? `${currentCompany.shiftCount} Shifts` : '3 Shifts • 8 Hours (24x7 Rotational)');
+  const shiftTimingsText = currentCompany?.shiftTimings;
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in pb-8">
@@ -73,15 +78,21 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
                 Active Organization
               </span>
             </div>
-            <p className="text-xs text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+            <div className="text-xs text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
               <span className="flex items-center gap-1 truncate">
                 <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Admin: {currentUser?.name || 'Administrator'}
               </span>
               <span>•</span>
-              <span className="flex items-center gap-1 truncate text-amber-300">
-                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Shift: {currentCompany?.shiftType || (currentCompany?.shiftCount ? `${currentCompany.shiftCount} Shifts` : '3 Shifts (24x7 Rotational)')}
-              </span>
-            </p>
+              <div className="flex items-center gap-1 text-amber-300 font-medium">
+                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Shift: <strong className="text-white">{shiftDisplayText}</strong></span>
+              </div>
+            </div>
+            {shiftTimingsText && (
+              <p className="text-[11px] text-emerald-200/90 font-mono mt-1 truncate max-w-2xl">
+                ⏱️ {shiftTimingsText}
+              </p>
+            )}
           </div>
         </div>
 

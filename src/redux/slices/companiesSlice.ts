@@ -32,9 +32,45 @@ export const fetchCompaniesAsync = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const state = getState() as any;
-      if (state.auth?.userRole && state.auth.userRole !== 'SUPER_ADMIN') {
+      const userRole = state.auth?.userRole;
+      const currentUser = state.auth?.currentUser;
+
+      if (userRole && userRole !== 'SUPER_ADMIN') {
+        const myCompId = currentUser?.companyId ? String(currentUser.companyId).replace('cmp_', '') : undefined;
+        if (myCompId) {
+          const singleCompany = await companiesService.getCompanyById(myCompId);
+          if (singleCompany) {
+            const mapped: Company[] = [
+              {
+                id: `cmp_${singleCompany.id}`,
+                name: singleCompany.name,
+                adminName: singleCompany.admin_name || `${singleCompany.name} Admin`,
+                adminEmail: singleCompany.email || '',
+                adminPhone: singleCompany.phone || '',
+                plan: (singleCompany.plan as any) || 'Growth',
+                status: (singleCompany.status as any) || (singleCompany.is_active ? 'Active' : 'Suspended'),
+                employeeCount: singleCompany.employee_count || 0,
+                maxEmployees: singleCompany.max_employees || 100,
+                createdAt: singleCompany.created_at ? singleCompany.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+                location: singleCompany.location || 'Mumbai, MH',
+                renewalDate: singleCompany.renewal_date ? singleCompany.renewal_date.split('T')[0] : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                logo: singleCompany.logo,
+                daysUntilRenewal: singleCompany.days_until_renewal,
+                isSubscriptionExpiringSoon: singleCompany.is_subscription_expiring_soon,
+                isSubscriptionExpired: singleCompany.is_subscription_expired,
+                subscriptionAlert: singleCompany.subscription_alert,
+                subscriptionAlertType: singleCompany.subscription_alert_type,
+                shiftCount: singleCompany.shift_count || 3,
+                shiftType: singleCompany.shift_type || '3 Shifts • 8 Hours (24x7 Rotational)',
+                shiftTimings: singleCompany.shift_timings || 'Shift 1: 06:00 AM - 02:00 PM (8h) | Shift 2: 02:00 PM - 10:00 PM (8h) | Shift 3: 10:00 PM - 06:00 AM (8h)',
+              },
+            ];
+            return mapped;
+          }
+        }
         return [];
       }
+
       const backendCompanies = await companiesService.getAllCompanies();
       if (Array.isArray(backendCompanies)) {
         if (backendCompanies.length > 0) {
@@ -58,9 +94,9 @@ export const fetchCompaniesAsync = createAsyncThunk(
             isSubscriptionExpired: bc.is_subscription_expired,
             subscriptionAlert: bc.subscription_alert,
             subscriptionAlertType: bc.subscription_alert_type,
-            shiftCount: bc.shift_count || 1,
-            shiftType: bc.shift_type || '1 Shift (General Day)',
-            shiftTimings: bc.shift_timings,
+            shiftCount: bc.shift_count || 3,
+            shiftType: bc.shift_type || '3 Shifts • 8 Hours (24x7 Rotational)',
+            shiftTimings: bc.shift_timings || 'Shift 1: 06:00 AM - 02:00 PM (8h) | Shift 2: 02:00 PM - 10:00 PM (8h) | Shift 3: 10:00 PM - 06:00 AM (8h)',
           }));
           return mapped;
         }
