@@ -44,6 +44,9 @@ function SubscriptionsPageInner() {
     adminPhone: string;
     password?: string;
     location: string;
+    shiftCount?: number;
+    shiftType?: string;
+    shiftTimings?: string;
   } | null>(null);
 
   const targetCompany = queryCompanyId
@@ -144,6 +147,9 @@ function SubscriptionsPageInner() {
             employeeCount: 1,
             maxEmployees: Number(p.max_employees) || 100,
             renewalDate: renewalDateStr,
+            shiftCount: Number(pendingOnboarding.shiftCount) || 3,
+            shiftType: pendingOnboarding.shiftType || '3 Shifts (24x7 Rotational - Morning, Evening, Night)',
+            shiftTimings: pendingOnboarding.shiftTimings,
           })
         );
 

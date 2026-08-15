@@ -36,6 +36,10 @@ export default function RegisterCompanyPage() {
     adminPhone: '',
     password: '',
     location: '',
+    shiftCount: 3,
+    shiftHours: 8,
+    shiftType: '3 Shifts • 8 Hours (24x7 Rotational)',
+    shiftTimings: 'Shift 1: 06:00 AM - 02:00 PM (8h) | Shift 2: 02:00 PM - 10:00 PM (8h) | Shift 3: 10:00 PM - 06:00 AM (8h)',
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -52,6 +56,103 @@ export default function RegisterCompanyPage() {
     }
     setFormData((prev) => ({ ...prev, password: pwd }));
     setShowPassword(true);
+  };
+
+  const calculateShiftPreset = (count: number, hours: number) => {
+    if (count === 1) {
+      if (hours === 8) {
+        return {
+          shiftCount: 1,
+          shiftHours: 8,
+          shiftType: '1 Shift • 8 Hours (General Day)',
+          shiftTimings: 'General Shift: 09:00 AM - 05:00 PM (8 hrs)',
+        };
+      } else if (hours === 12) {
+        return {
+          shiftCount: 1,
+          shiftHours: 12,
+          shiftType: '1 Shift • 12 Hours (Extended Shift)',
+          shiftTimings: 'Day Shift: 08:00 AM - 08:00 PM (12 hrs)',
+        };
+      } else if (hours === 6) {
+        return {
+          shiftCount: 1,
+          shiftHours: 6,
+          shiftType: '1 Shift • 6 Hours (Part-time Shift)',
+          shiftTimings: 'Morning Shift: 09:00 AM - 03:00 PM (6 hrs)',
+        };
+      } else {
+        return {
+          shiftCount: 1,
+          shiftHours: 9,
+          shiftType: '1 Shift • 9 Hours (General Day)',
+          shiftTimings: 'General Shift: 09:00 AM - 06:00 PM (9 hrs)',
+        };
+      }
+    } else if (count === 2) {
+      if (hours === 12) {
+        return {
+          shiftCount: 2,
+          shiftHours: 12,
+          shiftType: '2 Shifts • 12 Hours (Day & Night 24h)',
+          shiftTimings: 'Shift 1 (Day): 08:00 AM - 08:00 PM (12h) | Shift 2 (Night): 08:00 PM - 08:00 AM (12h)',
+        };
+      } else if (hours === 9) {
+        return {
+          shiftCount: 2,
+          shiftHours: 9,
+          shiftType: '2 Shifts • 9 Hours (Day & Evening)',
+          shiftTimings: 'Shift 1: 08:00 AM - 05:00 PM (9h) | Shift 2: 02:00 PM - 11:00 PM (9h)',
+        };
+      } else {
+        return {
+          shiftCount: 2,
+          shiftHours: 8,
+          shiftType: '2 Shifts • 8 Hours (Day & Evening)',
+          shiftTimings: 'Shift 1: 06:00 AM - 02:00 PM (8h) | Shift 2: 02:00 PM - 10:00 PM (8h)',
+        };
+      }
+    } else {
+      // 3 Shifts
+      if (hours === 12) {
+        return {
+          shiftCount: 3,
+          shiftHours: 12,
+          shiftType: '3 Shifts • 12 Hours (Overlapping 24x7)',
+          shiftTimings: 'Shift 1: 06:00 AM - 06:00 PM (12h) | Shift 2: 02:00 PM - 02:00 AM (12h) | Shift 3: 10:00 PM - 10:00 AM (12h)',
+        };
+      } else if (hours === 6) {
+        return {
+          shiftCount: 3,
+          shiftHours: 6,
+          shiftType: '3 Shifts • 6 Hours (Rotational)',
+          shiftTimings: 'Shift 1: 06:00 AM - 12:00 PM (6h) | Shift 2: 12:00 PM - 06:00 PM (6h) | Shift 3: 06:00 PM - 12:00 AM (6h)',
+        };
+      } else {
+        return {
+          shiftCount: 3,
+          shiftHours: 8,
+          shiftType: '3 Shifts • 8 Hours (24x7 Rotational)',
+          shiftTimings: 'Shift 1: 06:00 AM - 02:00 PM (8h) | Shift 2: 02:00 PM - 10:00 PM (8h) | Shift 3: 10:00 PM - 06:00 AM (8h)',
+        };
+      }
+    }
+  };
+
+  const handleShiftPreset = (count: number) => {
+    const preset = calculateShiftPreset(count, formData.shiftHours);
+    setFormData((prev) => ({
+      ...prev,
+      ...preset,
+    }));
+  };
+
+  const handleShiftHoursChange = (hours: number) => {
+    const preset = calculateShiftPreset(formData.shiftCount, hours);
+    setFormData((prev) => ({
+      ...prev,
+      ...preset,
+    }));
   };
 
   const handleChange = (field: string, value: any) => {
@@ -90,6 +191,9 @@ export default function RegisterCompanyPage() {
           adminPhone: formData.adminPhone.trim(),
           password: formData.password.trim() || undefined,
           location: formData.location.trim() || 'Mumbai, Maharashtra',
+          shiftCount: Number(formData.shiftCount) || 3,
+          shiftType: formData.shiftType,
+          shiftTimings: formData.shiftTimings,
         })
       );
 
@@ -242,6 +346,107 @@ export default function RegisterCompanyPage() {
                 <p className="text-[11px] text-slate-400 mt-1">
                   Company Admin will use this password with their Official Email to log into their portal.
                 </p>
+              </div>
+            </div>
+
+            {/* Shift Configuration System Card */}
+            <div className="p-5 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900">
+                    Company Operating Shifts Configuration *
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Kitne shifts me company chalegi aur har shift kitne ghante (8 hr, 12 hr, 9 hr) ki hogi
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 w-fit">
+                    {formData.shiftCount} {formData.shiftCount === 1 ? 'Shift' : 'Shifts'} • {formData.shiftHours} hrs
+                  </span>
+                </div>
+              </div>
+
+              {/* Shift Hours / Duration Selector Dropdown */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Shift Working Hours / Duration (Per Shift) *</span>
+                  <span className="text-emerald-600 font-semibold lowercase">standard shift timing</span>
+                </label>
+                <select
+                  value={formData.shiftHours}
+                  onChange={(e) => handleShiftHoursChange(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value={8}>8 Hours Shift (8 hr)</option>
+                  <option value={12}>12 Hours Shift (12 hr)</option>
+                </select>
+              </div>
+
+              {/* Shift Presets */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleShiftPreset(1)}
+                  className={`p-3 rounded-2xl text-left border transition-all cursor-pointer ${
+                    formData.shiftCount === 1
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-extrabold text-sm">1 Shift (Day)</p>
+                  <p className={`text-xs mt-1 ${formData.shiftCount === 1 ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    Single Day {formData.shiftHours}h Shift
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleShiftPreset(2)}
+                  className={`p-3 rounded-2xl text-left border transition-all cursor-pointer ${
+                    formData.shiftCount === 2
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-extrabold text-sm">2 Shifts</p>
+                  <p className={`text-xs mt-1 ${formData.shiftCount === 2 ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    Day & Night ({formData.shiftHours}h each)
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleShiftPreset(3)}
+                  className={`p-3 rounded-2xl text-left border transition-all cursor-pointer ${
+                    formData.shiftCount === 3
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-extrabold text-sm flex items-center justify-between">
+                    <span>3 Shifts</span>
+                    <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded-full">24x7</span>
+                  </p>
+                  <p className={`text-xs mt-1 ${formData.shiftCount === 3 ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    Morning, Eve & Night ({formData.shiftHours}h)
+                  </p>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <Input
+                  label="Shift Description Tag"
+                  placeholder="e.g. 3 Shifts • 8 Hours (24x7 Rotational)"
+                  value={formData.shiftType}
+                  onChange={(e) => handleChange('shiftType', e.target.value)}
+                />
+                <Input
+                  label="Shift Timings Breakdown"
+                  placeholder="e.g. Shift 1: 06:00 AM - 02:00 PM (8h) | Shift 2: 02:00 PM - 10:00 PM (8h) | Shift 3: 10:00 PM - 06:00 AM (8h)"
+                  value={formData.shiftTimings}
+                  onChange={(e) => handleChange('shiftTimings', e.target.value)}
+                />
               </div>
             </div>
           </div>

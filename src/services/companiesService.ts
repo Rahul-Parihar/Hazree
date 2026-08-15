@@ -14,6 +14,9 @@ export interface BackendCompanyCreate {
   employee_count?: number;
   renewal_date?: string;
   logo?: string;
+  shift_count?: number;
+  shift_type?: string;
+  shift_timings?: string;
   is_active?: boolean;
 }
 
@@ -30,6 +33,9 @@ export interface BackendCompanyResponse {
   employee_count?: number;
   renewal_date?: string;
   logo?: string;
+  shift_count?: number;
+  shift_type?: string;
+  shift_timings?: string;
   is_active: boolean;
   created_at?: string;
   days_until_renewal?: number;
@@ -65,6 +71,9 @@ export interface BackendCompanyUpdate {
   employee_count?: number;
   renewal_date?: string;
   logo?: string;
+  shift_count?: number;
+  shift_type?: string;
+  shift_timings?: string;
   is_active?: boolean;
 }
 

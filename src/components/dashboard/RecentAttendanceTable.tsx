@@ -5,8 +5,9 @@ import { Search, MapPin, Smartphone, Plus, CheckCircle, Clock } from 'lucide-rea
 import { AttendanceRecord } from '../../types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { Modal } from '../ui/Modal';
-import { Input } from '../ui/Input';
+import { MarkAttendanceModal } from '../company-admin/MarkAttendanceModal';
+
+import { useAppSelector } from '../../redux/hooks';
 
 interface RecentAttendanceTableProps {
   records: AttendanceRecord[];
@@ -17,15 +18,12 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
   records,
   onAddRecord,
 }) => {
+  const userRole = useAppSelector((state) => state.auth.userRole);
+  const isCompanyAdmin = userRole === 'COMPANY_ADMIN';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<string>('ALL');
-
-  // Manual Hazree Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [empName, setEmpName] = useState('');
-  const [department, setDepartment] = useState('Engineering');
-  const [status, setStatus] = useState<AttendanceRecord['status']>('Present');
-  const [checkIn, setCheckIn] = useState('09:00 AM');
 
   const filteredRecords = records.filter((r) => {
     const matchesSearch =
@@ -37,33 +35,6 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
 
     return matchesSearch && matchesTab;
   });
-
-  const handleManualPunchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!empName) return;
-
-    const newRecord: AttendanceRecord = {
-      id: `att_${Date.now()}`,
-      employeeId: `emp_${Math.floor(Math.random() * 100)}`,
-      employeeName: empName,
-      employeeAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-      companyId: 'cmp_101',
-      department: department,
-      date: new Date().toISOString().split('T')[0],
-      checkInTime: checkIn,
-      checkOutTime: '--',
-      status: status,
-      workHours: 'Active',
-      location: 'Manual HR Override (BKC Office)',
-      device: 'Admin Portal Web Console',
-    };
-
-    if (onAddRecord) {
-      onAddRecord(newRecord);
-    }
-    setIsModalOpen(false);
-    setEmpName('');
-  };
 
   return (
     <div className="space-y-4">
@@ -99,9 +70,11 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
             />
           </div>
 
-          <Button variant="primary" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setIsModalOpen(true)}>
-            Mark Hazree
-          </Button>
+          {isCompanyAdmin && (
+            <Button variant="primary" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setIsModalOpen(true)}>
+              Mark Hazree
+            </Button>
+          )}
         </div>
       </div>
 
@@ -201,75 +174,11 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
         </div>
       </div>
 
-      {/* Manual Attendance Modal */}
-      <Modal
+      {/* Mark Attendance Modal with employee dropdown */}
+      <MarkAttendanceModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Mark Manual Attendance (Hazree)"
-        subtitle="Override attendance entry for an employee"
-      >
-        <form onSubmit={handleManualPunchSubmit} className="space-y-4">
-          <Input
-            label="Employee Full Name"
-            placeholder="e.g. Rahul Sharma"
-            value={empName}
-            onChange={(e) => setEmpName(e.target.value)}
-            required
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Department
-              </label>
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full rounded-xl bg-white/80 border border-slate-200 text-slate-900 px-4 py-2.5 text-sm"
-              >
-                <option value="Engineering">Engineering</option>
-                <option value="Human Resources">Human Resources</option>
-                <option value="Sales & Marketing">Sales & Marketing</option>
-                <option value="Design & UI">Design & UI</option>
-                <option value="Operations">Operations</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as AttendanceRecord['status'])}
-                className="w-full rounded-xl bg-white/80 border border-slate-200 text-slate-900 px-4 py-2.5 text-sm"
-              >
-                <option value="Present">Present (On Time)</option>
-                <option value="Late">Late Arrival</option>
-                <option value="Half Day">Half Day Shift</option>
-                <option value="Absent">Unexcused Absent</option>
-              </select>
-            </div>
-          </div>
-
-          <Input
-            label="Check-in Time"
-            placeholder="09:00 AM"
-            value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
-            required
-          />
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary">
-              Confirm Punch
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      />
     </div>
   );
 };

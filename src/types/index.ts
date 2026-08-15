@@ -23,6 +23,9 @@ export interface Company {
   isSubscriptionExpired?: boolean;
   subscriptionAlert?: string;
   subscriptionAlertType?: 'warning' | 'danger' | 'info' | 'none';
+  shiftCount?: number;
+  shiftType?: string;
+  shiftTimings?: string;
 }
 
 export type EmployeeStatus = 'Active' | 'On Leave' | 'Inactive';

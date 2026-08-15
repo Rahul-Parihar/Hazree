@@ -28,6 +28,8 @@ import {
   clearEmployeeSuccess,
 } from '../../../redux/slices/employeesSlice';
 import { AddEmployeeModal } from '../../../components/company-admin/AddEmployeeModal';
+import { MarkAttendanceModal } from '../../../components/company-admin/MarkAttendanceModal';
+import { Employee } from '../../../types';
 
 export default function EmployeesPage() {
   const dispatch = useAppDispatch();
@@ -40,6 +42,8 @@ export default function EmployeesPage() {
   const companies = useAppSelector((state) => state.companies.companies);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [selectedEmpForPunch, setSelectedEmpForPunch] = useState<Employee | null>(null);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,15 +168,31 @@ export default function EmployeesPage() {
             Refresh
           </Button>
 
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => setIsAddModalOpen(true)}
-            className="w-full sm:w-auto justify-center"
-          >
-            Add New Staff
-          </Button>
+          {isCompanyAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+              onClick={() => {
+                setSelectedEmpForPunch(null);
+                setIsAttendanceModalOpen(true);
+              }}
+            >
+              Mark Hazree
+            </Button>
+          )}
+
+          {isCompanyAdmin && (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Plus className="w-4 h-4" />}
+              onClick={() => setIsAddModalOpen(true)}
+              className="w-full sm:w-auto justify-center"
+            >
+              Add New Staff
+            </Button>
+          )}
         </div>
       </div>
 
@@ -248,7 +268,9 @@ export default function EmployeesPage() {
           </div>
           <h4 className="text-base font-extrabold text-slate-900">No Employees Found</h4>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            No employee records match the active search and filter criteria. Try resetting your filters or onboard a new employee.
+            {isCompanyAdmin
+              ? 'No employee records match the active search and filter criteria. Try resetting your filters or onboard a new employee.'
+              : 'No staff records found in the directory for the selected search or filters.'}
           </p>
           <div className="flex items-center justify-center gap-2 pt-2">
             {hasActiveFilters && (
@@ -256,9 +278,11 @@ export default function EmployeesPage() {
                 Reset Filters
               </Button>
             )}
-            <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setIsAddModalOpen(true)}>
-              Add New Staff
-            </Button>
+            {isCompanyAdmin && (
+              <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setIsAddModalOpen(true)}>
+                Add New Staff
+              </Button>
+            )}
           </div>
         </div>
       ) : (
@@ -273,6 +297,9 @@ export default function EmployeesPage() {
                   <th className="py-3.5 px-4">Contact Phone</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4">Enrolled Date</th>
+                  {isCompanyAdmin && (
+                    <th className="py-3.5 px-4 text-right">Attendance Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
@@ -351,6 +378,22 @@ export default function EmployeesPage() {
                         <span>{emp.joinDate || '14/08/2026'}</span>
                       </div>
                     </td>
+
+                    {/* Attendance Action (Company Admin Only) */}
+                    {isCompanyAdmin && (
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => {
+                            setSelectedEmpForPunch(emp);
+                            setIsAttendanceModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Mark Hazree</span>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -359,15 +402,26 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* Add Employee Modal */}
-      <AddEmployeeModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSuccess={() => {
-          dispatch(fetchEmployeesAsync());
-          dispatch(fetchCompaniesAsync());
-        }}
-      />
+      {/* Add Employee Modal (Company Admin Only) */}
+      {isCompanyAdmin && (
+        <AddEmployeeModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={() => {
+            dispatch(fetchEmployeesAsync());
+            dispatch(fetchCompaniesAsync());
+          }}
+        />
+      )}
+
+      {/* Mark Attendance Modal (Company Admin Only) */}
+      {isCompanyAdmin && (
+        <MarkAttendanceModal
+          isOpen={isAttendanceModalOpen}
+          onClose={() => setIsAttendanceModalOpen(false)}
+          preSelectedEmployee={selectedEmpForPunch}
+        />
+      )}
     </div>
   );
 }

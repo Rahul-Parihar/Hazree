@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Company, CompanyStatus } from '../../types';
-import { companiesService, BackendCompanyCreate } from '../../services';
+import { companiesService, BackendCompanyCreate, BackendCompanyUpdate } from '../../services';
 
 interface CompaniesState {
   companies: Company[];
@@ -58,6 +58,9 @@ export const fetchCompaniesAsync = createAsyncThunk(
             isSubscriptionExpired: bc.is_subscription_expired,
             subscriptionAlert: bc.subscription_alert,
             subscriptionAlertType: bc.subscription_alert_type,
+            shiftCount: bc.shift_count || 1,
+            shiftType: bc.shift_type || '1 Shift (General Day)',
+            shiftTimings: bc.shift_timings,
           }));
           return mapped;
         }
@@ -96,6 +99,9 @@ export const createCompanyAsync = createAsyncThunk(
         employee_count: newCompany.employeeCount || 0,
         renewal_date: newCompany.renewalDate,
         logo: newCompany.logo,
+        shift_count: newCompany.shiftCount || 1,
+        shift_type: newCompany.shiftType || '1 Shift (General Day)',
+        shift_timings: newCompany.shiftTimings,
         is_active: newCompany.status === 'Active',
       };
       const created = await companiesService.createCompany(payload);
@@ -118,12 +124,16 @@ export const createCompanyAsync = createAsyncThunk(
           ? created.renewal_date.split('T')[0]
           : (newCompany.renewalDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
         logo: created.logo || newCompany.logo,
+        shiftCount: created.shift_count || newCompany.shiftCount || 1,
+        shiftType: created.shift_type || newCompany.shiftType || '1 Shift (General Day)',
+        shiftTimings: created.shift_timings || newCompany.shiftTimings,
         daysUntilRenewal: created.days_until_renewal,
         isSubscriptionExpiringSoon: created.is_subscription_expiring_soon,
         isSubscriptionExpired: created.is_subscription_expired,
         subscriptionAlert: created.subscription_alert,
         subscriptionAlertType: created.subscription_alert_type,
       };
+
       return mapped;
     } catch (err: any) {
       const errorMsg = err?.message || 'Failed to register company on server.';
@@ -162,6 +172,73 @@ export const updateCompanyStatusAsync = createAsyncThunk(
       console.warn('Backend updateCompanyStatus warning:', err?.message);
       // Fallback for optimistic state update
       return { id, status, reason, notes };
+    }
+  }
+);
+
+/**
+ * Async Thunk to update company details on FastAPI backend
+ */
+export const updateCompanyAsync = createAsyncThunk(
+  'companies/updateCompanyAsync',
+  async (
+    {
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<Company>;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const rawId = id.replace('cmp_', '');
+      const payload: BackendCompanyUpdate = {
+        name: updates.name?.trim(),
+        admin_name: updates.adminName?.trim(),
+        email: updates.adminEmail?.trim().toLowerCase(),
+        phone: updates.adminPhone?.trim(),
+        password: updates.password?.trim() || undefined,
+        plan: updates.plan,
+        status: updates.status,
+        location: updates.location?.trim(),
+        max_employees: updates.maxEmployees,
+        employee_count: updates.employeeCount,
+        renewal_date: updates.renewalDate,
+        logo: updates.logo,
+        shift_count: updates.shiftCount,
+        shift_type: updates.shiftType,
+        shift_timings: updates.shiftTimings,
+        is_active: updates.status ? updates.status === 'Active' : undefined,
+      };
+
+      const updated = await companiesService.updateCompany(rawId, payload);
+      const mapped: Company = {
+        id: `cmp_${updated.id}`,
+        name: updated.name,
+        adminName: updated.admin_name || updates.adminName || `${updated.name} Admin`,
+        adminEmail: updated.email || updates.adminEmail || '',
+        adminPhone: updated.phone || updates.adminPhone || '',
+        plan: (updated.plan as any) || updates.plan || 'Growth',
+        status: (updated.status as any) || (updated.is_active ? 'Active' : 'Suspended'),
+        employeeCount: updated.employee_count ?? updates.employeeCount ?? 0,
+        maxEmployees: updated.max_employees ?? updates.maxEmployees ?? 100,
+        createdAt: updated.created_at ? updated.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        location: updated.location || updates.location || 'Mumbai, MH',
+        renewalDate: updated.renewal_date ? updated.renewal_date.split('T')[0] : (updates.renewalDate || new Date().toISOString().split('T')[0]),
+        logo: updated.logo || updates.logo,
+        shiftCount: updated.shift_count || updates.shiftCount || 1,
+        shiftType: updated.shift_type || updates.shiftType || '1 Shift (General Day)',
+        shiftTimings: updated.shift_timings || updates.shiftTimings,
+        daysUntilRenewal: updated.days_until_renewal,
+        isSubscriptionExpiringSoon: updated.is_subscription_expiring_soon,
+        isSubscriptionExpired: updated.is_subscription_expired,
+        subscriptionAlert: updated.subscription_alert,
+        subscriptionAlertType: updated.subscription_alert_type,
+      };
+      return mapped;
+    } catch (err: any) {
+      return rejectWithValue(err?.message || 'Failed to update company.');
     }
   }
 );
@@ -254,6 +331,23 @@ export const companiesSlice = createSlice({
       .addCase(createCompanyAsync.rejected, (state, action) => {
         state.isCreating = false;
         state.error = (action.payload as string) || 'Failed to register company.';
+      })
+      // Update Company Details
+      .addCase(updateCompanyAsync.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateCompanyAsync.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const index = state.companies.findIndex((c) => c.id === action.payload.id);
+        if (index !== -1) {
+          state.companies[index] = action.payload;
+        }
+        state.successMessage = `Company "${action.payload.name}" updated successfully!`;
+      })
+      .addCase(updateCompanyAsync.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = (action.payload as string) || 'Failed to update company details.';
       })
       // Update Company Status (Suspend / Activate)
       .addCase(updateCompanyStatusAsync.fulfilled, (state, action) => {

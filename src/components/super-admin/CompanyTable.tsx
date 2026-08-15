@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, MapPin, Mail, Trash2, Filter, ArrowUpDown, RotateCcw, X, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { Search, MapPin, Mail, Trash2, Filter, ArrowUpDown, RotateCcw, X, ShieldAlert, CheckCircle2, Pencil, Clock } from 'lucide-react';
 import { Company } from '../../types';
 import { Badge } from '../ui/Badge';
 import { useAppDispatch } from '../../redux/hooks';
-import { deleteCompanyAsync, updateCompanyStatusAsync } from '../../redux/slices/companiesSlice';
+import { deleteCompanyAsync, updateCompanyStatusAsync, fetchCompaniesAsync } from '../../redux/slices/companiesSlice';
 import { SuspendCompanyModal } from './SuspendCompanyModal';
 
 interface CompanyTableProps {
@@ -23,6 +24,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
   const [selectedPlan, setSelectedPlan] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<string>('NEWEST');
   const [suspendTargetCompany, setSuspendTargetCompany] = useState<Company | null>(null);
+  const [editTargetCompany, setEditTargetCompany] = useState<Company | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const handleDelete = (company: Company) => {
@@ -225,18 +227,18 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
       {/* Table Container */}
       <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm min-w-[720px]">
-            <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
+          <table className="w-full text-left text-sm min-w-[960px]">
+            <thead className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase font-bold text-slate-500 tracking-wider">
               <tr>
-                <th className="py-3.5 px-4">Company</th>
-                <th className="py-3.5 px-4">Primary Admin</th>
-                <th className="py-3.5 px-4">Location</th>
-                <th className="py-3.5 px-4">Plan & Capacity</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4 min-w-[240px]">Company Name</th>
+                <th className="py-3.5 px-4 min-w-[200px]">Primary Admin</th>
+                <th className="py-3.5 px-4 min-w-[180px]">Location & Shifts</th>
+                <th className="py-3.5 px-4 min-w-[160px]">Plan & Capacity</th>
+                <th className="py-3.5 px-4 min-w-[100px]">Status</th>
+                <th className="py-3.5 px-4 min-w-[180px] text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {filteredCompanies.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-10 text-slate-500">
@@ -248,39 +250,51 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
                   const capacityPercent = Math.min(Math.round((c.employeeCount / c.maxEmployees) * 100), 100);
 
                   return (
-                    <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
                       {/* Company Name */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-indigo-600 flex items-center justify-center text-white font-black text-sm shrink-0 shadow-xs uppercase">
                             {c.name.substring(0, 2).toUpperCase()}
                           </div>
-                          <div>
-                            <p className="font-semibold text-slate-900 leading-snug">{c.name}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">Joined {c.createdAt}</p>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 text-sm capitalize leading-snug truncate max-w-[200px]" title={c.name}>
+                              {c.name}
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-0.5 whitespace-nowrap">
+                              Joined {c.createdAt || 'Recent'}
+                            </p>
                           </div>
                         </div>
                       </td>
 
                       {/* Admin Contact */}
                       <td className="py-3.5 px-4">
-                        <div>
-                          <p className="font-medium text-slate-800">{c.adminName}</p>
-                          <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-3 h-3 text-slate-400" />
-                              {c.adminEmail}
-                            </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 capitalize truncate max-w-[180px]">
+                            {c.adminName || 'Admin'}
+                          </p>
+                          <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5 truncate max-w-[180px]" title={c.adminEmail}>
+                            <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{c.adminEmail || 'No email registered'}</span>
                           </div>
                         </div>
                       </td>
 
-                      {/* Location */}
-                      <td className="py-3.5 px-4 text-xs text-slate-600">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          {c.location}
-                        </span>
+                      {/* Location & Shift Details */}
+                      <td className="py-3.5 px-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 font-semibold text-slate-800 truncate max-w-[180px]">
+                            <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span className="truncate">{c.location || 'Location Not Set'}</span>
+                          </div>
+                          <div>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80 whitespace-nowrap">
+                              <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                              {c.shiftCount === 1 ? '1 Shift (Day)' : c.shiftCount === 2 ? '2 Shifts' : '3 Shifts (24x7)'}
+                            </span>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Plan & Capacity */}
@@ -295,11 +309,11 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
                             {c.plan}
                           </Badge>
                           <div className="w-32">
-                            <div className="flex justify-between text-[11px] text-slate-500">
+                            <div className="flex justify-between text-[11px] text-slate-500 font-medium">
                               <span>{c.employeeCount} staff</span>
                               <span>Limit: {c.maxEmployees}</span>
                             </div>
-                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1">
+                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1 border border-slate-200/60">
                               <div
                                 className="bg-emerald-500 h-full rounded-full transition-all"
                                 style={{ width: `${capacityPercent}%` }}
@@ -322,12 +336,21 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
 
                       {/* Quick Actions */}
                       <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                          <Link
+                            href={`/companies/edit?id=${c.id}`}
+                            title="Edit Organization Details & Shifts (Full Page)"
+                            className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-900 rounded-lg transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </Link>
+
                           {c.status === 'Active' ? (
                             <button
                               onClick={() => handleOpenSuspendModal(c)}
                               disabled={isUpdatingStatus}
-                              className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 hover:text-amber-900 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                              className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 hover:text-amber-900 rounded-lg transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
                             >
                               <ShieldAlert className="w-3.5 h-3.5" />
                               Suspend
@@ -336,7 +359,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
                             <button
                               onClick={() => handleActivateCompany(c)}
                               disabled={isUpdatingStatus}
-                              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-900 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-900 rounded-lg transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               Activate
@@ -345,7 +368,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({
                           <button
                             onClick={() => handleDelete(c)}
                             title="Delete Company"
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

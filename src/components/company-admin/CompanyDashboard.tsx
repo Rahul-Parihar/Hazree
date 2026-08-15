@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { CompanyStatsCards } from './CompanyStatsCards';
 import { CompanyAttendanceTrend } from './CompanyAttendanceTrend';
 import { SubscriptionAlertBanner } from './SubscriptionAlertBanner';
@@ -8,15 +9,14 @@ import { CompanyDepartmentHealth } from './CompanyDepartmentHealth';
 import { CompanyQuickActions } from './CompanyQuickActions';
 import { CompanyKioskGeofenceStatus } from './CompanyKioskGeofenceStatus';
 import { AddEmployeeModal } from './AddEmployeeModal';
-import { AttendanceRecord, Employee } from '../../types';
-import { Building2, Plus, Calendar, Clock, MapPin, RefreshCw, Shield, UserPlus } from 'lucide-react';
-import { Modal } from '../ui/Modal';
-import { Input } from '../ui/Input';
+import { MarkAttendanceModal } from './MarkAttendanceModal';
+import { Building2, Plus, Calendar, Clock, MapPin, RefreshCw, Shield, UserPlus, Pencil } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
-import { addAttendanceRecord, fetchAttendanceAsync, markAttendanceAsync } from '../../redux/slices/attendanceSlice';
+import { fetchAttendanceAsync } from '../../redux/slices/attendanceSlice';
 import { fetchEmployeesAsync } from '../../redux/slices/employeesSlice';
 import { fetchLeavesAsync } from '../../redux/slices/leavesSlice';
+import { fetchCompaniesAsync } from '../../redux/slices/companiesSlice';
 
 interface CompanyDashboardProps {
   onRoleSwitch?: () => void;
@@ -26,13 +26,14 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((state) => state.auth.currentUser);
   const companies = useAppSelector((state) => state.companies.companies);
-  const attendanceRecords = useAppSelector((state) => state.attendance.records);
   const employees = useAppSelector((state) => state.employees.employees);
   
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
+  const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
 
   useEffect(() => {
+    dispatch(fetchCompaniesAsync());
     dispatch(fetchEmployeesAsync());
     dispatch(fetchAttendanceAsync());
     dispatch(fetchLeavesAsync());
@@ -52,32 +53,6 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
     .join('')
     .substring(0, 2)
     .toUpperCase();
-
-  // Form states for manual punch
-  const [empName, setEmpName] = useState('');
-  const [department, setDepartment] = useState('Engineering');
-  const [status, setStatus] = useState<AttendanceRecord['status']>('Present');
-  const [checkInTime, setCheckInTime] = useState('09:00 AM');
-
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!empName) return;
-
-    await dispatch(
-      markAttendanceAsync({
-        employee_name: empName.trim(),
-        department: department,
-        status: status,
-        check_in_time: checkInTime,
-        location: 'Official Premises (HR Override)',
-        device: 'Company Admin Portal Web',
-        company_id: currentUser?.companyId ? Number(String(currentUser.companyId).replace('cmp_', '')) : undefined,
-      })
-    );
-
-    setIsManualModalOpen(false);
-    setEmpName('');
-  };
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in pb-8">
@@ -102,24 +77,31 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
                 <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Admin: {currentUser?.name || 'Administrator'}
               </span>
               <span>•</span>
-              <span className="flex items-center gap-1 truncate">
-                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Shift: 09:00 AM - 06:00 PM (15m Grace)
+              <span className="flex items-center gap-1 truncate text-amber-300">
+                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Shift: {currentCompany?.shiftType || (currentCompany?.shiftCount ? `${currentCompany.shiftCount} Shifts` : '3 Shifts (24x7 Rotational)')}
               </span>
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <Link
+            href="/companies/edit"
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit Info
+          </Link>
           <button
             onClick={() => setIsAddEmployeeModalOpen(true)}
-            className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95"
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
           >
             <UserPlus className="w-3.5 h-3.5" />
             Add Staff
           </button>
           <button
             onClick={() => setIsManualModalOpen(true)}
-            className="flex-1 sm:flex-none px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95"
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             Mark Hazree
@@ -158,76 +140,14 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
         }}
       />
 
-      {/* Manual Punch Modal */}
-      <Modal
+      {/* Mark Attendance Modal */}
+      <MarkAttendanceModal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
-        title="Mark Manual Employee Attendance"
-        subtitle={`Override attendance log for ${companyName} staff`}
-      >
-        <form onSubmit={handleManualSubmit} className="space-y-4">
-          <Input
-            label="Employee Full Name"
-            placeholder="e.g. Aarav Sharma"
-            value={empName}
-            onChange={(e) => setEmpName(e.target.value)}
-            required
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Department
-              </label>
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full rounded-xl bg-white border border-slate-200 text-slate-900 px-4 py-2.5 text-sm"
-              >
-                <option value="Engineering">Engineering</option>
-                <option value="Human Resources">Human Resources</option>
-                <option value="Sales & Marketing">Sales & Marketing</option>
-                <option value="UI/UX & Design">UI/UX & Design</option>
-                <option value="Operations">Operations</option>
-                <option value="Finance & Accounts">Finance & Accounts</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Attendance Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as AttendanceRecord['status'])}
-                className="w-full rounded-xl bg-white border border-slate-200 text-slate-900 px-4 py-2.5 text-sm"
-              >
-                <option value="Present">Present (On Time)</option>
-                <option value="Late">Late Arrival</option>
-                <option value="Half Day">Half Day Shift</option>
-                <option value="Absent">Unexcused Absent</option>
-              </select>
-            </div>
-          </div>
-
-          <Input
-            label="Punch Time"
-            placeholder="09:00 AM"
-            value={checkInTime}
-            onChange={(e) => setCheckInTime(e.target.value)}
-            required
-          />
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button type="button" variant="outline" onClick={() => setIsManualModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary">
-              Confirm Punch
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        onSuccess={() => {
+          dispatch(fetchAttendanceAsync());
+        }}
+      />
     </div>
   );
 };
