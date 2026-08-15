@@ -28,16 +28,19 @@ import app.features.companies.company_management.models  # Register models
 import app.features.companies.employee_management.models  # Register models
 import app.features.companies.attendance_management.models  # Register models
 import app.features.companies.leave_management.models  # Register models
+import app.features.companies.department_management.models  # Register models
 import app.features.super_admin.super_admin_auth.models  # Register models
 import app.features.subscriptions.subscription_management.models  # Register models
 from app.features.super_admin.super_admin_auth.service import init_default_super_admin
 from app.features.subscriptions.subscription_management.service import seed_default_subscription_plans
 from app.features.companies.company_management.service import seed_default_companies
+from app.features.companies.department_management.service import seed_default_departments
 
 from app.features.companies.company_management.router import router as companies_router
 from app.features.companies.employee_management.router import router as employees_router
 from app.features.companies.attendance_management.router import router as attendance_router
 from app.features.companies.leave_management.router import router as leaves_router
+from app.features.companies.department_management.router import router as departments_router
 from app.features.super_admin.super_admin_auth.router import router as super_admin_router
 from app.features.subscriptions.subscription_management.router import router as subscriptions_router
 
@@ -68,6 +71,7 @@ async def lifespan(app: FastAPI):
             logger.info(f"Default Super Admin verified/created: {admin.email}")
             seed_default_subscription_plans(db)
             seed_default_companies(db)
+            seed_default_departments(db)
         finally:
             db.close()
 
@@ -98,21 +102,14 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 from fastapi.middleware.gzip import GZipMiddleware
 
 # ---------------------------------------------------------------------------
-# Middlewares Execution Chain (Added in reverse order of execution)
+# Middlewares Configuration (Ordering: Bottom-to-Top execution)
 # ---------------------------------------------------------------------------
-# 1. Global Route Protection Middleware (Protects private APIs after login)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(AuthProtectionMiddleware)
 
-# 2. GZip Compression Middleware (High speed payload delivery)
-app.add_middleware(GZipMiddleware, minimum_size=500)
-
-# 3. OWASP Security Defense Headers Middleware
-app.add_middleware(SecurityHeadersMiddleware)
-
-# 4. Performance & Execution Timing Middleware
-app.add_middleware(RequestLoggingMiddleware)
-
-# 5. Dynamic CORS Middleware (Outermost - ensures CORS headers on ALL responses including 401/500/OPTIONS)
+# Enable CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_cors_origins,
@@ -120,7 +117,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
 
 # ---------------------------------------------------------------------------
@@ -128,6 +124,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 app.include_router(companies_router)
 app.include_router(employees_router)
+app.include_router(departments_router)
 app.include_router(attendance_router)
 app.include_router(leaves_router)
 app.include_router(super_admin_router)
