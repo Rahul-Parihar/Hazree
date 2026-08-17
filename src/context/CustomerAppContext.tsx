@@ -13,17 +13,34 @@ import {
   leaveService,
 } from "../services";
 import { checkBackendHealth } from "../lib/api";
-
-interface ToastNotification {
-  id: string;
-  text: string;
-  type: "success" | "info" | "error";
-}
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import {
+  setUser,
+  logout,
+  initializeAuth,
+} from "@/redux/slices/authSlice";
+import {
+  recordPunchAsync,
+  fetchAttendanceAsync,
+  initializeAttendance,
+} from "@/redux/slices/attendanceSlice";
+import {
+  applyLeave as applyLeaveRedux,
+  initializeLeaves,
+} from "@/redux/slices/leavesSlice";
+import {
+  showToast as showToastRedux,
+  removeToast as removeToastRedux,
+  ToastNotification,
+} from "@/redux/slices/uiSlice";
 
 interface CustomerAppContextType {
   employees: EmployeeProfile[];
   activeEmployee: EmployeeProfile;
   setActiveEmployee: (emp: EmployeeProfile) => void;
+  isAuthenticated: boolean;
+  loginUser: (profile: EmployeeProfile) => void;
+  logoutUser: () => void;
   punchRecords: PunchRecord[];
   todayPunch?: PunchRecord;
   leaveBalance: LeaveBalance;
@@ -50,53 +67,67 @@ export function CustomerAppProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const dispatch = useAppDispatch();
+  const reduxAuth = useAppSelector((state) => state.auth);
+  const reduxAttendance = useAppSelector((state) => state.attendance);
+  const reduxLeaves = useAppSelector((state) => state.leaves);
+  const reduxUi = useAppSelector((state) => state.ui);
+
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
-  const [activeEmployee, setActiveEmployeeState] =
-    useState<EmployeeProfile | null>(null);
-  const [punchRecords, setPunchRecords] = useState<PunchRecord[]>([]);
-  const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
-  const [toasts, setToasts] = useState<ToastNotification[]>([]);
 
   useEffect(() => {
     const emps = employeeService.getAllEmployees();
     setEmployees(emps);
-
-    const active = employeeService.getCurrentEmployee();
-    setActiveEmployeeState(active);
-
-    setPunchRecords(attendanceService.getAllPunches());
-    setLeaveBalance(leaveService.getLeaveBalance());
-    setLeaveRequests(leaveService.getLeaveRequests(active.id));
-
+    dispatch(initializeAuth());
     checkBackendHealth().then((status) => setBackendOnline(status));
-  }, []);
+  }, [dispatch]);
+
+  useEffect(() => {
+    const current = reduxAuth.user || employeeService.getCurrentEmployee();
+    if (current) {
+      dispatch(initializeAttendance({ employeeId: current.id }));
+      dispatch(fetchAttendanceAsync({ employeeId: current.id, employeeCode: current.employeeCode }));
+      dispatch(initializeLeaves({ employeeId: current.id }));
+    }
+  }, [reduxAuth.user, dispatch]);
 
   const showToast = (
     text: string,
     type: "success" | "info" | "error" = "success"
   ) => {
-    const newToast: ToastNotification = {
-      id: `${Date.now()}-${Math.random()}`,
-      text,
-      type,
-    };
-    setToasts((prev) => [...prev, newToast]);
+    dispatch(showToastRedux({ text, type }));
+    const id = `${Date.now()}`;
     setTimeout(() => {
-      removeToast(newToast.id);
+      // Auto dismiss oldest toast if needed
     }, 4500);
   };
 
   const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    dispatch(removeToastRedux(id));
   };
 
+  const activeEmployee = reduxAuth.user || employeeService.getCurrentEmployee();
+
   const setActiveEmployee = (emp: EmployeeProfile) => {
-    setActiveEmployeeState(emp);
-    employeeService.setCurrentEmployee(emp.id);
-    setLeaveRequests(leaveService.getLeaveRequests(emp.id));
+    dispatch(setUser(emp));
+    dispatch(initializeLeaves({ employeeId: emp.id }));
+    dispatch(initializeAttendance({ employeeId: emp.id }));
+    dispatch(fetchAttendanceAsync({ employeeId: emp.id, employeeCode: emp.employeeCode }));
     showToast(`Switched active profile to ${emp.fullName}`, "info");
+  };
+
+  const loginUser = (profile: EmployeeProfile) => {
+    dispatch(setUser(profile));
+    dispatch(initializeAttendance({ employeeId: profile.id }));
+    dispatch(fetchAttendanceAsync({ employeeId: profile.id, employeeCode: profile.employeeCode }));
+    dispatch(initializeLeaves({ employeeId: profile.id }));
+    showToast(`Welcome ${profile.fullName}! Signed in successfully.`, "success");
+  };
+
+  const logoutUser = () => {
+    dispatch(logout());
+    showToast("Signed out of Hazree portal.", "info");
   };
 
   const recordPunch = (
@@ -106,60 +137,49 @@ export function CustomerAppProvider({
     selfieSnapshot?: string
   ) => {
     if (!activeEmployee) return;
-    const { record, isCheckOut } = attendanceService.recordPunch(
-      activeEmployee,
-      type,
-      geofenceStatus,
-      distanceMeters,
-      selfieSnapshot
+    dispatch(
+      recordPunchAsync({
+        employee: activeEmployee,
+        type,
+        geofenceStatus,
+        distanceMeters,
+        selfieSnapshot,
+      })
     );
-    setPunchRecords(attendanceService.getAllPunches());
-    if (isCheckOut) {
-      showToast(
-        `Punch Out recorded! Duty duration: ${record.workHours} hrs.`,
-        "success"
-      );
-    } else {
-      showToast(
-        `Punch In recorded at ${record.punchInTime}! Status: ${record.status}`,
-        "success"
-      );
-    }
+    showToast(
+      `Punch event recorded via ${type}! Location: ${geofenceStatus}`,
+      "success"
+    );
   };
 
   const applyLeave = (leaveData: any) => {
     if (!activeEmployee) return;
-    const req = leaveService.applyLeave(activeEmployee, leaveData);
-    setLeaveRequests(leaveService.getLeaveRequests(activeEmployee.id));
-    setLeaveBalance(leaveService.getLeaveBalance());
+    dispatch(
+      applyLeaveRedux({
+        employee: activeEmployee,
+        leaveData,
+      })
+    );
     showToast(`Leave application submitted successfully!`, "success");
   };
 
-  if (!activeEmployee || !leaveBalance) {
-    return (
-      <div className="min-h-screen bg-[#e8eef5] flex items-center justify-center text-slate-800">
-        <div className="flex items-center gap-3 font-sans text-blue-600 font-semibold text-sm">
-          <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
-          <span>Loading Hazree Portal...</span>
-        </div>
-      </div>
-    );
-  }
-
-  const todayPunch = attendanceService.getTodayPunch(activeEmployee.id);
+  const todayPunch = reduxAttendance.todayPunch || attendanceService.getTodayPunch(activeEmployee?.id || 1);
 
   return (
     <CustomerAppContext.Provider
       value={{
         employees,
-        activeEmployee,
+        activeEmployee: activeEmployee || employeeService.getCurrentEmployee(),
         setActiveEmployee,
-        punchRecords,
-        todayPunch,
-        leaveBalance,
-        leaveRequests,
+        isAuthenticated: reduxAuth.isAuthenticated,
+        loginUser,
+        logoutUser,
+        punchRecords: reduxAttendance.punches.length > 0 ? reduxAttendance.punches : attendanceService.getAllPunches(),
+        todayPunch: todayPunch || undefined,
+        leaveBalance: reduxLeaves.balance,
+        leaveRequests: reduxLeaves.requests,
         backendOnline,
-        toasts,
+        toasts: reduxUi.toasts,
         showToast,
         removeToast,
         recordPunch,

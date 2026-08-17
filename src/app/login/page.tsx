@@ -2,13 +2,16 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import LoginPage from "../../components/auth/LoginPage";
-import { CustomerAppProvider } from "../../context/CustomerAppContext";
+import { LoginPage } from "../../features/auth";
+import { CustomerAppProvider, useCustomerApp } from "../../context/CustomerAppContext";
+import { EmployeeProfile } from "../../types/customer";
 
 function LoginContent() {
   const router = useRouter();
+  const { loginUser } = useCustomerApp();
 
-  const handleLoginSuccess = (email: string) => {
+  const handleLoginSuccess = (profile: EmployeeProfile) => {
+    loginUser(profile);
     router.push("/");
   };
 

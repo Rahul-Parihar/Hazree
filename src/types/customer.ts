@@ -25,6 +25,8 @@ export interface EmployeeProfile {
   geofenceRequired: boolean;
   photoVerificationRequired: boolean;
   baseSalary?: number;
+  dob?: string;
+  joinDate?: string;
 }
 
 export interface PunchRecord {
