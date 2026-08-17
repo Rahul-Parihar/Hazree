@@ -40,13 +40,22 @@ export const loginSuperAdminAsync = createAsyncThunk(
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
       const response = await authService.loginSuperAdmin(credentials);
+      const user = response.data?.user || (response as any).user;
+      
+      // Strict role check: Employees cannot log into Company Admin
+      if (user && user.role === 'EMPLOYEE') {
+        return rejectWithValue(
+          'It looks like this email is registered as an Employee account. Please sign in through the Hazree Employee & Customer Portal.'
+        );
+      }
+
       const token = response.data?.access_token;
       if (token && typeof window !== 'undefined') {
         localStorage.setItem('hazree_access_token', token);
       }
       return {
         email: credentials.email || credentials.username || 'admin@hazree.com',
-        user: response.data?.user || (response as any).user,
+        user: user,
         accessToken: token,
       };
     } catch (err: any) {

@@ -34,6 +34,7 @@ const mapBackendToEmployee = (be: BackendEmployeeResponse): Employee => ({
   department: be.department,
   avatar: be.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(be.name)}&background=059669&color=fff`,
   joinDate: be.join_date || (be.created_at ? be.created_at.split('T')[0] : '14/08/2026'),
+  dob: be.dob || undefined,
   status: (be.status as EmployeeStatus) || 'Active',
 });
 

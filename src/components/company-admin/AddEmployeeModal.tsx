@@ -12,8 +12,12 @@ import {
   Sparkles,
   AlertCircle,
   CheckCircle2,
-  Building2,
   ShieldCheck,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Copy,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -90,11 +94,26 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
     phone: '',
     role: '',
     department: 'Engineering & Development',
+    password: 'Hazree@123',
     joinDate: new Date().toISOString().split('T')[0],
+    dob: '',
     status: 'Active',
     avatar: AVATAR_PRESETS[0],
     selectedCompanyId: propCompanyId ? String(propCompanyId).replace('cmp_', '') : (currentCompany ? currentCompany.id.replace('cmp_', '') : '1'),
   });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string; name: string } | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    let pwd = '';
+    for (let i = 0; i < 10; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData((prev) => ({ ...prev, password: pwd }));
+  };
 
   // Automatically select the first API department if available
   useEffect(() => {
@@ -109,6 +128,12 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errorMessage) setErrorMessage(null);
+  };
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -129,17 +154,25 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
       return;
     }
 
+    if (!formData.password.trim() || formData.password.length < 4) {
+      setErrorMessage('Password must be at least 4 characters long.');
+      return;
+    }
+
     const resolvedCompanyId = userRole === 'SUPER_ADMIN'
       ? Number(formData.selectedCompanyId)
       : (propCompanyId ? Number(String(propCompanyId).replace('cmp_', '')) : (currentUser?.companyId ? Number(String(currentUser.companyId).replace('cmp_', '')) : (currentCompany?.id ? Number(String(currentCompany.id).replace('cmp_', '')) : undefined)));
 
+    const rawPassword = formData.password.trim();
     const payload: BackendEmployeeCreate = {
       name: formData.name.trim(),
       email: formData.email.trim().toLowerCase(),
+      password: rawPassword,
       phone: formData.phone.trim() || undefined,
       role: formData.role.trim(),
       department: formData.department,
       join_date: formData.joinDate,
+      dob: formData.dob.trim() || undefined,
       status: formData.status,
       avatar: formData.avatar,
       company_id: resolvedCompanyId,
@@ -151,31 +184,21 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
       const actionResult = await dispatch(createEmployeeAsync(payload));
       if (createEmployeeAsync.fulfilled.match(actionResult)) {
         setIsSuccess(true);
+        setCreatedCredentials({
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
+          password: rawPassword,
+        });
         dispatch(fetchEmployeesAsync());
         dispatch(fetchCompaniesAsync());
         if (onSuccess) {
           onSuccess(actionResult.payload);
         }
-        setTimeout(() => {
-          setIsSuccess(false);
-          onClose();
-          setFormData({
-            name: '',
-            email: '',
-            phone: '',
-            role: '',
-            department: 'Engineering',
-            joinDate: new Date().toISOString().split('T')[0],
-            status: 'Active',
-            avatar: AVATAR_PRESETS[0],
-            selectedCompanyId: propCompanyId ? String(propCompanyId).replace('cmp_', '') : (currentCompany ? currentCompany.id.replace('cmp_', '') : '1'),
-          });
-        }, 1200);
       } else if (createEmployeeAsync.rejected.match(actionResult)) {
-        setErrorMessage((actionResult.payload as string) || 'Failed to add employee.');
+        setErrorMessage((actionResult.payload as string) || 'Failed to register employee. Please verify details.');
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to register employee.');
+      setErrorMessage(err?.message || 'Unexpected network error occurred.');
     }
   };
 
@@ -200,15 +223,94 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
         </div>
       )}
 
-      {isSuccess ? (
-        <div className="text-center py-8 space-y-4 animate-fade-in">
-          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mx-auto shadow-inner">
-            <CheckCircle2 className="w-10 h-10 animate-bounce" />
+      {isSuccess && createdCredentials ? (
+        <div className="py-4 space-y-5 animate-fade-in">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mx-auto shadow-inner">
+              <CheckCircle2 className="w-8 h-8 animate-bounce" />
+            </div>
+            <h4 className="text-lg font-bold text-slate-900">Employee Onboarded Successfully!</h4>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              <strong className="text-slate-800">{createdCredentials.name}</strong> has been registered. Share these portal login credentials with the employee:
+            </p>
           </div>
-          <h4 className="text-xl font-bold text-slate-900">Employee Added Successfully!</h4>
-          <p className="text-sm text-slate-500 max-w-md mx-auto">
-            <strong className="text-slate-800">{formData.name}</strong> ({formData.role}) has been added to the company roster.
-          </p>
+
+          {/* Login Credentials Box */}
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-emerald-600" />
+                Employee Portal Credentials
+              </span>
+              <span className="text-[10px] bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-full">
+                Active
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-slate-200">
+                <div className="min-w-0">
+                  <span className="text-[10px] text-slate-400 block font-medium">Login Email</span>
+                  <span className="font-mono font-semibold text-slate-800 truncate block">{createdCredentials.email}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(createdCredentials.email, 'email')}
+                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-slate-50 rounded-md transition-colors shrink-0"
+                  title="Copy email"
+                >
+                  {copiedKey === 'email' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-slate-200">
+                <div className="min-w-0">
+                  <span className="text-[10px] text-slate-400 block font-medium">Password</span>
+                  <span className="font-mono font-bold text-slate-800 block">{createdCredentials.password}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(createdCredentials.password, 'password')}
+                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-slate-50 rounded-md transition-colors shrink-0"
+                  title="Copy password"
+                >
+                  {copiedKey === 'password' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 italic">
+              * The employee can now log in at the Customer Portal using these credentials.
+            </p>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => {
+                setIsSuccess(false);
+                setCreatedCredentials(null);
+                onClose();
+                setFormData({
+                  name: '',
+                  email: '',
+                  phone: '',
+                  role: '',
+                  department: 'Engineering & Development',
+                  password: 'Hazree@123',
+                  joinDate: new Date().toISOString().split('T')[0],
+                  dob: '',
+                  status: 'Active',
+                  avatar: AVATAR_PRESETS[0],
+                  selectedCompanyId: propCompanyId ? String(propCompanyId).replace('cmp_', '') : (currentCompany ? currentCompany.id.replace('cmp_', '') : '1'),
+                });
+              }}
+              className="w-full justify-center"
+            >
+              Done & Close
+            </Button>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -273,7 +375,43 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
             />
           </div>
 
+          {/* Password & Phone Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                  Portal Password *
+                </label>
+                <button
+                  type="button"
+                  onClick={generateRandomPassword}
+                  className="text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Generate
+                </button>
+              </div>
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Set login password"
+                  value={formData.password}
+                  onChange={(e) => handleChange('password', e.target.value)}
+                  icon={<Lock className="w-4 h-4" />}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Used by employee to log into Customer side</p>
+            </div>
+
             <Input
               label="Contact Phone Number"
               type="tel"
@@ -282,7 +420,9 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
               onChange={(e) => handleChange('phone', e.target.value)}
               icon={<Phone className="w-4 h-4" />}
             />
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center justify-between">
                 <span>Department *</span>
@@ -313,9 +453,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
                 )}
               </select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Job Role / Title *"
               placeholder="e.g. Senior Software Engineer"
@@ -324,12 +462,21 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
               icon={<Briefcase className="w-4 h-4" />}
               required
             />
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Date of Joining"
               type="date"
               value={formData.joinDate}
               onChange={(e) => handleChange('joinDate', e.target.value)}
+              icon={<Calendar className="w-4 h-4" />}
+            />
+            <Input
+              label="Date of Birth"
+              type="date"
+              value={formData.dob}
+              onChange={(e) => handleChange('dob', e.target.value)}
               icon={<Calendar className="w-4 h-4" />}
             />
           </div>

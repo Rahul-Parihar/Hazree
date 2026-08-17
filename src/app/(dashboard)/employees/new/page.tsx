@@ -20,6 +20,10 @@ import {
   AlertCircle,
   Plus,
   X,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound,
 } from 'lucide-react';
 import { Input } from '../../../../components/ui/Input';
 import { Button } from '../../../../components/ui/Button';
@@ -93,11 +97,24 @@ export default function NewEmployeePage() {
     phone: '',
     role: '',
     department: 'Engineering & Development',
+    password: 'Hazree@123',
     joinDate: new Date().toISOString().split('T')[0],
+    dob: '',
     status: 'Active',
     avatar: AVATAR_PRESETS[0],
     selectedCompanyId: currentCompany ? currentCompany.id.replace('cmp_', '') : '1',
   });
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    let pwd = '';
+    for (let i = 0; i < 10; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData((prev) => ({ ...prev, password: pwd }));
+  };
 
   // Set initial default department once loaded
   useEffect(() => {
@@ -132,6 +149,11 @@ export default function NewEmployeePage() {
       return;
     }
 
+    if (!formData.password.trim() || formData.password.length < 4) {
+      setErrorMessage('Login password must be at least 4 characters long.');
+      return;
+    }
+
     const resolvedCompanyId =
       userRole === 'SUPER_ADMIN'
         ? Number(formData.selectedCompanyId)
@@ -144,10 +166,12 @@ export default function NewEmployeePage() {
     const payload: BackendEmployeeCreate = {
       name: formData.name.trim(),
       email: formData.email.trim().toLowerCase(),
+      password: formData.password.trim(),
       phone: formData.phone.trim() || undefined,
       role: formData.role.trim(),
       department: formData.department,
       join_date: formData.joinDate,
+      dob: formData.dob.trim() || undefined,
       status: formData.status,
       avatar: formData.avatar,
       company_id: resolvedCompanyId,
@@ -303,6 +327,43 @@ export default function NewEmployeePage() {
             </div>
 
             <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  Portal Login Password *
+                </label>
+                <button
+                  type="button"
+                  onClick={generateRandomPassword}
+                  className="text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Generate
+                </button>
+              </div>
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="e.g. Hazree@123"
+                  value={formData.password}
+                  onChange={(e) => handleChange('password', e.target.value)}
+                  icon={<Lock className="w-4 h-4" />}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Employee will use this password to sign into the Hazree Customer Portal</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+            <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                 Employment Status *
               </label>
@@ -385,6 +446,18 @@ export default function NewEmployeePage() {
                 icon={<Calendar className="w-4 h-4" />}
               />
             </div>
+            <div>
+              <Input
+                label="Date of Birth"
+                type="date"
+                value={formData.dob}
+                onChange={(e) => handleChange('dob', e.target.value)}
+                icon={<Calendar className="w-4 h-4" />}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
 
             {userRole === 'SUPER_ADMIN' && (
               <div>

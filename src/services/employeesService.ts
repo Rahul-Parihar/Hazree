@@ -4,12 +4,14 @@ import { ENDPOINTS } from './api/endpoints';
 export interface BackendEmployeeCreate {
   name: string;
   email: string;
+  password?: string;
   phone?: string;
   role: string;
   department: string;
   avatar?: string;
   status?: string;
   join_date?: string;
+  dob?: string;
   company_id?: number;
 }
 
@@ -25,6 +27,7 @@ export interface BackendEmployeeResponse {
   avatar?: string;
   status: string;
   join_date?: string;
+  dob?: string;
   created_at?: string;
 }
 

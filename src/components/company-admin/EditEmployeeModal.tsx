@@ -10,6 +10,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Save,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -52,11 +55,14 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
     phone: '',
     role: '',
     department: '',
+    password: '',
     status: 'Active' as EmployeeStatus,
     joinDate: '',
+    dob: '',
     avatar: AVATAR_PRESETS[0],
   });
 
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,11 +74,14 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
         phone: employee.phone || '',
         role: employee.role || '',
         department: employee.department || '',
+        password: '',
         status: employee.status || 'Active',
         joinDate: employee.joinDate || new Date().toISOString().split('T')[0],
+        dob: employee.dob || '',
         avatar: employee.avatar || AVATAR_PRESETS[0],
       });
       setErrorMessage(null);
+      setShowPassword(false);
     }
   }, [isOpen, employee, dispatch]);
 
@@ -100,6 +109,11 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
       return;
     }
 
+    if (formData.password.trim() && formData.password.trim().length < 4) {
+      setErrorMessage('New password must be at least 4 characters long.');
+      return;
+    }
+
     const payload: Partial<BackendEmployeeCreate> = {
       name: formData.name.trim(),
       email: formData.email.trim().toLowerCase(),
@@ -108,8 +122,13 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
       department: formData.department,
       status: formData.status,
       join_date: formData.joinDate,
+      dob: formData.dob.trim() || undefined,
       avatar: formData.avatar,
     };
+
+    if (formData.password.trim()) {
+      payload.password = formData.password.trim();
+    }
 
     try {
       const actionResult = await dispatch(
@@ -237,27 +256,61 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
             onChange={(e) => handleChange('joinDate', e.target.value)}
             icon={<Calendar className="w-4 h-4" />}
           />
+          <Input
+            label="Date of Birth"
+            type="date"
+            value={formData.dob}
+            onChange={(e) => handleChange('dob', e.target.value)}
+            icon={<Calendar className="w-4 h-4" />}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-              Profile Avatar
+              Reset Password (optional)
             </label>
-            <div className="flex items-center gap-2 overflow-x-auto py-1">
-              {AVATAR_PRESETS.map((av, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleChange('avatar', av)}
-                  className={`relative w-8 h-8 rounded-lg overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
-                    formData.avatar === av
-                      ? 'border-emerald-600 ring-2 ring-emerald-500/30 scale-105'
-                      : 'border-slate-200 opacity-60 hover:opacity-100'
-                  }`}
-                >
-                  <img src={av} alt="Avatar" className="w-full h-full object-cover" />
-                </button>
-              ))}
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Leave blank to keep unchanged"
+                value={formData.password}
+                onChange={(e) => handleChange('password', e.target.value)}
+                icon={<Lock className="w-4 h-4" />}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            <span className="text-[10px] text-slate-400">Leave empty to keep current password</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+            Profile Avatar
+          </label>
+          <div className="flex items-center gap-2 overflow-x-auto py-1">
+            {AVATAR_PRESETS.map((av, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleChange('avatar', av)}
+                className={`relative w-8 h-8 rounded-lg overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                  formData.avatar === av
+                    ? 'border-emerald-600 ring-2 ring-emerald-500/30 scale-105'
+                    : 'border-slate-200 opacity-60 hover:opacity-100'
+                }`}
+              >
+                <img src={av} alt="Avatar" className="w-full h-full object-cover" />
+              </button>
+            ))}
           </div>
         </div>
 

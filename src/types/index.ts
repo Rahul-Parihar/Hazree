@@ -42,6 +42,7 @@ export interface Employee {
   department: string;
   avatar: string;
   joinDate: string;
+  dob?: string;
   status: EmployeeStatus;
 }
 
