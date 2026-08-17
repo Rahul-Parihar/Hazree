@@ -7,7 +7,16 @@ interface ModalProps {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
+
+const maxWidthClasses = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-xl',
+  '2xl': 'max-w-2xl',
+};
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
@@ -15,6 +24,7 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   subtitle,
   children,
+  maxWidth = 'xl',
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -41,7 +51,9 @@ export const Modal: React.FC<ModalProps> = ({
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-xl bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden z-10 my-auto">
+      <div
+        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden z-10 my-auto`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100">
           <div className="min-w-0 pr-2">

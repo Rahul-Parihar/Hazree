@@ -18,6 +18,7 @@ import { fetchAttendanceAsync } from '../../redux/slices/attendanceSlice';
 import { fetchEmployeesAsync } from '../../redux/slices/employeesSlice';
 import { fetchLeavesAsync } from '../../redux/slices/leavesSlice';
 import { fetchCompaniesAsync } from '../../redux/slices/companiesSlice';
+import { fetchDepartmentsAsync } from '../../redux/slices/departmentsSlice';
 
 interface CompanyDashboardProps {
   onRoleSwitch?: () => void;
@@ -38,7 +39,8 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
     dispatch(fetchEmployeesAsync());
     dispatch(fetchAttendanceAsync());
     dispatch(fetchLeavesAsync());
-  }, [dispatch]);
+    dispatch(fetchDepartmentsAsync(currentUser?.companyId));
+  }, [dispatch, currentUser?.companyId]);
 
   const currentCompany =
     companies.find(

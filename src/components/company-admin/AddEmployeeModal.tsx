@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UserPlus,
   User,
@@ -21,6 +21,7 @@ import { Input } from '../ui/Input';
 import { Employee, UserRole } from '../../types';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { createEmployeeAsync } from '../../redux/slices/employeesSlice';
+import { fetchDepartmentsAsync } from '../../redux/slices/departmentsSlice';
 import { BackendEmployeeCreate } from '../../services/employeesService';
 
 interface AddEmployeeModalProps {
@@ -59,6 +60,13 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
 
   const dbDepartments = useAppSelector((state) => state.departments.departments);
 
+  useEffect(() => {
+    if (isOpen) {
+      const targetCompanyId = propCompanyId || currentUser?.companyId;
+      dispatch(fetchDepartmentsAsync(targetCompanyId));
+    }
+  }, [dispatch, isOpen, propCompanyId, currentUser?.companyId]);
+
   const departmentList = React.useMemo(() => {
     if (dbDepartments && dbDepartments.length > 0) {
       return dbDepartments.map((d) => d.name);
@@ -86,6 +94,13 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
     avatar: AVATAR_PRESETS[0],
     selectedCompanyId: propCompanyId ? String(propCompanyId).replace('cmp_', '') : (currentCompany ? currentCompany.id.replace('cmp_', '') : '1'),
   });
+
+  // Automatically select the first API department if available
+  useEffect(() => {
+    if (departmentList.length > 0 && !departmentList.includes(formData.department)) {
+      setFormData((prev) => ({ ...prev, department: departmentList[0] }));
+    }
+  }, [departmentList]);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -266,8 +281,13 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
             />
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Department *
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center justify-between">
+                <span>Department *</span>
+                {dbDepartments && dbDepartments.length > 0 && (
+                  <span className="text-[10px] text-emerald-600 font-bold lowercase">
+                    {dbDepartments.length} available
+                  </span>
+                )}
               </label>
               <select
                 value={formData.department}
@@ -275,11 +295,19 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
                 className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                 required
               >
-                {departmentList.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
+                {dbDepartments && dbDepartments.length > 0 ? (
+                  dbDepartments.map((dept) => (
+                    <option key={dept.id} value={dept.name}>
+                      {dept.name}
+                    </option>
+                  ))
+                ) : (
+                  departmentList.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>

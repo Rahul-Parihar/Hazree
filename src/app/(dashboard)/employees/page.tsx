@@ -32,6 +32,7 @@ import {
   clearEmployeeSuccess,
 } from '../../../redux/slices/employeesSlice';
 import { fetchAttendanceAsync } from '../../../redux/slices/attendanceSlice';
+import { fetchDepartmentsAsync } from '../../../redux/slices/departmentsSlice';
 import { AddEmployeeModal } from '../../../components/company-admin/AddEmployeeModal';
 import { MarkAttendanceModal } from '../../../components/company-admin/MarkAttendanceModal';
 import { Employee } from '../../../types';
@@ -60,11 +61,13 @@ export default function EmployeesPage() {
     dispatch(fetchCompaniesAsync());
     dispatch(fetchEmployeesAsync());
     dispatch(fetchAttendanceAsync());
-  }, [dispatch]);
+    dispatch(fetchDepartmentsAsync(currentUser?.companyId));
+  }, [dispatch, currentUser?.companyId]);
 
   const handleRefresh = () => {
     dispatch(fetchEmployeesAsync());
     dispatch(fetchAttendanceAsync());
+    dispatch(fetchDepartmentsAsync(currentUser?.companyId));
   };
 
   // Scoped employees: Company Admin sees only their organization's employees, Super Admin sees all

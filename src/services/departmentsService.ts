@@ -18,6 +18,13 @@ export interface BackendDepartmentCreate {
   company_id?: number;
 }
 
+export interface BackendDepartmentUpdate {
+  name?: string;
+  description?: string;
+  company_id?: number | null;
+  is_active?: boolean;
+}
+
 export const departmentsService = {
   /**
    * Fetch all global & company departments
@@ -35,6 +42,13 @@ export const departmentsService = {
    */
   async createDepartment(data: BackendDepartmentCreate): Promise<BackendDepartment> {
     return apiClient.post<BackendDepartment>('/api/v1/departments', data);
+  },
+
+  /**
+   * Update an existing department
+   */
+  async updateDepartment(id: number | string, data: BackendDepartmentUpdate): Promise<BackendDepartment> {
+    return apiClient.put<BackendDepartment>(`/api/v1/departments/${id}`, data);
   },
 
   /**

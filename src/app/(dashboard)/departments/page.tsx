@@ -15,37 +15,54 @@ import {
   Globe,
   Briefcase,
   Shield,
+  Pencil,
+  X,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Badge } from '../../../components/ui/Badge';
+import { Modal } from '../../../components/ui/Modal';
 import { useAppDispatch, useAppSelector } from '../../../redux/hooks';
 import {
   fetchDepartmentsAsync,
   createDepartmentAsync,
+  updateDepartmentAsync,
   deleteDepartmentAsync,
   clearDepartmentError,
   clearDepartmentSuccess,
 } from '../../../redux/slices/departmentsSlice';
 import { fetchCompaniesAsync } from '../../../redux/slices/companiesSlice';
+import { BackendDepartment } from '../../../services/departmentsService';
 
 export default function DepartmentsPage() {
   const dispatch = useAppDispatch();
   const userRole = useAppSelector((state) => state.auth.userRole);
   const currentUser = useAppSelector((state) => state.auth.currentUser);
-  const { departments, isLoading, isCreating, error, successMessage } = useAppSelector(
+  const { departments, isLoading, isCreating, isUpdating, error, successMessage } = useAppSelector(
     (state) => state.departments
   );
   const companies = useAppSelector((state) => state.companies.companies);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [scopeFilter, setScopeFilter] = useState('ALL');
-  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
 
-  // Form State
+  // Add Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deptName, setDeptName] = useState('');
   const [deptDesc, setDeptDesc] = useState('');
   const [deptScope, setDeptScope] = useState<'GLOBAL' | string>('GLOBAL');
+
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingDept, setEditingDept] = useState<BackendDepartment | null>(null);
+  const [editDeptName, setEditDeptName] = useState('');
+  const [editDeptDesc, setEditDeptDesc] = useState('');
+  const [editDeptScope, setEditDeptScope] = useState<'GLOBAL' | string>('GLOBAL');
+
+  // Delete Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deptToDelete, setDeptToDelete] = useState<BackendDepartment | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     dispatch(fetchDepartmentsAsync());
@@ -74,15 +91,58 @@ export default function DepartmentsPage() {
       setDeptName('');
       setDeptDesc('');
       setDeptScope('GLOBAL');
-      setIsAddFormOpen(false);
+      setIsAddModalOpen(false);
       dispatch(fetchDepartmentsAsync());
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (confirm(`Are you sure you want to delete the "${name}" department?`)) {
-      await dispatch(deleteDepartmentAsync(id));
+  const handleOpenEdit = (dept: BackendDepartment) => {
+    setEditingDept(dept);
+    setEditDeptName(dept.name);
+    setEditDeptDesc(dept.description || '');
+    setEditDeptScope(dept.company_id ? String(dept.company_id) : 'GLOBAL');
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateDepartment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDept || !editDeptName.trim()) return;
+
+    const companyId = editDeptScope === 'GLOBAL' ? 0 : Number(editDeptScope);
+
+    const action = await dispatch(
+      updateDepartmentAsync({
+        id: editingDept.id,
+        data: {
+          name: editDeptName.trim(),
+          description: editDeptDesc.trim() || '',
+          company_id: companyId,
+        },
+      })
+    );
+
+    if (updateDepartmentAsync.fulfilled.match(action)) {
+      setIsEditModalOpen(false);
+      setEditingDept(null);
       dispatch(fetchDepartmentsAsync());
+    }
+  };
+
+  const handleOpenDelete = (dept: BackendDepartment) => {
+    setDeptToDelete(dept);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deptToDelete) return;
+    setIsDeleting(true);
+    try {
+      await dispatch(deleteDepartmentAsync(deptToDelete.id));
+      setIsDeleteModalOpen(false);
+      setDeptToDelete(null);
+      dispatch(fetchDepartmentsAsync());
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -172,9 +232,9 @@ export default function DepartmentsPage() {
             variant="primary"
             size="sm"
             icon={<Plus className="w-4 h-4" />}
-            onClick={() => setIsAddFormOpen(!isAddFormOpen)}
+            onClick={() => setIsAddModalOpen(true)}
           >
-            {isAddFormOpen ? 'Close Form' : 'Add New Department'}
+            Add New Department
           </Button>
         </div>
       </div>
@@ -212,74 +272,67 @@ export default function DepartmentsPage() {
         </div>
       </div>
 
-      {/* Add New Department Form (Expandable) */}
-      {isAddFormOpen && (
-        <form
-          onSubmit={handleCreateDepartment}
-          className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-5 shadow-sm space-y-4 animate-fade-in"
-        >
-          <div className="flex items-center justify-between border-b border-emerald-200/60 pb-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-sm font-bold text-emerald-950">Add New Department to Master Directory</h3>
-            </div>
-            <span className="text-xs text-emerald-800 font-semibold">Instantly syncs to Company Admin dropdowns</span>
+      {/* Add New Department Modal Popup */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add New Department"
+        subtitle="Instantly syncs to master directory"
+        maxWidth="md"
+      >
+        <form onSubmit={handleCreateDepartment} className="space-y-3.5">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Department Name <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Cybersecurity & InfoSec, Legal..."
+              value={deptName}
+              onChange={(e) => setDeptName(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+              required
+              autoFocus
+            />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                Department Name *
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Cybersecurity & InfoSec, Legal..."
-                value={deptName}
-                onChange={(e) => setDeptName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                required
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                Availability Scope *
-              </label>
-              <select
-                value={deptScope}
-                onChange={(e) => setDeptScope(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-              >
-                <option value="GLOBAL">🌐 Global Standard (All Registered Companies)</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id.replace('cmp_', '')}>
-                    🏢 {c.name} (Only this Company)
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                Description (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Core software engineering and infra team"
-                value={deptDesc}
-                onChange={(e) => setDeptDesc(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Availability Scope <span className="text-rose-500">*</span>
+            </label>
+            <select
+              value={deptScope}
+              onChange={(e) => setDeptScope(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer transition-all"
+            >
+              <option value="GLOBAL">🌐 Global Standard (All Companies)</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id.replace('cmp_', '')}>
+                  🏢 {c.name} (Only this Company)
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-2">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Description (Optional)
+            </label>
+            <textarea
+              rows={2}
+              placeholder="e.g. Core software engineering and infra team"
+              value={deptDesc}
+              onChange={(e) => setDeptDesc(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setIsAddFormOpen(false)}
+              onClick={() => setIsAddModalOpen(false)}
             >
               Cancel
             </Button>
@@ -290,11 +343,146 @@ export default function DepartmentsPage() {
               disabled={!deptName.trim() || isCreating}
               icon={<CheckCircle2 className="w-4 h-4" />}
             >
-              {isCreating ? 'Saving Department...' : 'Save & Publish Department'}
+              {isCreating ? 'Saving...' : 'Save Department'}
             </Button>
           </div>
         </form>
-      )}
+      </Modal>
+
+      {/* Edit Department Modal Popup */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingDept(null);
+        }}
+        title="Edit Department"
+        subtitle={`Update "${editingDept?.name || 'Department'}"`}
+        maxWidth="md"
+      >
+        <form onSubmit={handleUpdateDepartment} className="space-y-3.5">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Department Name <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Cybersecurity & InfoSec..."
+              value={editDeptName}
+              onChange={(e) => setEditDeptName(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+              required
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Availability Scope <span className="text-rose-500">*</span>
+            </label>
+            <select
+              value={editDeptScope}
+              onChange={(e) => setEditDeptScope(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer transition-all"
+            >
+              <option value="GLOBAL">🌐 Global Standard (All Companies)</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id.replace('cmp_', '')}>
+                  🏢 {c.name} (Only this Company)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Description (Optional)
+            </label>
+            <textarea
+              rows={2}
+              placeholder="e.g. Core software engineering and infra team"
+              value={editDeptDesc}
+              onChange={(e) => setEditDeptDesc(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingDept(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={!editDeptName.trim() || isUpdating}
+              icon={<CheckCircle2 className="w-4 h-4" />}
+            >
+              {isUpdating ? 'Updating...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setDeptToDelete(null);
+        }}
+        title="Delete Department"
+        subtitle="Confirm department removal"
+        maxWidth="sm"
+      >
+        <div className="space-y-3.5">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-rose-50/70 border border-rose-100">
+            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+              <Trash2 className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 block">Department</span>
+              <h4 className="text-sm font-extrabold text-slate-900 truncate">{deptToDelete?.name}</h4>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Are you sure you want to remove <span className="font-bold text-slate-900">"{deptToDelete?.name}"</span>? It will no longer appear in company dropdowns.
+          </p>
+
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setDeptToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              icon={<Trash2 className="w-3.5 h-3.5" />}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Search & Scope Filter Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -400,13 +588,22 @@ export default function DepartmentsPage() {
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => handleDelete(dept.id, dept.name)}
-                        title="Delete Department"
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleOpenEdit(dept)}
+                          title="Edit Department"
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenDelete(dept)}
+                          title="Delete Department"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

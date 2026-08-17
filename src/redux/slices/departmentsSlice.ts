@@ -3,12 +3,14 @@ import {
   departmentsService,
   BackendDepartment,
   BackendDepartmentCreate,
+  BackendDepartmentUpdate,
 } from '../../services/departmentsService';
 
 interface DepartmentsState {
   departments: BackendDepartment[];
   isLoading: boolean;
   isCreating: boolean;
+  isUpdating: boolean;
   error: string | null;
   successMessage: string | null;
 }
@@ -17,6 +19,7 @@ const initialState: DepartmentsState = {
   departments: [],
   isLoading: false,
   isCreating: false,
+  isUpdating: false,
   error: null,
   successMessage: null,
 };
@@ -47,6 +50,25 @@ export const createDepartmentAsync = createAsyncThunk(
         (err.details && typeof err.details === 'object' && (err.details.detail || err.details.message)) ||
         err.message ||
         'Failed to create department';
+      return rejectWithValue(msg);
+    }
+  }
+);
+
+export const updateDepartmentAsync = createAsyncThunk(
+  'departments/updateDepartment',
+  async (
+    { id, data }: { id: number | string; data: BackendDepartmentUpdate },
+    { rejectWithValue }
+  ) => {
+    try {
+      const updated = await departmentsService.updateDepartment(id, data);
+      return updated;
+    } catch (err: any) {
+      const msg =
+        (err.details && typeof err.details === 'object' && (err.details.detail || err.details.message)) ||
+        err.message ||
+        'Failed to update department';
       return rejectWithValue(msg);
     }
   }
@@ -108,6 +130,26 @@ const departmentsSlice = createSlice({
       })
       .addCase(createDepartmentAsync.rejected, (state, action) => {
         state.isCreating = false;
+        state.error = action.payload as string;
+      });
+
+    // Update
+    builder
+      .addCase(updateDepartmentAsync.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+      })
+      .addCase(updateDepartmentAsync.fulfilled, (state, action: PayloadAction<BackendDepartment>) => {
+        state.isUpdating = false;
+        const index = state.departments.findIndex((d) => d.id === action.payload.id);
+        if (index !== -1) {
+          state.departments[index] = action.payload;
+          state.departments.sort((a, b) => a.name.localeCompare(b.name));
+        }
+        state.successMessage = `Department "${action.payload.name}" updated successfully!`;
+      })
+      .addCase(updateDepartmentAsync.rejected, (state, action) => {
+        state.isUpdating = false;
         state.error = action.payload as string;
       });
 
