@@ -20,7 +20,8 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Employee, UserRole } from '../../types';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import { createEmployeeAsync } from '../../redux/slices/employeesSlice';
+import { createEmployeeAsync, fetchEmployeesAsync } from '../../redux/slices/employeesSlice';
+import { fetchCompaniesAsync } from '../../redux/slices/companiesSlice';
 import { fetchDepartmentsAsync } from '../../redux/slices/departmentsSlice';
 import { BackendEmployeeCreate } from '../../services/employeesService';
 
@@ -150,6 +151,8 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
       const actionResult = await dispatch(createEmployeeAsync(payload));
       if (createEmployeeAsync.fulfilled.match(actionResult)) {
         setIsSuccess(true);
+        dispatch(fetchEmployeesAsync());
+        dispatch(fetchCompaniesAsync());
         if (onSuccess) {
           onSuccess(actionResult.payload);
         }

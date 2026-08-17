@@ -47,6 +47,7 @@ function SubscriptionsPageInner() {
     shiftCount?: number;
     shiftType?: string;
     shiftTimings?: string;
+    saturdayPolicy?: string;
   } | null>(null);
 
   const targetCompany = queryCompanyId
@@ -150,6 +151,7 @@ function SubscriptionsPageInner() {
             shiftCount: Number(pendingOnboarding.shiftCount) || 3,
             shiftType: pendingOnboarding.shiftType || '3 Shifts (24x7 Rotational - Morning, Evening, Night)',
             shiftTimings: pendingOnboarding.shiftTimings,
+            saturdayPolicy: pendingOnboarding.saturdayPolicy || 'ALL_WORKING',
           })
         );
 

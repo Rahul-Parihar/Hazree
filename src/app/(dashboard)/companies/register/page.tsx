@@ -40,6 +40,7 @@ export default function RegisterCompanyPage() {
     shiftHours: 8,
     shiftType: '3 Shifts • 8 Hours (24x7 Rotational)',
     shiftTimings: 'Shift 1: 06:00 AM - 02:00 PM (8h) | Shift 2: 02:00 PM - 10:00 PM (8h) | Shift 3: 10:00 PM - 06:00 AM (8h)',
+    saturdayPolicy: 'ALL_WORKING',
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -194,6 +195,7 @@ export default function RegisterCompanyPage() {
           shiftCount: Number(formData.shiftCount) || 3,
           shiftType: formData.shiftType,
           shiftTimings: formData.shiftTimings,
+          saturdayPolicy: formData.saturdayPolicy || 'ALL_WORKING',
         })
       );
 
@@ -357,7 +359,7 @@ export default function RegisterCompanyPage() {
                     Company Operating Shifts Configuration *
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Kitne shifts me company chalegi aur har shift kitne ghante (8 hr, 12 hr, 9 hr) ki hogi
+                    Configure daily working shifts and shift duration (e.g. 8 hrs, 12 hrs, 6 hrs)
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -429,7 +431,7 @@ export default function RegisterCompanyPage() {
                     <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded-full">24x7</span>
                   </p>
                   <p className={`text-xs mt-1 ${formData.shiftCount === 3 ? 'text-emerald-100' : 'text-slate-500'}`}>
-                    Morning, Eve & Night ({formData.shiftHours}h)
+                    Morning, Evening & Night ({formData.shiftHours}h)
                   </p>
                 </button>
               </div>
@@ -447,6 +449,102 @@ export default function RegisterCompanyPage() {
                   value={formData.shiftTimings}
                   onChange={(e) => handleChange('shiftTimings', e.target.value)}
                 />
+              </div>
+            </div>
+
+            {/* Saturday & Weekend Policy Configuration Card */}
+            <div className="p-5 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900">
+                    Saturday & Weekend Off Policy *
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Select organization weekend off schedule (Attendance matrix calculates working days dynamically)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleChange('saturdayPolicy', 'ALL_WORKING')}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
+                    formData.saturdayPolicy === 'ALL_WORKING'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-extrabold text-sm flex items-center justify-between">
+                    <span>🏢 All Saturdays Working</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${formData.saturdayPolicy === 'ALL_WORKING' ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                      6 Days / Week
+                    </span>
+                  </p>
+                  <p className={`text-xs mt-1 ${formData.saturdayPolicy === 'ALL_WORKING' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    All Saturdays are active working days. Only Sundays are scheduled off.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleChange('saturdayPolicy', 'SECOND_FOURTH_OFF')}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
+                    formData.saturdayPolicy === 'SECOND_FOURTH_OFF'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-extrabold text-sm flex items-center justify-between">
+                    <span>⚖️ 2nd & 4th Saturday Off</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${formData.saturdayPolicy === 'SECOND_FOURTH_OFF' ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                      Corporate Standard
+                    </span>
+                  </p>
+                  <p className={`text-xs mt-1 ${formData.saturdayPolicy === 'SECOND_FOURTH_OFF' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    2nd and 4th Saturdays are off. 1st, 3rd, and 5th Saturdays are working days.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleChange('saturdayPolicy', 'ALL_OFF')}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
+                    formData.saturdayPolicy === 'ALL_OFF'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-extrabold text-sm flex items-center justify-between">
+                    <span>🌴 All Saturdays Off</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${formData.saturdayPolicy === 'ALL_OFF' ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                      5 Days / Week
+                    </span>
+                  </p>
+                  <p className={`text-xs mt-1 ${formData.saturdayPolicy === 'ALL_OFF' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    Every Saturday and Sunday is scheduled off (5-day work week).
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleChange('saturdayPolicy', 'FIRST_THIRD_OFF')}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
+                    formData.saturdayPolicy === 'FIRST_THIRD_OFF'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-extrabold text-sm flex items-center justify-between">
+                    <span>🔄 1st & 3rd Saturday Off</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${formData.saturdayPolicy === 'FIRST_THIRD_OFF' ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                      Alternate Off
+                    </span>
+                  </p>
+                  <p className={`text-xs mt-1 ${formData.saturdayPolicy === 'FIRST_THIRD_OFF' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    1st and 3rd Saturdays are off. 2nd, 4th, and 5th Saturdays are working days.
+                  </p>
+                </button>
               </div>
             </div>
           </div>

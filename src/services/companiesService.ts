@@ -17,6 +17,7 @@ export interface BackendCompanyCreate {
   shift_count?: number;
   shift_type?: string;
   shift_timings?: string;
+  saturday_policy?: string;
   is_active?: boolean;
 }
 
@@ -36,6 +37,7 @@ export interface BackendCompanyResponse {
   shift_count?: number;
   shift_type?: string;
   shift_timings?: string;
+  saturday_policy?: string;
   is_active: boolean;
   created_at?: string;
   days_until_renewal?: number;
@@ -74,6 +76,7 @@ export interface BackendCompanyUpdate {
   shift_count?: number;
   shift_type?: string;
   shift_timings?: string;
+  saturday_policy?: string;
   is_active?: boolean;
 }
 

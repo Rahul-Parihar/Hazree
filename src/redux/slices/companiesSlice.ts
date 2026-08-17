@@ -63,6 +63,7 @@ export const fetchCompaniesAsync = createAsyncThunk(
                 shiftCount: singleCompany.shift_count || 3,
                 shiftType: singleCompany.shift_type || '3 Shifts • 8 Hours (24x7 Rotational)',
                 shiftTimings: singleCompany.shift_timings || 'Shift 1: 06:00 AM - 02:00 PM (8h) | Shift 2: 02:00 PM - 10:00 PM (8h) | Shift 3: 10:00 PM - 06:00 AM (8h)',
+                saturdayPolicy: singleCompany.saturday_policy || 'ALL_WORKING',
               },
             ];
             return mapped;
@@ -97,6 +98,7 @@ export const fetchCompaniesAsync = createAsyncThunk(
             shiftCount: bc.shift_count || 3,
             shiftType: bc.shift_type || '3 Shifts • 8 Hours (24x7 Rotational)',
             shiftTimings: bc.shift_timings || 'Shift 1: 06:00 AM - 02:00 PM (8h) | Shift 2: 02:00 PM - 10:00 PM (8h) | Shift 3: 10:00 PM - 06:00 AM (8h)',
+            saturdayPolicy: bc.saturday_policy || 'ALL_WORKING',
           }));
           return mapped;
         }
@@ -138,6 +140,7 @@ export const createCompanyAsync = createAsyncThunk(
         shift_count: newCompany.shiftCount || 1,
         shift_type: newCompany.shiftType || '1 Shift (General Day)',
         shift_timings: newCompany.shiftTimings,
+        saturday_policy: newCompany.saturdayPolicy || 'ALL_WORKING',
         is_active: newCompany.status === 'Active',
       };
       const created = await companiesService.createCompany(payload);
@@ -163,6 +166,7 @@ export const createCompanyAsync = createAsyncThunk(
         shiftCount: created.shift_count || newCompany.shiftCount || 1,
         shiftType: created.shift_type || newCompany.shiftType || '1 Shift (General Day)',
         shiftTimings: created.shift_timings || newCompany.shiftTimings,
+        saturdayPolicy: created.saturday_policy || newCompany.saturdayPolicy || 'ALL_WORKING',
         daysUntilRenewal: created.days_until_renewal,
         isSubscriptionExpiringSoon: created.is_subscription_expiring_soon,
         isSubscriptionExpired: created.is_subscription_expired,
@@ -245,6 +249,7 @@ export const updateCompanyAsync = createAsyncThunk(
         shift_count: updates.shiftCount,
         shift_type: updates.shiftType,
         shift_timings: updates.shiftTimings,
+        saturday_policy: updates.saturdayPolicy,
         is_active: updates.status ? updates.status === 'Active' : undefined,
       };
 
@@ -266,6 +271,7 @@ export const updateCompanyAsync = createAsyncThunk(
         shiftCount: updated.shift_count || updates.shiftCount || 1,
         shiftType: updated.shift_type || updates.shiftType || '1 Shift (General Day)',
         shiftTimings: updated.shift_timings || updates.shiftTimings,
+        saturdayPolicy: updated.saturday_policy || updates.saturdayPolicy || 'ALL_WORKING',
         daysUntilRenewal: updated.days_until_renewal,
         isSubscriptionExpiringSoon: updated.is_subscription_expiring_soon,
         isSubscriptionExpired: updated.is_subscription_expired,

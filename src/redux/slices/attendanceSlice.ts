@@ -35,7 +35,15 @@ const initialState: AttendanceState = {
 export const fetchAttendanceAsync = createAsyncThunk(
   'attendance/fetchAttendance',
   async (
-    params: { date?: string; status?: string; companyId?: number | string } | undefined,
+    params:
+      | {
+          date?: string;
+          month?: string;
+          employeeId?: number | string;
+          status?: string;
+          companyId?: number | string;
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {
@@ -149,13 +157,12 @@ export const attendanceSlice = createSlice({
       })
       .addCase(fetchAttendanceAsync.fulfilled, (state, action) => {
         state.isLoading = false;
-        if (action.payload && action.payload.length > 0) {
+        if (action.payload) {
           state.records = action.payload;
         }
       })
       .addCase(fetchAttendanceAsync.rejected, (state, action) => {
         state.isLoading = false;
-        // Keep fallback mock data if initial load fails
       })
 
       // Mark Attendance Punch
@@ -166,7 +173,17 @@ export const attendanceSlice = createSlice({
       })
       .addCase(markAttendanceAsync.fulfilled, (state, action) => {
         state.isPunching = false;
-        state.records.unshift(action.payload);
+        const index = state.records.findIndex(
+          (r) =>
+            r.date === action.payload.date &&
+            (r.employeeId === action.payload.employeeId ||
+              String(r.employeeId).replace('emp_', '') === String(action.payload.employeeId).replace('emp_', ''))
+        );
+        if (index !== -1) {
+          state.records[index] = action.payload;
+        } else {
+          state.records.unshift(action.payload);
+        }
         state.successMessage = `Attendance logged for "${action.payload.employeeName}" (${action.payload.status})`;
       })
       .addCase(markAttendanceAsync.rejected, (state, action) => {

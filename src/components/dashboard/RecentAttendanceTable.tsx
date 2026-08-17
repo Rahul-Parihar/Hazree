@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Search, MapPin, Smartphone, Plus, CheckCircle, Clock } from 'lucide-react';
 import { AttendanceRecord } from '../../types';
 import { Badge } from '../ui/Badge';
@@ -104,17 +105,21 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
                   <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                     {/* Employee Profile */}
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
+                      <Link
+                        href={`/employees/${r.employeeId.replace('emp_', '')}`}
+                        className="flex items-center gap-3 group cursor-pointer"
+                        title={`View monthly calendar for ${r.employeeName}`}
+                      >
                         <img
                           src={r.employeeAvatar}
                           alt={r.employeeName}
-                          className="w-9 h-9 rounded-xl object-cover border border-slate-200"
+                          className="w-9 h-9 rounded-xl object-cover border border-slate-200 group-hover:ring-2 group-hover:ring-emerald-500 transition-all"
                         />
                         <div>
-                          <p className="font-bold text-slate-900 leading-snug">{r.employeeName}</p>
+                          <p className="font-bold text-slate-900 group-hover:text-emerald-600 leading-snug transition-colors">{r.employeeName}</p>
                           <p className="text-xs text-slate-500 font-mono">ID: {r.employeeId}</p>
                         </div>
-                      </div>
+                      </Link>
                     </td>
 
                     {/* Department */}

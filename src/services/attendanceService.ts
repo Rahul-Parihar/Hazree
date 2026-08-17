@@ -66,9 +66,17 @@ export const attendanceService = {
   /**
    * Fetch live attendance records
    */
-  async getAttendanceLogs(params?: { date?: string; status?: string; companyId?: number | string }): Promise<AttendanceRecord[]> {
+  async getAttendanceLogs(params?: {
+    date?: string;
+    month?: string;
+    employeeId?: number | string;
+    status?: string;
+    companyId?: number | string;
+  }): Promise<AttendanceRecord[]> {
     const queryParams: Record<string, any> = {};
     if (params?.date) queryParams.date = params.date;
+    if (params?.month) queryParams.month = params.month;
+    if (params?.employeeId) queryParams.employee_id = Number(String(params.employeeId).replace('emp_', ''));
     if (params?.status) queryParams.status = params.status;
     if (params?.companyId) queryParams.company_id = Number(String(params.companyId).replace('cmp_', ''));
 

@@ -78,6 +78,29 @@ export const createEmployeeAsync = createAsyncThunk(
 );
 
 /**
+ * Async Thunk to update an employee on backend
+ */
+export const updateEmployeeAsync = createAsyncThunk(
+  'employees/updateEmployee',
+  async (
+    { id, data }: { id: string; data: Partial<BackendEmployeeCreate> },
+    { rejectWithValue }
+  ) => {
+    try {
+      const rawId = id.replace('emp_', '');
+      const updated = await employeesService.updateEmployee(rawId, data);
+      return mapBackendToEmployee(updated);
+    } catch (err: any) {
+      const msg =
+        (err.details && typeof err.details === 'object' && (err.details.detail || err.details.message)) ||
+        err.message ||
+        'Failed to update employee';
+      return rejectWithValue(msg);
+    }
+  }
+);
+
+/**
  * Async Thunk to delete an employee on backend
  */
 export const deleteEmployeeAsync = createAsyncThunk(
@@ -166,9 +189,29 @@ export const employeesSlice = createSlice({
         state.error = (action.payload as string) || 'Failed to add employee';
       })
 
+      // Update Employee
+      .addCase(updateEmployeeAsync.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.successMessage = null;
+      })
+      .addCase(updateEmployeeAsync.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const index = state.employees.findIndex((e) => e.id === action.payload.id);
+        if (index !== -1) {
+          state.employees[index] = action.payload;
+        }
+        state.successMessage = `Employee "${action.payload.name}" updated successfully!`;
+      })
+      .addCase(updateEmployeeAsync.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = (action.payload as string) || 'Failed to update employee';
+      })
+
       // Delete Employee
       .addCase(deleteEmployeeAsync.fulfilled, (state, action) => {
         state.employees = state.employees.filter((e) => e.id !== action.payload);
+        state.successMessage = 'Employee deleted successfully.';
       });
   },
 });

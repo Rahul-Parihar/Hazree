@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
+import { Modal } from '../../../components/ui/Modal';
 import {
   Users,
   Mail,
@@ -23,17 +24,21 @@ import {
   LogIn,
   LogOut,
   Clock,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
 import { fetchCompaniesAsync } from '../../../redux/slices/companiesSlice';
 import {
   fetchEmployeesAsync,
+  deleteEmployeeAsync,
   clearEmployeeError,
   clearEmployeeSuccess,
 } from '../../../redux/slices/employeesSlice';
 import { fetchAttendanceAsync } from '../../../redux/slices/attendanceSlice';
 import { fetchDepartmentsAsync } from '../../../redux/slices/departmentsSlice';
 import { AddEmployeeModal } from '../../../components/company-admin/AddEmployeeModal';
+import { EditEmployeeModal } from '../../../components/company-admin/EditEmployeeModal';
 import { MarkAttendanceModal } from '../../../components/company-admin/MarkAttendanceModal';
 import { Employee } from '../../../types';
 
@@ -52,6 +57,13 @@ export default function EmployeesPage() {
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [selectedEmpForPunch, setSelectedEmpForPunch] = useState<Employee | null>(null);
   const [punchType, setPunchType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>('CLOCK_IN');
+
+  // Edit & Delete Modal States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedEmpForEdit, setSelectedEmpForEdit] = useState<Employee | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [empToDelete, setEmpToDelete] = useState<Employee | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,9 +90,9 @@ export default function EmployeesPage() {
   const scopedEmployees = isCompanyAdmin
     ? employees.filter((e) => {
         const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
-        if (myCompanyId && empCompId && empCompId === myCompanyId) return true;
-        if (myCompanyName && e.companyName && e.companyName.trim().toLowerCase() === myCompanyName) return true;
-        return false;
+        if (myCompanyId && empCompId) return empCompId === myCompanyId;
+        if (myCompanyName && e.companyName) return e.companyName.trim().toLowerCase() === myCompanyName;
+        return true;
       })
     : employees;
 
@@ -312,7 +324,10 @@ export default function EmployeesPage() {
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4">Enrolled Date</th>
                   {isCompanyAdmin && (
-                    <th className="py-3.5 px-4 text-right">Attendance Action</th>
+                    <>
+                      <th className="py-3.5 px-4 text-center">Attendance</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </>
                   )}
                 </tr>
               </thead>
@@ -324,14 +339,18 @@ export default function EmployeesPage() {
                   >
                     {/* Employee Profile */}
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
+                      <Link
+                        href={`/employees/${emp.id.replace('emp_', '')}`}
+                        className="flex items-center gap-3 group/link cursor-pointer"
+                        title={`View monthly attendance calendar for ${emp.name}`}
+                      >
                         <img
                           src={emp.avatar}
                           alt={emp.name}
-                          className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-sm shrink-0"
+                          className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-sm shrink-0 group-hover/link:ring-2 group-hover/link:ring-emerald-500 transition-all"
                         />
                         <div>
-                          <p className="font-bold text-slate-900 text-sm group-hover:text-emerald-600 transition-colors">
+                          <p className="font-bold text-slate-900 text-sm group-hover/link:text-emerald-600 transition-colors">
                             {emp.name}
                           </p>
                           <div className="flex items-center gap-1.5 text-slate-400 text-[11px] mt-0.5">
@@ -339,7 +358,7 @@ export default function EmployeesPage() {
                             <span>{emp.email}</span>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     </td>
 
                     {/* Organization */}
@@ -393,63 +412,94 @@ export default function EmployeesPage() {
                       </div>
                     </td>
 
-                    {/* Attendance Action (Company Admin Only) */}
-                    {isCompanyAdmin && (() => {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      const todayPunch = attendanceRecords.find(
-                        (r) =>
-                          (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
-                          (r.date === todayStr || !r.date)
-                      );
+                    {/* Company Admin Only Columns: Attendance & Actions */}
+                    {isCompanyAdmin && (
+                      <>
+                        {/* Attendance Action */}
+                        {(() => {
+                          const todayStr = new Date().toISOString().split('T')[0];
+                          const todayPunch = attendanceRecords.find(
+                            (r) =>
+                              (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
+                              (r.date === todayStr || !r.date)
+                          );
 
-                      const isClockedIn = todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--';
-                      const isClockedOut = isClockedIn && todayPunch.checkOut && todayPunch.checkOut !== '--';
+                          const isClockedIn = todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--';
+                          const isClockedOut = isClockedIn && todayPunch.checkOut && todayPunch.checkOut !== '--';
 
-                      return (
+                          return (
+                            <td className="py-3.5 px-4 text-center">
+                              {!isClockedIn ? (
+                                <button
+                                  onClick={() => {
+                                    setSelectedEmpForPunch(emp);
+                                    setPunchType('CLOCK_IN');
+                                    setIsAttendanceModalOpen(true);
+                                  }}
+                                  title="Clock in staff for today"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                                >
+                                  <LogIn className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Clock In</span>
+                                </button>
+                              ) : !isClockedOut ? (
+                                <button
+                                  onClick={() => {
+                                    setSelectedEmpForPunch(emp);
+                                    setPunchType('CLOCK_OUT');
+                                    setIsAttendanceModalOpen(true);
+                                  }}
+                                  title={`Clocked In at ${todayPunch.checkIn}. Click to Clock Out.`}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                                >
+                                  <LogOut className="w-3.5 h-3.5 text-amber-700" />
+                                  <span>Clock Out</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setSelectedEmpForPunch(emp);
+                                    setPunchType('CLOCK_OUT');
+                                    setIsAttendanceModalOpen(true);
+                                  }}
+                                  title="Attendance session complete. Click to adjust punch details."
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Clocked Out ({todayPunch.checkOut})</span>
+                                </button>
+                              )}
+                            </td>
+                          );
+                        })()}
+
+                        {/* Actions Column (Edit & Delete) */}
                         <td className="py-3.5 px-4 text-right">
-                          {!isClockedIn ? (
+                          <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => {
-                                setSelectedEmpForPunch(emp);
-                                setPunchType('CLOCK_IN');
-                                setIsAttendanceModalOpen(true);
+                                setSelectedEmpForEdit(emp);
+                                setIsEditModalOpen(true);
                               }}
-                              title="Clock in staff for today"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                              title="Edit Employee"
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                             >
-                              <LogIn className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Clock In</span>
+                              <Pencil className="w-4 h-4" />
                             </button>
-                          ) : !isClockedOut ? (
                             <button
                               onClick={() => {
-                                setSelectedEmpForPunch(emp);
-                                setPunchType('CLOCK_OUT');
-                                setIsAttendanceModalOpen(true);
+                                setEmpToDelete(emp);
+                                setIsDeleteModalOpen(true);
                               }}
-                              title={`Clocked In at ${todayPunch.checkIn}. Click to Clock Out.`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                              title="Delete Employee"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             >
-                              <LogOut className="w-3.5 h-3.5 text-amber-700" />
-                              <span>Clock Out</span>
+                              <Trash2 className="w-4 h-4" />
                             </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setSelectedEmpForPunch(emp);
-                                setPunchType('CLOCK_OUT');
-                                setIsAttendanceModalOpen(true);
-                              }}
-                              title="Attendance session complete. Click to adjust punch details."
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Clocked Out ({todayPunch.checkOut})</span>
-                            </button>
-                          )}
+                          </div>
                         </td>
-                      );
-                    })()}
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -458,8 +508,8 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* Add Employee Modal (Company Admin Only) */}
-      {isCompanyAdmin && (
+      {/* Add Employee Modal */}
+      {isAddModalOpen && (
         <AddEmployeeModal
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
@@ -469,6 +519,89 @@ export default function EmployeesPage() {
           }}
         />
       )}
+
+      {/* Edit Employee Modal */}
+      {isEditModalOpen && (
+        <EditEmployeeModal
+          isOpen={isEditModalOpen}
+          employee={selectedEmpForEdit}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedEmpForEdit(null);
+          }}
+          onSuccess={() => {
+            dispatch(fetchEmployeesAsync());
+            dispatch(fetchCompaniesAsync());
+          }}
+        />
+      )}
+
+      {/* Delete Employee Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setEmpToDelete(null);
+        }}
+        title="Delete Employee"
+        subtitle="Confirm employee removal"
+        maxWidth="sm"
+      >
+        <div className="space-y-3.5">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-rose-50/70 border border-rose-100">
+            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+              <Trash2 className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 block">Staff Member</span>
+              <h4 className="text-xs font-extrabold text-slate-900 truncate">{empToDelete?.name}</h4>
+              <p className="text-[10px] text-slate-500 truncate">
+                {empToDelete?.role} • {empToDelete?.department}
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Are you sure you want to remove <span className="font-bold text-slate-900">"{empToDelete?.name}"</span> from the staff roster?
+          </p>
+
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setEmpToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={async () => {
+                if (!empToDelete) return;
+                setIsDeleting(true);
+                try {
+                  await dispatch(deleteEmployeeAsync(empToDelete.id));
+                  setIsDeleteModalOpen(false);
+                  setEmpToDelete(null);
+                  dispatch(fetchEmployeesAsync());
+                  dispatch(fetchCompaniesAsync());
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+              icon={<Trash2 className="w-3.5 h-3.5" />}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Mark Attendance Modal (Company Admin Only) */}
       {isCompanyAdmin && (

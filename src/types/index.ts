@@ -26,6 +26,7 @@ export interface Company {
   shiftCount?: number;
   shiftType?: string;
   shiftTimings?: string;
+  saturdayPolicy?: 'ALL_WORKING' | 'ALL_OFF' | 'SECOND_FOURTH_OFF' | 'FIRST_THIRD_OFF' | string;
 }
 
 export type EmployeeStatus = 'Active' | 'On Leave' | 'Inactive';
