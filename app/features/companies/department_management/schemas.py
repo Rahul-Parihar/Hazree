@@ -12,6 +12,7 @@ class DepartmentCreate(BaseModel):
 class DepartmentUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=150)
     description: Optional[str] = Field(None, max_length=500)
+    company_id: Optional[int] = Field(None, description="Optional company ID, or null for global")
     is_active: Optional[bool] = None
 
 

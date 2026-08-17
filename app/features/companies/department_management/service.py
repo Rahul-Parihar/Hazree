@@ -42,6 +42,7 @@ def get_departments(
     db: Session,
     company_id: Optional[int] = None,
     include_inactive: bool = False,
+    is_super_admin: bool = False,
 ) -> List[DepartmentResponse]:
     """Retrieve global departments and company-specific departments."""
     query = db.query(Department)
@@ -56,8 +57,9 @@ def get_departments(
                 Department.company_id == company_id,
             )
         )
-    else:
+    elif not is_super_admin:
         query = query.filter(Department.company_id.is_(None))
+    # If is_super_admin is True and company_id is None, query returns all departments
 
     departments = query.order_by(Department.name.asc()).all()
 
@@ -135,6 +137,51 @@ def create_department(
         created_by_role=new_dept.created_by_role,
         is_active=new_dept.is_active,
         created_at=new_dept.created_at,
+    )
+
+
+def update_department(
+    db: Session,
+    dept_id: int,
+    dept_in: DepartmentUpdate,
+) -> DepartmentResponse:
+    """Update an existing department."""
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    if not dept:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Department with ID {dept_id} not found.",
+        )
+
+    if dept_in.name is not None:
+        dept.name = dept_in.name.strip()
+    if dept_in.description is not None:
+        dept.description = dept_in.description.strip() if dept_in.description.strip() else None
+    if dept_in.company_id is not None:
+        # If -1 or special flag sent to clear company_id to GLOBAL
+        if dept_in.company_id == 0 or dept_in.company_id == -1:
+            dept.company_id = None
+        else:
+            dept.company_id = dept_in.company_id
+    elif "company_id" in dept_in.model_fields_set and dept_in.company_id is None:
+        dept.company_id = None
+
+    if dept_in.is_active is not None:
+        dept.is_active = dept_in.is_active
+
+    db.commit()
+    db.refresh(dept)
+
+    comp_name = dept.company.name if dept.company else "Global Standard"
+    return DepartmentResponse(
+        id=dept.id,
+        name=dept.name,
+        description=dept.description,
+        company_id=dept.company_id,
+        company_name=comp_name,
+        created_by_role=dept.created_by_role,
+        is_active=dept.is_active,
+        created_at=dept.created_at,
     )
 
 

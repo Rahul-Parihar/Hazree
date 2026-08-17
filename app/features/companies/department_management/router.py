@@ -32,7 +32,13 @@ def list_departments(
     if user_role == "COMPANY_ADMIN" and token_company_id is not None:
         effective_company_id = int(str(token_company_id).replace("cmp_", ""))
 
-    return service.get_departments(db=db, company_id=effective_company_id)
+    is_super_admin = (user_role == "SUPER_ADMIN")
+
+    return service.get_departments(
+        db=db,
+        company_id=effective_company_id,
+        is_super_admin=is_super_admin,
+    )
 
 
 @router.post("", response_model=DepartmentResponse, status_code=status.HTTP_201_CREATED)
@@ -52,6 +58,28 @@ def create_department(
         db=db,
         dept_in=dept_in,
         created_by_role=user_role,
+    )
+
+
+@router.put("/{department_id}", response_model=DepartmentResponse, status_code=status.HTTP_200_OK)
+def update_department(
+    department_id: int,
+    dept_in: DepartmentUpdate,
+    db: Session = Depends(get_db),
+    current_user: UserAuthResponse = Depends(get_current_user),
+):
+    """Update department details (Super Admin or Company Admin)."""
+    user_role = current_user.role
+    if user_role not in ["SUPER_ADMIN", "COMPANY_ADMIN"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update departments.",
+        )
+
+    return service.update_department(
+        db=db,
+        dept_id=department_id,
+        dept_in=dept_in,
     )
 
 
