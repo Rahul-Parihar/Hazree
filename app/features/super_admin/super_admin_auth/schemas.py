@@ -37,13 +37,19 @@ class SuperAdminResponse(BaseModel):
 
 
 class UserAuthResponse(BaseModel):
-    """Unified auth response representation for Super Admin & Company Admin."""
+    """Unified auth response representation for Super Admin, Company Admin & Employees."""
     id: int
     email: str
     full_name: Optional[str] = None
     role: str = "SUPER_ADMIN"
     company_id: Optional[int] = None
     company_name: Optional[str] = None
+    department: Optional[str] = None
+    designation: Optional[str] = None
+    phone: Optional[str] = None
+    avatar: Optional[str] = None
+    employee_code: Optional[str] = None
+    dob: Optional[str] = None
     status: Optional[str] = "Active"
     is_super_admin: bool = False
     is_active: bool = True

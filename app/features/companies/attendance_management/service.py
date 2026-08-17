@@ -51,20 +51,43 @@ def record_punch(
     today_str = punch_in.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     current_time_str = punch_in.check_in_time or datetime.now(timezone.utc).strftime("%I:%M %p")
 
-    avatar_url = punch_in.employee_avatar
-    if not avatar_url:
-        avatar_url = f"https://ui-avatars.com/api/?name={punch_in.employee_name.replace(' ', '+')}&background=059669&color=fff"
+    # Lookup employee details if employee_id is provided
+    emp = None
+    if punch_in.employee_id:
+        emp = db.query(Employee).filter(Employee.id == punch_in.employee_id).first()
+    elif punch_in.employee_name:
+        emp = db.query(Employee).filter(
+            Employee.company_id == company_id,
+            Employee.name.ilike(punch_in.employee_name.strip())
+        ).first()
+
+    emp_name = (emp.name if emp else punch_in.employee_name).strip()
+    emp_dept = (emp.department if emp else punch_in.department).strip()
+    avatar_url = (emp.avatar if emp and emp.avatar else punch_in.employee_avatar) or f"https://ui-avatars.com/api/?name={emp_name.replace(' ', '+')}&background=059669&color=fff"
+    emp_id = emp.id if emp else punch_in.employee_id
 
     # Check if there is an existing attendance record for this employee today
-    existing_record = (
-        db.query(Attendance)
-        .filter(
-            Attendance.company_id == company_id,
-            Attendance.employee_id == punch_in.employee_id,
-            Attendance.date == today_str,
+    existing_record = None
+    if emp_id:
+        existing_record = (
+            db.query(Attendance)
+            .filter(
+                Attendance.company_id == company_id,
+                Attendance.employee_id == emp_id,
+                Attendance.date == today_str,
+            )
+            .first()
         )
-        .first()
-    )
+    if not existing_record and emp_name:
+        existing_record = (
+            db.query(Attendance)
+            .filter(
+                Attendance.company_id == company_id,
+                Attendance.employee_name.ilike(emp_name),
+                Attendance.date == today_str,
+            )
+            .first()
+        )
 
     if existing_record:
         if punch_in.check_out_time and punch_in.check_out_time != "--":
@@ -79,6 +102,8 @@ def record_punch(
             existing_record.location = punch_in.location
         if punch_in.device:
             existing_record.device = punch_in.device
+        if emp_id and not existing_record.employee_id:
+            existing_record.employee_id = emp_id
 
         if existing_record.check_in_time and existing_record.check_out_time and existing_record.check_out_time != "--":
             existing_record.work_hours = "Completed"
@@ -89,17 +114,17 @@ def record_punch(
 
     new_record = Attendance(
         company_id=company_id,
-        employee_id=punch_in.employee_id,
-        employee_name=punch_in.employee_name.strip(),
+        employee_id=emp_id,
+        employee_name=emp_name,
         employee_avatar=avatar_url,
-        department=punch_in.department.strip(),
+        department=emp_dept,
         date=today_str,
         check_in_time=current_time_str,
         check_out_time=punch_in.check_out_time or "--",
         status=punch_in.status or "Present",
         work_hours=punch_in.work_hours or "Active",
-        location=punch_in.location or "Office Premises (HR Override)",
-        device=punch_in.device or "Admin Portal Web Console",
+        location=punch_in.location or "Office Premises (Verified)",
+        device=punch_in.device or "Web Portal Punch",
     )
 
     db.add(new_record)

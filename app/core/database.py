@@ -47,11 +47,19 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     try:
         from sqlalchemy import text
+        from app.core.security import get_password_hash
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE companies ADD COLUMN IF NOT EXISTS saturday_policy VARCHAR(50) DEFAULT 'ALL_WORKING';"))
+            conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255);"))
+            conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS dob VARCHAR(50);"))
+            # Backfill any existing employees that have null hashed_password
+            default_hashed = get_password_hash("Hazree@123")
+            conn.execute(text(f"UPDATE employees SET hashed_password = '{default_hashed}' WHERE hashed_password IS NULL;"))
+            # Backfill default date of birth for existing employees
+            conn.execute(text("UPDATE employees SET dob = '1996-08-15' WHERE dob IS NULL;"))
             conn.commit()
     except Exception as e:
-        logger.warning(f"Note on saturday_policy column verification: {e}")
+        logger.warning(f"Note on schema verification: {e}")
     logger.info("Database tables initialized successfully.")
 
 

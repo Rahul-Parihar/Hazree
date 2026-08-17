@@ -19,6 +19,7 @@ from app.features.super_admin.super_admin_auth.schemas import (
     Token,
 )
 router = APIRouter(prefix="/super-admin", tags=["Super Admin"])
+customer_router = APIRouter(prefix="/customer", tags=["Customer Portal"])
 
 
 # ---------------------------------------------------------------------------
@@ -28,10 +29,10 @@ router = APIRouter(prefix="/super-admin", tags=["Super Admin"])
 @router.post(
     "/login",
     response_model=Token,
-    summary="Super Admin Login",
+    summary="Super & Company Admin Login",
     description=(
-        "Authenticates Super Admin using JSON payload or Form data. "
-        "Protected by Rate Limiter. "
+        "Authenticates Super Admin and Company Admin accounts. "
+        "Rejects Employee accounts with 403 Forbidden. "
         "Issues a 15-minute access token and a 7-day refresh token securely inside HTTP-Only cookies."
     ),
 )
@@ -41,8 +42,27 @@ async def login_super_admin(
     request: Request,
     db: Session = Depends(get_db),
 ) -> Token:
-    """Super Admin Login with Rate Limiting & Cookie / JSON support."""
+    """Admin Login with Rate Limiting & Cookie / JSON support."""
     return await service.login_super_admin_service(request, response, db)
+
+
+@customer_router.post(
+    "/login",
+    response_model=Token,
+    summary="Customer & Employee Portal Login",
+    description=(
+        "Authenticates Employee accounts for Hazree Customer Portal. "
+        "Rejects Super Admin and Company Admin accounts with 403 Forbidden."
+    ),
+)
+@rate_limiter.limit(settings.rate_limit_login)
+async def login_customer(
+    response: Response,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Token:
+    """Customer Employee Login with Rate Limiting & Cookie / JSON support."""
+    return await service.login_customer_service(request, response, db)
 
 
 @router.post(

@@ -10,6 +10,8 @@ PUBLIC_EXACT_PATHS = {
     "/health",
     "/super-admin/login",
     "/super-admin/refresh",
+    "/customer/login",
+    "/customer/refresh",
     "/subscriptions/plans",
     "/openapi.json",
     "/docs",

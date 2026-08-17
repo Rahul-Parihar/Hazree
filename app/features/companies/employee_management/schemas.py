@@ -12,10 +12,18 @@ class EmployeeBase(BaseModel):
     avatar: Optional[str] = Field(None, example="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80")
     status: Optional[str] = Field("Active", example="Active")
     join_date: Optional[str] = Field(None, example="14/08/2026")
+    dob: Optional[str] = Field(None, example="15/08/1996", description="Employee date of birth")
 
 
 class EmployeeCreate(EmployeeBase):
     company_id: Optional[int] = Field(None, description="Company ID (required for Super Admin, auto-derived for Company Admin)")
+    password: Optional[str] = Field(
+        None,
+        min_length=4,
+        max_length=100,
+        description="Initial login password for employee portal (defaults to Hazree@123 if not provided)",
+        example="Hazree@123",
+    )
 
 
 class EmployeeUpdate(BaseModel):
@@ -25,8 +33,10 @@ class EmployeeUpdate(BaseModel):
     role: Optional[str] = None
     department: Optional[str] = None
     avatar: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=4, max_length=100, description="New password for employee")
     status: Optional[str] = None
     join_date: Optional[str] = None
+    dob: Optional[str] = None
 
 
 class EmployeeResponse(EmployeeBase):

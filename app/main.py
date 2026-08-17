@@ -41,7 +41,10 @@ from app.features.companies.employee_management.router import router as employee
 from app.features.companies.attendance_management.router import router as attendance_router
 from app.features.companies.leave_management.router import router as leaves_router
 from app.features.department.router import router as departments_router
-from app.features.super_admin.super_admin_auth.router import router as super_admin_router
+from app.features.super_admin.super_admin_auth.router import (
+    router as super_admin_router,
+    customer_router,
+)
 from app.features.subscriptions.subscription_management.router import router as subscriptions_router
 
 # Configure logging
@@ -128,6 +131,7 @@ app.include_router(departments_router)
 app.include_router(attendance_router)
 app.include_router(leaves_router)
 app.include_router(super_admin_router)
+app.include_router(customer_router)
 app.include_router(subscriptions_router)
 
 

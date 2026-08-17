@@ -14,6 +14,8 @@ class Employee(Base):
     role = Column(String(100), nullable=False)
     department = Column(String(100), nullable=False)
     avatar = Column(String(500), nullable=True)
+    hashed_password = Column(String(255), nullable=True)
     status = Column(String(50), default="Active", nullable=False)
     join_date = Column(String(50), nullable=True)
+    dob = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

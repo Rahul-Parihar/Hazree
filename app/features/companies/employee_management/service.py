@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
+from app.core.security import get_password_hash
 from app.features.companies.company_management.models import Company
 from app.features.companies.employee_management.models import Employee
 from app.features.companies.employee_management.schemas import (
@@ -25,6 +26,7 @@ def _to_response(emp: Employee, company_name: Optional[str] = None) -> EmployeeR
         avatar=emp.avatar,
         status=emp.status,
         join_date=emp.join_date,
+        dob=emp.dob,
         created_at=emp.created_at,
     )
 
@@ -78,6 +80,10 @@ def create_employee(
     # 3. Default avatar & join date
     avatar_url = employee_in.avatar or f"https://ui-avatars.com/api/?name={employee_in.name.replace(' ', '+')}&background=059669&color=fff"
     join_date_str = employee_in.join_date or datetime.now(timezone.utc).strftime("%d/%m/%Y")
+    
+    # Hash employee password (default to Hazree@123 if not explicitly provided)
+    raw_password = employee_in.password if (employee_in.password and employee_in.password.strip()) else "Hazree@123"
+    hashed_pwd = get_password_hash(raw_password)
 
     new_emp = Employee(
         company_id=company_id,
@@ -87,8 +93,10 @@ def create_employee(
         role=employee_in.role.strip(),
         department=employee_in.department.strip(),
         avatar=avatar_url,
+        hashed_password=hashed_pwd,
         status=employee_in.status or "Active",
         join_date=join_date_str,
+        dob=employee_in.dob.strip() if employee_in.dob else None,
     )
 
     db.add(new_emp)
@@ -186,7 +194,9 @@ def update_employee(
 
     for field, value in update_data.items():
         if value is not None:
-            if isinstance(value, str):
+            if field == "password" and value:
+                setattr(emp, "hashed_password", get_password_hash(value))
+            elif isinstance(value, str):
                 setattr(emp, field, value.strip())
             else:
                 setattr(emp, field, value)

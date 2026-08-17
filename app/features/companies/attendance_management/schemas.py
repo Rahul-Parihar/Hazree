@@ -5,9 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class AttendancePunchCreate(BaseModel):
     employee_id: Optional[int] = Field(None, description="Employee database ID if known")
-    employee_name: str = Field(..., min_length=2, max_length=255, example="Aarav Sharma")
+    employee_name: Optional[str] = Field(None, max_length=255, example="Aarav Sharma")
     employee_avatar: Optional[str] = Field(None, example="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100")
-    department: str = Field("Engineering", max_length=100, example="Engineering")
+    department: Optional[str] = Field(None, max_length=100, example="Engineering")
     company_id: Optional[int] = Field(None, description="Company ID (required for Super Admin, auto-derived for Company Admin)")
     date: Optional[str] = Field(None, description="Date in YYYY-MM-DD format (defaults to today)")
     check_in_time: Optional[str] = Field(None, example="09:15 AM")

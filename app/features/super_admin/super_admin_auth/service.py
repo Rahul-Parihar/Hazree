@@ -17,6 +17,7 @@ from app.core.security import (
     verify_password,
 )
 from app.features.companies.company_management.models import Company
+from app.features.companies.employee_management.models import Employee
 from app.features.super_admin.super_admin_auth.models import AdminUser
 from app.features.super_admin.super_admin_auth.schemas import (
     AuthTokenData,
@@ -192,10 +193,124 @@ async def login_super_admin_service(
             status="success",
         )
 
-    # 3. Neither Super Admin nor Company found
+    # 3. Check if user is an Employee (Redirect to Customer Portal)
+    employee = db.query(Employee).filter(Employee.email == email).first()
+    if employee:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="It looks like this email is registered as an Employee account. Please sign in through the Hazree Employee & Customer Portal.",
+        )
+
+    # 4. Neither Super Admin nor Company Admin found
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Email '{email}' not found. Please enter a valid registered email address.",
+        detail="We couldn't find an Administrator account with this email address. Please check your credentials.",
+    )
+
+
+async def login_customer_service(
+    request: Request,
+    response: Response,
+    db: Session,
+) -> Token:
+    """
+    Dedicated Customer & Employee Authentication Service:
+    - Strictly allows only Employee accounts.
+    - Rejects Super Admin and Company Admin accounts with 403 Forbidden.
+    - Verifies password, employee active status, and organization status.
+    - Issues JWT access token with role: 'EMPLOYEE'.
+    """
+    email, password = await extract_login_credentials(request)
+
+    # 1. Direct Admin accounts to the Company Admin Portal
+    admin = db.query(AdminUser).filter(AdminUser.email == email).first()
+    if admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="It looks like this is a Super Admin account. Please sign in through the Hazree Admin Portal.",
+        )
+
+    company_admin = db.query(Company).filter(Company.email == email).first()
+    if company_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="It looks like this is a Company Administrator account. Please sign in through the Hazree Company Admin Portal.",
+        )
+
+    # 2. Authenticate Employee
+    employee = db.query(Employee).filter(Employee.email == email).first()
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Employee email '{email}' not found. Please verify your registered email address.",
+        )
+
+    if not employee.hashed_password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Employee account does not have a login password configured. Please contact your Company Admin.",
+        )
+
+    if not verify_password(password, employee.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password. Please enter the correct password for your employee account.",
+        )
+
+    if employee.status and employee.status.lower() in ("inactive", "suspended", "terminated"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Your employee account is {employee.status}. Please contact your Company Admin.",
+        )
+
+    # Check organization status
+    emp_company = db.query(Company).filter(Company.id == employee.company_id).first()
+    if not emp_company or not emp_company.is_active or (emp_company.status and emp_company.status.lower() == "suspended"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your organization's account is currently inactive or suspended. Please contact Hazree Support.",
+        )
+
+    company_title = emp_company.name if emp_company else "Organization"
+    user_claims = {
+        "sub": employee.email,
+        "user_id": employee.id,
+        "employee_id": employee.id,
+        "company_id": employee.company_id,
+        "company_name": company_title,
+        "full_name": employee.name,
+        "role": "EMPLOYEE",
+    }
+    access_token, refresh_token = create_token_pair(user_claims)
+    set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
+
+    user_response = UserAuthResponse(
+        id=employee.id,
+        email=employee.email,
+        full_name=employee.name,
+        role="EMPLOYEE",
+        company_id=employee.company_id,
+        company_name=company_title,
+        department=employee.department,
+        designation=employee.role,
+        phone=employee.phone,
+        avatar=employee.avatar,
+        employee_code=f"EMP-{employee.id:04d}",
+        dob=employee.dob,
+        status=employee.status or "Active",
+        is_super_admin=False,
+        is_active=True,
+        created_at=employee.created_at,
+    )
+
+    return Token(
+        data=AuthTokenData(
+            user=user_response,
+            access_token=access_token,
+            refresh_token=refresh_token,
+        ),
+        message=f"Welcome {employee.name}! Login successful",
+        status="success",
     )
 
 
@@ -324,6 +439,46 @@ def get_current_user(
             is_super_admin=False,
             is_active=company.is_active,
             created_at=company.created_at,
+        )
+        set_cache(cache_key, user_res.model_dump(mode="json"), expire_seconds=60)
+        return user_res
+
+    elif role == "EMPLOYEE":
+        cache_key = f"auth:employee:{email}"
+        cached_emp_data = get_cache(cache_key)
+        if cached_emp_data:
+            return UserAuthResponse(**cached_emp_data)
+
+        employee = db.query(Employee).filter(Employee.email == email).first()
+        if employee is None:
+            raise credentials_exception
+
+        emp_status = (employee.status or "Active").strip().lower()
+        if emp_status in ("inactive", "suspended", "terminated"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Your employee account is {employee.status}.",
+            )
+
+        emp_company = db.query(Company).filter(Company.id == employee.company_id).first()
+        company_title = emp_company.name if emp_company else "Organization"
+
+        user_res = UserAuthResponse(
+            id=employee.id,
+            email=employee.email,
+            full_name=employee.name,
+            role="EMPLOYEE",
+            company_id=employee.company_id,
+            company_name=company_title,
+            department=employee.department,
+            designation=employee.role,
+            phone=employee.phone,
+            avatar=employee.avatar,
+            employee_code=f"EMP-{employee.id:04d}",
+            status=employee.status or "Active",
+            is_super_admin=False,
+            is_active=True,
+            created_at=employee.created_at,
         )
         set_cache(cache_key, user_res.model_dump(mode="json"), expire_seconds=60)
         return user_res

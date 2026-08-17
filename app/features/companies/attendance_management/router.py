@@ -36,11 +36,12 @@ async def read_attendance_logs(
     - Company Admin: strictly scoped to own company_id.
     - Super Admin: sees all attendance logs or filters by query parameter.
     """
-    scoped_company_id = current_user.company_id if current_user.role == "COMPANY_ADMIN" else company_id
+    scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "EMPLOYEE") else company_id
+    scoped_employee_id = current_user.id if current_user.role == "EMPLOYEE" and not employee_id else employee_id
     return service.get_attendance_records(
         db,
         company_id=scoped_company_id,
-        employee_id=employee_id,
+        employee_id=scoped_employee_id,
         date=date,
         month=month,
         status_filter=status,
@@ -61,14 +62,19 @@ async def punch_attendance(
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """
-    Record attendance punch (manual or kiosk):
-    - Company Admin: automatically links to own company_id.
-    - Super Admin: uses company_id passed in payload.
+    Record attendance punch (Employee self-punch, Company Admin manual override, or Kiosk):
+    - Automatically links to user's company_id and employee profile.
     """
-    if current_user.role == "COMPANY_ADMIN":
-        target_company_id = current_user.company_id
+    if current_user.role in ("COMPANY_ADMIN", "EMPLOYEE"):
+        target_company_id = current_user.company_id or punch_in.company_id
     else:
         target_company_id = punch_in.company_id
+
+    if current_user.role == "EMPLOYEE":
+        if not punch_in.employee_id:
+            punch_in.employee_id = current_user.id
+        if not punch_in.employee_name or punch_in.employee_name == "Staff Member":
+            punch_in.employee_name = current_user.full_name or "Employee"
 
     if not target_company_id:
         raise HTTPException(
