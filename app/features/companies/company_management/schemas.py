@@ -18,6 +18,7 @@ class CompanyBase(BaseModel):
     shift_count: Optional[int] = 1
     shift_type: Optional[str] = "1 Shift (General Day)"
     shift_timings: Optional[str] = None
+    saturday_policy: Optional[str] = "ALL_WORKING"
     is_active: bool = True
 
 
@@ -45,6 +46,7 @@ class CompanyUpdate(BaseModel):
     shift_count: Optional[int] = None
     shift_type: Optional[str] = None
     shift_timings: Optional[str] = None
+    saturday_policy: Optional[str] = None
     is_active: Optional[bool] = None
 
 

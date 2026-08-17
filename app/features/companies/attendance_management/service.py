@@ -112,12 +112,14 @@ def record_punch(
 def get_attendance_records(
     db: Session,
     company_id: Optional[int] = None,
+    employee_id: Optional[int] = None,
     date: Optional[str] = None,
+    month: Optional[str] = None,
     status_filter: Optional[str] = None,
     skip: int = 0,
-    limit: int = 200,
+    limit: int = 500,
 ) -> List[AttendanceRecordResponse]:
-    """Retrieve attendance records with optional company, date, and status filtering."""
+    """Retrieve attendance records with optional company, employee, date, month, and status filtering."""
     query = (
         db.query(Attendance, Company.name.label("company_name"))
         .join(Company, Attendance.company_id == Company.id)
@@ -126,13 +128,19 @@ def get_attendance_records(
     if company_id:
         query = query.filter(Attendance.company_id == company_id)
 
+    if employee_id:
+        query = query.filter(Attendance.employee_id == employee_id)
+
     if date:
         query = query.filter(Attendance.date == date)
+    elif month:
+        # Filter dates starting with YYYY-MM (e.g. '2026-08%')
+        query = query.filter(Attendance.date.like(f"{month}%"))
 
     if status_filter and status_filter.upper() != "ALL":
         query = query.filter(func.lower(Attendance.status) == status_filter.lower())
 
-    results = query.order_by(Attendance.id.desc()).offset(skip).limit(limit).all()
+    results = query.order_by(Attendance.date.asc(), Attendance.id.desc()).offset(skip).limit(limit).all()
 
     return [_to_response(att, company_name=c_name) for att, c_name in results]
 

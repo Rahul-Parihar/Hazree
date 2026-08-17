@@ -5,12 +5,12 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.features.super_admin.super_admin_auth.schemas import UserAuthResponse
 from app.features.super_admin.super_admin_auth.service import get_current_user
-from app.features.companies.department_management.schemas import (
+from app.features.department.schemas import (
     DepartmentCreate,
     DepartmentResponse,
     DepartmentUpdate,
 )
-from app.features.companies.department_management import service
+from app.features.department import service
 
 router = APIRouter(
     prefix="/api/v1/departments",

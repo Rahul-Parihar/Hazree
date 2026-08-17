@@ -167,10 +167,29 @@ def update_employee(
 
     update_data = employee_in.model_dump(exclude_unset=True)
     if "email" in update_data and update_data["email"]:
-        update_data["email"] = update_data["email"].strip().lower()
+        clean_email = update_data["email"].strip().lower()
+        update_data["email"] = clean_email
+        duplicate = (
+            db.query(Employee)
+            .filter(
+                Employee.company_id == emp.company_id,
+                Employee.email == clean_email,
+                Employee.id != employee_id,
+            )
+            .first()
+        )
+        if duplicate:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"An employee with email '{clean_email}' is already registered in this organization.",
+            )
 
     for field, value in update_data.items():
-        setattr(emp, field, value)
+        if value is not None:
+            if isinstance(value, str):
+                setattr(emp, field, value.strip())
+            else:
+                setattr(emp, field, value)
 
     db.commit()
     db.refresh(emp)

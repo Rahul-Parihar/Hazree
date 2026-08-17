@@ -28,19 +28,19 @@ import app.features.companies.company_management.models  # Register models
 import app.features.companies.employee_management.models  # Register models
 import app.features.companies.attendance_management.models  # Register models
 import app.features.companies.leave_management.models  # Register models
-import app.features.companies.department_management.models  # Register models
+import app.features.department.models  # Register models
 import app.features.super_admin.super_admin_auth.models  # Register models
 import app.features.subscriptions.subscription_management.models  # Register models
 from app.features.super_admin.super_admin_auth.service import init_default_super_admin
 from app.features.subscriptions.subscription_management.service import seed_default_subscription_plans
 from app.features.companies.company_management.service import seed_default_companies
-from app.features.companies.department_management.service import seed_default_departments
+from app.features.department.service import seed_default_departments
 
 from app.features.companies.company_management.router import router as companies_router
 from app.features.companies.employee_management.router import router as employees_router
 from app.features.companies.attendance_management.router import router as attendance_router
 from app.features.companies.leave_management.router import router as leaves_router
-from app.features.companies.department_management.router import router as departments_router
+from app.features.department.router import router as departments_router
 from app.features.super_admin.super_admin_auth.router import router as super_admin_router
 from app.features.subscriptions.subscription_management.router import router as subscriptions_router
 

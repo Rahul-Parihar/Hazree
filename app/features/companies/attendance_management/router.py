@@ -21,11 +21,13 @@ router = APIRouter(
 
 @router.get("/", response_model=List[AttendanceRecordResponse], summary="List Attendance Logs")
 async def read_attendance_logs(
+    employee_id: Optional[int] = Query(None, description="Optional filter by employee ID"),
     date: Optional[str] = Query(None, description="Filter logs by date (YYYY-MM-DD)"),
-    status: Optional[str] = Query(None, description="Filter logs by status (Present, Late, Absent, Half Day)"),
+    month: Optional[str] = Query(None, description="Filter logs by month (YYYY-MM)"),
+    status: Optional[str] = Query(None, description="Filter logs by status (Present, Late, Absent, Half Day, Holiday, On Leave, Day Off)"),
     company_id: Optional[int] = Query(None, description="Optional company ID filter for Super Admin"),
     skip: int = 0,
-    limit: int = 200,
+    limit: int = 500,
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
@@ -38,7 +40,9 @@ async def read_attendance_logs(
     return service.get_attendance_records(
         db,
         company_id=scoped_company_id,
+        employee_id=employee_id,
         date=date,
+        month=month,
         status_filter=status,
         skip=skip,
         limit=limit,

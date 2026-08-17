@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from fastapi import HTTPException, status
 
-from app.features.companies.department_management.models import Department
-from app.features.companies.department_management.schemas import DepartmentCreate, DepartmentResponse
+from app.features.department.models import Department
+from app.features.department.schemas import DepartmentCreate, DepartmentResponse, DepartmentUpdate
 from app.features.companies.company_management.models import Company
 
 
@@ -158,7 +158,7 @@ def update_department(
     if dept_in.description is not None:
         dept.description = dept_in.description.strip() if dept_in.description.strip() else None
     if dept_in.company_id is not None:
-        # If -1 or special flag sent to clear company_id to GLOBAL
+        # If -1 or 0 sent to clear company_id to GLOBAL
         if dept_in.company_id == 0 or dept_in.company_id == -1:
             dept.company_id = None
         else:

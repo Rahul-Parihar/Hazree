@@ -45,6 +45,13 @@ def init_db():
     """Ensure all database tables are created."""
     logger.info("Verifying and creating database tables on PostgreSQL...")
     Base.metadata.create_all(bind=engine)
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN IF NOT EXISTS saturday_policy VARCHAR(50) DEFAULT 'ALL_WORKING';"))
+            conn.commit()
+    except Exception as e:
+        logger.warning(f"Note on saturday_policy column verification: {e}")
     logger.info("Database tables initialized successfully.")
 
 
