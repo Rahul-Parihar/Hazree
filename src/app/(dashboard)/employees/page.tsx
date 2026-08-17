@@ -89,11 +89,11 @@ export default function EmployeesPage() {
 
   const scopedEmployees = isCompanyAdmin
     ? employees.filter((e) => {
-        const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
-        if (myCompanyId && empCompId) return empCompId === myCompanyId;
-        if (myCompanyName && e.companyName) return e.companyName.trim().toLowerCase() === myCompanyName;
-        return true;
-      })
+      const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
+      if (myCompanyId && empCompId) return empCompId === myCompanyId;
+      if (myCompanyName && e.companyName) return e.companyName.trim().toLowerCase() === myCompanyName;
+      return true;
+    })
     : employees;
 
   // Extract distinct companies from data (for Super Admin filter dropdown)
@@ -324,10 +324,7 @@ export default function EmployeesPage() {
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4">Enrolled Date</th>
                   {isCompanyAdmin && (
-                    <>
-                      <th className="py-3.5 px-4 text-center">Attendance</th>
-                      <th className="py-3.5 px-4 text-right">Actions</th>
-                    </>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   )}
                 </tr>
               </thead>
@@ -396,8 +393,8 @@ export default function EmployeesPage() {
                           emp.status === 'Active'
                             ? 'active'
                             : emp.status === 'On Leave'
-                            ? 'pending'
-                            : 'neutral'
+                              ? 'pending'
+                              : 'neutral'
                         }
                       >
                         {emp.status}
@@ -412,93 +409,32 @@ export default function EmployeesPage() {
                       </div>
                     </td>
 
-                    {/* Company Admin Only Columns: Attendance & Actions */}
+                    {/* Company Admin Only Columns: Actions (Edit & Delete) */}
                     {isCompanyAdmin && (
-                      <>
-                        {/* Attendance Action */}
-                        {(() => {
-                          const todayStr = new Date().toISOString().split('T')[0];
-                          const todayPunch = attendanceRecords.find(
-                            (r) =>
-                              (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
-                              (r.date === todayStr || !r.date)
-                          );
-
-                          const isClockedIn = todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--';
-                          const isClockedOut = isClockedIn && todayPunch.checkOut && todayPunch.checkOut !== '--';
-
-                          return (
-                            <td className="py-3.5 px-4 text-center">
-                              {!isClockedIn ? (
-                                <button
-                                  onClick={() => {
-                                    setSelectedEmpForPunch(emp);
-                                    setPunchType('CLOCK_IN');
-                                    setIsAttendanceModalOpen(true);
-                                  }}
-                                  title="Clock in staff for today"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
-                                >
-                                  <LogIn className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span>Clock In</span>
-                                </button>
-                              ) : !isClockedOut ? (
-                                <button
-                                  onClick={() => {
-                                    setSelectedEmpForPunch(emp);
-                                    setPunchType('CLOCK_OUT');
-                                    setIsAttendanceModalOpen(true);
-                                  }}
-                                  title={`Clocked In at ${todayPunch.checkIn}. Click to Clock Out.`}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
-                                >
-                                  <LogOut className="w-3.5 h-3.5 text-amber-700" />
-                                  <span>Clock Out</span>
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setSelectedEmpForPunch(emp);
-                                    setPunchType('CLOCK_OUT');
-                                    setIsAttendanceModalOpen(true);
-                                  }}
-                                  title="Attendance session complete. Click to adjust punch details."
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span>Clocked Out ({todayPunch.checkOut})</span>
-                                </button>
-                              )}
-                            </td>
-                          );
-                        })()}
-
-                        {/* Actions Column (Edit & Delete) */}
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => {
-                                setSelectedEmpForEdit(emp);
-                                setIsEditModalOpen(true);
-                              }}
-                              title="Edit Employee"
-                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEmpToDelete(emp);
-                                setIsDeleteModalOpen(true);
-                              }}
-                              title="Delete Employee"
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => {
+                              setSelectedEmpForEdit(emp);
+                              setIsEditModalOpen(true);
+                            }}
+                            title="Edit Employee"
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEmpToDelete(emp);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            title="Delete Employee"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
                     )}
                   </tr>
                 ))}

@@ -24,6 +24,8 @@ import {
   X,
   Printer,
   ShieldCheck,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/Button';
 import { Badge } from '../../../../components/ui/Badge';
@@ -107,6 +109,20 @@ export default function EmployeeDetailPage() {
   }, [companies, employee]);
 
   const saturdayPolicy = employeeCompany?.saturdayPolicy || 'ALL_WORKING';
+
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayPunch = useMemo(() => {
+    return attendanceRecords.find(
+      (r) =>
+        (r.date === todayStr || !r.date) &&
+        (r.employeeId === `emp_${employeeId}` ||
+          r.employeeId === employeeId ||
+          String(r.employeeId).replace('emp_', '') === employeeId)
+    );
+  }, [attendanceRecords, todayStr, employeeId]);
+
+  const isClockedIn = Boolean(todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--');
+  const isClockedOut = Boolean(isClockedIn && todayPunch && todayPunch.checkOut && todayPunch.checkOut !== '--');
 
   // Load employee & companies
   useEffect(() => {
@@ -497,7 +513,43 @@ export default function EmployeeDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {isCompanyAdmin && (
+            <>
+              {!isClockedIn ? (
+                <button
+                  type="button"
+                  onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
+                  title="Clock in staff for today"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Clock In</span>
+                </button>
+              ) : !isClockedOut ? (
+                <button
+                  type="button"
+                  onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
+                  title={`Clocked In at ${todayPunch?.checkIn || '--'}. Click to Clock Out.`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Clock Out</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
+                  title="Attendance session complete. Click to adjust punch details."
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Clocked Out ({todayPunch?.checkOut})</span>
+                </button>
+              )}
+            </>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -518,7 +570,7 @@ export default function EmployeeDetailPage() {
 
           {isCompanyAdmin && (
             <Button
-              variant="primary"
+              variant="outline"
               size="sm"
               onClick={() => setIsEditModalOpen(true)}
               icon={<Edit className="w-4 h-4" />}
@@ -585,12 +637,12 @@ export default function EmployeeDetailPage() {
                   {saturdayPolicy === 'ALL_WORKING'
                     ? 'All Saturdays Working (6-day)'
                     : saturdayPolicy === 'SECOND_FOURTH_OFF'
-                    ? '2nd & 4th Saturday Off'
-                    : saturdayPolicy === 'ALL_OFF'
-                    ? 'All Saturdays Off (5-day)'
-                    : saturdayPolicy === 'FIRST_THIRD_OFF'
-                    ? '1st & 3rd Saturday Off'
-                    : saturdayPolicy}
+                      ? '2nd & 4th Saturday Off'
+                      : saturdayPolicy === 'ALL_OFF'
+                        ? 'All Saturdays Off (5-day)'
+                        : saturdayPolicy === 'FIRST_THIRD_OFF'
+                          ? '1st & 3rd Saturday Off'
+                          : saturdayPolicy}
                 </span>
               </span>
             </div>
@@ -756,9 +808,8 @@ export default function EmployeeDetailPage() {
                 {calendarDays.map((d) => (
                   <th
                     key={d.dayNumber}
-                    className={`py-1.5 px-1 min-w-[28px] ${
-                      d.isDayOff ? 'bg-slate-200/60 text-slate-700 font-black' : d.isSunday ? 'bg-rose-50/60 text-rose-700' : ''
-                    }`}
+                    className={`py-1.5 px-1 min-w-[28px] ${d.isDayOff ? 'bg-slate-200/60 text-slate-700 font-black' : d.isSunday ? 'bg-rose-50/60 text-rose-700' : ''
+                      }`}
                   >
                     {d.dayNumber}
                   </th>
@@ -776,9 +827,8 @@ export default function EmployeeDetailPage() {
                 {calendarDays.map((d) => (
                   <th
                     key={d.dayNumber}
-                    className={`py-1 px-1 min-w-[28px] ${
-                      d.isDayOff ? 'bg-slate-200/60 text-slate-700 font-black' : d.isSunday ? 'bg-rose-50/60 text-rose-600 font-black' : 'text-slate-400'
-                    }`}
+                    className={`py-1 px-1 min-w-[28px] ${d.isDayOff ? 'bg-slate-200/60 text-slate-700 font-black' : d.isSunday ? 'bg-rose-50/60 text-rose-600 font-black' : 'text-slate-400'
+                      }`}
                   >
                     {d.dayOfWeek}
                   </th>
@@ -815,11 +865,10 @@ export default function EmployeeDetailPage() {
                   <td
                     key={d.dayNumber}
                     onClick={() => handleOpenDayPunch(d.dateStr, d.punch)}
-                    className={`py-2 px-1 text-center transition-all ${
-                      isCompanyAdmin
+                    className={`py-2 px-1 text-center transition-all ${isCompanyAdmin
                         ? 'cursor-pointer hover:bg-emerald-50/80 hover:scale-105 active:scale-95'
                         : ''
-                    } ${d.isDayOff ? 'bg-slate-100/70' : ''}`}
+                      } ${d.isDayOff ? 'bg-slate-100/70' : ''}`}
                     title={
                       isCompanyAdmin
                         ? `Click to update attendance for ${d.dateStr}`
@@ -893,10 +942,10 @@ export default function EmployeeDetailPage() {
                           status === 'Present'
                             ? 'active'
                             : status === 'Late' || status === 'Half Day'
-                            ? 'pending'
-                            : status === 'Absent'
-                            ? 'inactive'
-                            : 'neutral'
+                              ? 'pending'
+                              : status === 'Absent'
+                                ? 'inactive'
+                                : 'neutral'
                         }
                       >
                         {status}
