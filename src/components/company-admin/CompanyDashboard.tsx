@@ -8,7 +8,7 @@ import { SubscriptionAlertBanner } from './SubscriptionAlertBanner';
 import { CompanyDepartmentHealth } from './CompanyDepartmentHealth';
 import { CompanyQuickActions } from './CompanyQuickActions';
 import { CompanyKioskGeofenceStatus } from './CompanyKioskGeofenceStatus';
-import { CompanyStaffAttendanceWidget } from './CompanyStaffAttendanceWidget';
+import { CompanyMonthlyShiftAnalytics } from './CompanyMonthlyShiftAnalytics';
 import { AddEmployeeModal } from './AddEmployeeModal';
 import { MarkAttendanceModal } from './MarkAttendanceModal';
 import { Building2, Plus, Calendar, Clock, MapPin, RefreshCw, Shield, UserPlus, Pencil } from 'lucide-react';
@@ -142,8 +142,8 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
         </div>
       </div>
 
-      {/* 4. Staff Clock In / Clock Out Quick Attendance Console */}
-      <CompanyStaffAttendanceWidget />
+      {/* 4. Monthly Attendance, Leaves & Shift Halves Analytics Graph */}
+      <CompanyMonthlyShiftAnalytics />
 
       {/* 5. Hardware Kiosk & Geofence Status */}
       <CompanyKioskGeofenceStatus />

@@ -386,19 +386,54 @@ export default function EmployeesPage() {
                       </div>
                     </td>
 
-                    {/* Status Badge */}
+                    {/* Status & Today Check-In Badge */}
                     <td className="py-3.5 px-4">
-                      <Badge
-                        variant={
-                          emp.status === 'Active'
-                            ? 'active'
-                            : emp.status === 'On Leave'
-                              ? 'pending'
-                              : 'neutral'
-                        }
-                      >
-                        {emp.status}
-                      </Badge>
+                      <div className="space-y-1">
+                        <Badge
+                          variant={
+                            emp.status === 'Active'
+                              ? 'active'
+                              : emp.status === 'On Leave'
+                                ? 'pending'
+                                : 'neutral'
+                          }
+                        >
+                          {emp.status}
+                        </Badge>
+                        {(() => {
+                          const todayStr = new Date().toISOString().split('T')[0];
+                          const todayPunch = attendanceRecords.find(
+                            (r) =>
+                              (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
+                              (r.date === todayStr || !r.date)
+                          );
+                          if (todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--') {
+                            const isLate = todayPunch.status === 'Late';
+                            return (
+                              <div
+                                className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border w-fit ${
+                                  isLate
+                                    ? 'text-amber-800 bg-amber-50 border-amber-200'
+                                    : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                }`}
+                              >
+                                {isLate ? (
+                                  <>
+                                    <span className="text-amber-600 font-black">❗</span>
+                                    <span>In: {todayPunch.checkIn} (Late)</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <span>In: {todayPunch.checkIn}</span>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
                     </td>
 
                     {/* Enrolled Date */}

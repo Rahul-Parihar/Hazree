@@ -30,6 +30,55 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
   const allEmployees = useAppSelector((state) => state.employees.employees);
   const isPunching = useAppSelector((state) => state.attendance.isPunching);
   const attendanceRecords = useAppSelector((state) => state.attendance.records);
+  const companies = useAppSelector((state) => state.companies.companies);
+
+  const currentCompany = companies.find(
+    (c) =>
+      c.id === currentUser?.companyId ||
+      c.id === `cmp_${currentUser?.companyId}` ||
+      String(c.id).replace('cmp_', '') === String(currentUser?.companyId || '').replace('cmp_', '') ||
+      c.name.toLowerCase() === (currentUser?.companyName || '').toLowerCase()
+  );
+
+  // Helper to determine if a check-in time exceeds company shift start time by more than 10 minutes
+  const calculateAutoAttendanceStatus = (
+    checkInTimeStr?: string,
+    shiftTimingsStr?: string
+  ): AttendanceRecord['status'] => {
+    if (!checkInTimeStr || checkInTimeStr === '--') return 'Present';
+
+    let shiftStartMinutes = 9 * 60; // 540 (09:00 AM)
+
+    if (shiftTimingsStr) {
+      const match = shiftTimingsStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const ampm = match[3].toUpperCase();
+        if (ampm === 'PM' && hours !== 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+        shiftStartMinutes = hours * 60 + minutes;
+      }
+    }
+
+    const matchPunch = checkInTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!matchPunch) return 'Present';
+
+    let punchHours = parseInt(matchPunch[1], 10);
+    const punchMinutes = parseInt(matchPunch[2], 10);
+    const punchAmPm = matchPunch[3].toUpperCase();
+    if (punchAmPm === 'PM' && punchHours !== 12) punchHours += 12;
+    if (punchAmPm === 'AM' && punchHours === 12) punchHours = 0;
+
+    const totalPunchMinutes = punchHours * 60 + punchMinutes;
+    const graceCutoff = shiftStartMinutes + 10;
+
+    if (totalPunchMinutes > graceCutoff) {
+      return 'Late';
+    }
+
+    return 'Present';
+  };
 
   // Scoped employees for current company
   const isCompanyAdmin = userRole === 'COMPANY_ADMIN';
@@ -81,6 +130,8 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
         targetEmp = companyEmployees[0];
       }
 
+      const autoStatus = calculateAutoAttendanceStatus(currentTimeStr, currentCompany?.shiftTimings);
+
       if (targetEmp) {
         setSelectedEmpId(targetEmp.id);
         setEmpName(targetEmp.name);
@@ -97,11 +148,11 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
         if (initialPunchType === 'CLOCK_OUT') {
           setCheckInTime(existingRec?.checkIn || '09:00 AM');
           setCheckOutTime(currentTimeStr);
-          setStatus(existingRec?.status || 'Present');
+          setStatus(existingRec?.status || autoStatus);
         } else {
           setCheckInTime(currentTimeStr);
           setCheckOutTime('--');
-          setStatus('Present');
+          setStatus(autoStatus);
         }
       } else {
         setSelectedEmpId('');
@@ -110,10 +161,10 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
         setDepartment('Engineering');
         setCheckInTime(currentTimeStr);
         setCheckOutTime('--');
-        setStatus('Present');
+        setStatus(autoStatus);
       }
     }
-  }, [isOpen, preSelectedEmployee, initialPunchType, companyEmployees.length]);
+  }, [isOpen, preSelectedEmployee, initialPunchType, companyEmployees.length, currentCompany?.shiftTimings]);
 
   const handleEmployeeSelect = (empId: string) => {
     setSelectedEmpId(empId);
@@ -328,22 +379,36 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
           />
         </div>
 
-        {/* 3. Check-In and Check-Out Times */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Check-In Time"
-            placeholder="09:00 AM"
-            value={checkInTime}
-            onChange={(e) => setCheckInTime(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Check-Out Time (Optional)"
-            placeholder="06:00 PM or --"
-            value={checkOutTime}
-            onChange={(e) => setCheckOutTime(e.target.value)}
-          />
+        {/* 3. Live Auto-Recorded Timestamp Card (Replaces manual 09:00 AM / 06:00 PM text inputs) */}
+        <div className="p-3.5 rounded-2xl border text-center space-y-1 bg-slate-50/90 border-slate-200/80">
+          {punchType === 'CLOCK_IN' ? (
+            <div className="bg-emerald-50/90 border border-emerald-200/80 p-3 rounded-xl">
+              <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Live Clock In Timestamp
+              </p>
+              <p className="text-2xl font-black text-emerald-950 font-mono mt-1">
+                {checkInTime}
+              </p>
+              <p className="text-[11px] text-emerald-700 font-medium">
+                Current exact minute will be saved automatically
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
+                <p className="text-[10px] font-bold text-slate-500 uppercase">Clock In Time</p>
+                <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">{checkInTime}</p>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-center">
+                <p className="text-[10px] font-bold text-amber-800 uppercase flex items-center justify-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Clock Out (Live)
+                </p>
+                <p className="text-sm font-extrabold text-amber-950 font-mono mt-0.5">{checkOutTime}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 4. Location & Device */}

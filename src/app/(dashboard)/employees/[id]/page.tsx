@@ -26,6 +26,8 @@ import {
   ShieldCheck,
   LogIn,
   LogOut,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/Button';
 import { Badge } from '../../../../components/ui/Badge';
@@ -33,6 +35,7 @@ import { Modal } from '../../../../components/ui/Modal';
 import { Input } from '../../../../components/ui/Input';
 import { useAppDispatch, useAppSelector } from '../../../../redux/hooks';
 import { fetchEmployeesAsync } from '../../../../redux/slices/employeesSlice';
+import { fetchLeavesAsync } from '../../../../redux/slices/leavesSlice';
 import {
   fetchAttendanceAsync,
   markAttendanceAsync,
@@ -57,6 +60,60 @@ const MONTH_NAMES = [
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Helper to determine if a check-in time exceeds company shift start time by more than 10 minutes
+export const calculateAutoAttendanceStatus = (
+  checkInTimeStr?: string,
+  shiftTimingsStr?: string
+): AttendanceStatus => {
+  if (!checkInTimeStr || checkInTimeStr === '--') return 'Present';
+
+  // Default company shift start: 09:00 AM (540 minutes from midnight)
+  let shiftStartMinutes = 9 * 60; // 540
+
+  if (shiftTimingsStr) {
+    const match = shiftTimingsStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (match) {
+      let hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const ampm = match[3].toUpperCase();
+      if (ampm === 'PM' && hours !== 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      shiftStartMinutes = hours * 60 + minutes;
+    }
+  }
+
+  const matchPunch = checkInTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!matchPunch) return 'Present';
+
+  let punchHours = parseInt(matchPunch[1], 10);
+  const punchMinutes = parseInt(matchPunch[2], 10);
+  const punchAmPm = matchPunch[3].toUpperCase();
+  if (punchAmPm === 'PM' && punchHours !== 12) punchHours += 12;
+  if (punchAmPm === 'AM' && punchHours === 12) punchHours = 0;
+
+  const totalPunchMinutes = punchHours * 60 + punchMinutes;
+
+  // 10 minutes grace buffer (e.g. 09:00 AM shift allows up to 09:10 AM)
+  const graceCutoff = shiftStartMinutes + 10;
+
+  if (totalPunchMinutes > graceCutoff) {
+    return 'Late';
+  }
+
+  return 'Present';
+};
+
+// Helper to get formatted current time e.g. "10:45 AM"
+export const getCurrentFormattedTime = (): string => {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const formattedHours = hours % 12 || 12;
+  const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+  return `${formattedHours}:${formattedMinutes} ${ampm}`;
+};
+
 export default function EmployeeDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -72,12 +129,14 @@ export default function EmployeeDetailPage() {
   const employees = useAppSelector((state) => state.employees.employees);
   const companies = useAppSelector((state) => state.companies.companies);
   const attendanceRecords = useAppSelector((state) => state.attendance.records);
+  const leaves = useAppSelector((state) => state.leaves.leaves);
   const isPunching = useAppSelector((state) => state.attendance.isPunching);
 
   // Selected Month & Year (defaults to current date e.g. August 2026)
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth()); // 0-indexed
 
+  const [isDetailedLogsExpanded, setIsDetailedLogsExpanded] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDayPunchModalOpen, setIsDayPunchModalOpen] = useState(false);
   const [selectedDateForPunch, setSelectedDateForPunch] = useState<string>('');
@@ -124,9 +183,10 @@ export default function EmployeeDetailPage() {
   const isClockedIn = Boolean(todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--');
   const isClockedOut = Boolean(isClockedIn && todayPunch && todayPunch.checkOut && todayPunch.checkOut !== '--');
 
-  // Load employee & companies
+  // Load employee, companies & leaves
   useEffect(() => {
     dispatch(fetchEmployeesAsync());
+    dispatch(fetchLeavesAsync());
   }, [dispatch]);
 
   const monthQueryString = useMemo(() => {
@@ -194,19 +254,31 @@ export default function EmployeeDetailPage() {
             String(r.employeeId).replace('emp_', '') === employeeId)
       );
 
+      // Check if employee has an approved leave covering this date
+      const isApprovedLeave = leaves.some((l) => {
+        const empMatch =
+          l.employeeId === `emp_${employeeId}` ||
+          l.employeeId === employeeId ||
+          String(l.employeeId).replace('emp_', '') === employeeId;
+        const statusMatch = (l.status || '').toLowerCase() === 'approved';
+        const inRange = l.startDate <= dateStr && dateStr <= (l.endDate || l.startDate);
+        return empMatch && statusMatch && inRange;
+      });
+
       days.push({
         dayNumber: day,
         dayOfWeek,
         isDayOff,
         isSunday,
         isSaturday,
+        isApprovedLeave,
         dateStr,
         punch,
       });
     }
 
     return days;
-  }, [selectedYear, selectedMonth, attendanceRecords, employeeId, saturdayPolicy]);
+  }, [selectedYear, selectedMonth, attendanceRecords, leaves, employeeId, saturdayPolicy]);
 
   // Compute monthly stats
   const monthlyStats = useMemo(() => {
@@ -221,15 +293,26 @@ export default function EmployeeDetailPage() {
     calendarDays.forEach((d) => {
       if (d.punch) {
         const s = (d.punch.status || '').toLowerCase();
-        if (s === 'present') presentCount++;
-        else if (s === 'late') {
+        const isAutoLate = calculateAutoAttendanceStatus(d.punch.checkIn || d.punch.checkInTime, employeeCompany?.shiftTimings) === 'Late';
+
+        if (s === 'holiday') {
+          holidayCount++;
+        } else if (s === 'day off') {
+          dayOffCount++;
+        } else if (s === 'on leave' || s === 'leave') {
+          leaveCount++;
+        } else if (s === 'half day' || s === 'half-day') {
+          halfDayCount++;
+        } else if (s === 'late' || (s === 'present' && isAutoLate)) {
           presentCount++;
           lateCount++;
-        } else if (s === 'half day' || s === 'half-day') halfDayCount++;
-        else if (s === 'absent') absentCount++;
-        else if (s === 'on leave' || s === 'leave') leaveCount++;
-        else if (s === 'holiday') holidayCount++;
-        else if (s === 'day off') dayOffCount++;
+        } else if (s === 'present') {
+          presentCount++;
+        } else if (s === 'absent') {
+          absentCount++;
+        }
+      } else if (d.isApprovedLeave) {
+        leaveCount++;
       } else if (d.isDayOff) {
         dayOffCount++;
       }
@@ -252,7 +335,7 @@ export default function EmployeeDetailPage() {
       workingDays,
       attendancePercentage: isNaN(attendancePercentage) ? 100 : attendancePercentage,
     };
-  }, [calendarDays]);
+  }, [calendarDays, employeeCompany?.shiftTimings]);
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -277,27 +360,53 @@ export default function EmployeeDetailPage() {
   const handleOpenDayPunch = (dateStr: string, existingPunch?: AttendanceRecord) => {
     if (!isCompanyAdmin) return;
     setSelectedDateForPunch(dateStr);
+    const nowTime = getCurrentFormattedTime();
+
     if (existingPunch) {
-      setPunchStatus(existingPunch.status || 'Present');
-      setPunchCheckIn(existingPunch.checkIn || existingPunch.checkInTime || '09:00 AM');
-      setPunchCheckOut(existingPunch.checkOut || existingPunch.checkOutTime || '06:00 PM');
+      const autoStatus = calculateAutoAttendanceStatus(
+        existingPunch.checkIn || existingPunch.checkInTime || nowTime,
+        employeeCompany?.shiftTimings
+      );
+      setPunchStatus(existingPunch.status || autoStatus);
+      setPunchCheckIn(existingPunch.checkIn || existingPunch.checkInTime || nowTime);
+      
+      // If already clocked in and now clocking out, set actual real-time as check out
+      if (existingPunch.checkIn && existingPunch.checkIn !== '--') {
+        setPunchCheckOut(
+          existingPunch.checkOut && existingPunch.checkOut !== '--'
+            ? existingPunch.checkOut
+            : nowTime
+        );
+      } else {
+        setPunchCheckOut(existingPunch.checkOut && existingPunch.checkOut !== '--' ? existingPunch.checkOut : '--');
+      }
       setPunchLocation(existingPunch.location || 'Office Premises (Verified)');
     } else {
-      setPunchStatus('Present');
-      setPunchCheckIn('09:00 AM');
-      setPunchCheckOut('06:00 PM');
+      const autoStatus = calculateAutoAttendanceStatus(nowTime, employeeCompany?.shiftTimings);
+      setPunchStatus(autoStatus);
+      setPunchCheckIn(nowTime);
+      setPunchCheckOut('--');
       setPunchLocation('Office Premises (Verified)');
     }
     setIsDayPunchModalOpen(true);
   };
 
-  // Save Day Punch to Server
-  const handleSaveDayPunch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Save Day Punch to Server with Exact Current Time & 10-Min Late Detection
+  const handleSaveDayPunch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!employee || !selectedDateForPunch) return;
 
     try {
       const rawCompId = employee.companyId ? Number(String(employee.companyId).replace('cmp_', '')) : undefined;
+      const liveTime = getCurrentFormattedTime();
+
+      // If clocking in for first time today
+      const finalCheckIn = !isClockedIn ? liveTime : todayPunch?.checkIn || punchCheckIn || liveTime;
+      const finalCheckOut = !isClockedIn ? '--' : liveTime;
+
+      // Automatically determine if late (> 10 minutes past shift start)
+      const autoStatus = calculateAutoAttendanceStatus(finalCheckIn, employeeCompany?.shiftTimings);
+      const finalStatus = punchStatus === 'Present' ? autoStatus : punchStatus;
 
       await dispatch(
         markAttendanceAsync({
@@ -307,16 +416,20 @@ export default function EmployeeDetailPage() {
           department: employee.department,
           company_id: rawCompId,
           date: selectedDateForPunch,
-          check_in_time: punchCheckIn,
-          check_out_time: punchCheckOut,
-          status: punchStatus,
+          check_in_time: finalCheckIn,
+          check_out_time: finalCheckOut,
+          status: finalStatus,
           location: punchLocation,
-          device: 'Admin Console Calendar Override',
+          device: 'Admin Console Live Punch',
         })
       );
 
-      setSaveSuccessMsg(`Attendance updated for ${selectedDateForPunch}`);
-      setTimeout(() => setSaveSuccessMsg(null), 3000);
+      setSaveSuccessMsg(
+        !isClockedIn
+          ? `Clock In recorded at ${finalCheckIn} (${finalStatus}) for ${employee.name}`
+          : `Clock Out recorded at ${finalCheckOut} for ${employee.name}`
+      );
+      setTimeout(() => setSaveSuccessMsg(null), 3500);
       setIsDayPunchModalOpen(false);
 
       // Refresh records
@@ -358,6 +471,16 @@ export default function EmployeeDetailPage() {
   const renderStatusIcon = (day: (typeof calendarDays)[0]) => {
     const punch = day.punch;
     if (!punch) {
+      if (day.isApprovedLeave) {
+        return (
+          <span
+            className="inline-flex items-center justify-center text-sky-500 font-black text-sm select-none"
+            title={`Approved Leave (${day.dateStr})`}
+          >
+            🛫
+          </span>
+        );
+      }
       if (day.isDayOff) {
         return (
           <span
@@ -379,6 +502,21 @@ export default function EmployeeDetailPage() {
     }
 
     const s = (punch.status || '').toLowerCase();
+    const isAutoLate = calculateAutoAttendanceStatus(
+      punch.checkIn || punch.checkInTime,
+      employeeCompany?.shiftTimings
+    ) === 'Late';
+
+    if (s === 'late' || (s === 'present' && isAutoLate)) {
+      return (
+        <span
+          className="inline-flex items-center justify-center text-amber-500 font-black text-sm select-none"
+          title={`Late Arrival (In: ${punch.checkIn || punch.checkInTime || '--'} • Past 10m Grace)`}
+        >
+          ❗
+        </span>
+      );
+    }
     if (s === 'present') {
       return (
         <span
@@ -396,16 +534,6 @@ export default function EmployeeDetailPage() {
           title="Absent"
         >
           ❌
-        </span>
-      );
-    }
-    if (s === 'late') {
-      return (
-        <span
-          className="inline-flex items-center justify-center text-amber-500 font-black text-sm select-none"
-          title={`Late Arrival (In: ${punch.checkIn || '--'})`}
-        >
-          ❗
         </span>
       );
     }
@@ -515,39 +643,190 @@ export default function EmployeeDetailPage() {
 
         <div className="flex items-center gap-2 flex-wrap">
           {isCompanyAdmin && (
-            <>
+            <div className="relative">
               {!isClockedIn ? (
                 <button
                   type="button"
                   onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
                   title="Clock in staff for today"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
                 >
-                  <LogIn className="w-3.5 h-3.5 text-emerald-600" />
+                  <LogIn className="w-3.5 h-3.5" />
                   <span>Clock In</span>
                 </button>
               ) : !isClockedOut ? (
-                <button
-                  type="button"
-                  onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
-                  title={`Clocked In at ${todayPunch?.checkIn || '--'}. Click to Clock Out.`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
-                >
-                  <LogOut className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Clock Out</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold shadow-xs">
+                    <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>In: <strong className="font-mono text-emerald-950">{todayPunch?.checkIn || todayPunch?.checkInTime}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
+                    title={`Clocked In at ${todayPunch?.checkIn || '--'}. Click to Clock Out.`}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Clock Out</span>
+                  </button>
+                </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
-                  title="Attendance session complete. Click to adjust punch details."
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Clocked Out ({todayPunch?.checkOut})</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1.5 rounded-xl text-xs font-semibold">
+                    <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>In: <strong className="font-mono text-slate-900">{todayPunch?.checkIn || todayPunch?.checkInTime}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
+                    title="Attendance session complete. Click to adjust punch details."
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Clocked Out</span>
+                  </button>
+                </div>
               )}
-            </>
+
+              {/* Anchored Popover directly below/next to the Clock In/Out button */}
+              {isDayPunchModalOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]"
+                    onClick={() => setIsDayPunchModalOpen(false)}
+                  />
+
+                  {/* Popover Card */}
+                  <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 z-50 w-[330px] sm:w-[380px] bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 sm:p-5 space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`p-1.5 rounded-xl ${
+                            !isClockedIn
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : !isClockedOut
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {!isClockedIn ? (
+                            <LogIn className="w-4 h-4" />
+                          ) : !isClockedOut ? (
+                            <LogOut className="w-4 h-4" />
+                          ) : (
+                            <Clock className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-extrabold text-slate-900">
+                            {!isClockedIn
+                              ? 'Clock In Attendance'
+                              : !isClockedOut
+                              ? 'Clock Out Attendance'
+                              : 'Adjust Attendance'}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            {employee.name} • {selectedDateForPunch}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsDayPunchModalOpen(false)}
+                        className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Live Timestamp Card (Replaces manual 09:00 AM / 06:00 PM inputs) */}
+                    <div className="p-3 rounded-2xl border text-center space-y-1 bg-slate-50/90 border-slate-200/80">
+                      {!isClockedIn ? (
+                        <div className="bg-emerald-50/90 border border-emerald-200/80 p-3 rounded-xl">
+                          <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Live Clock In Timestamp
+                          </p>
+                          <p className="text-2xl font-black text-emerald-950 font-mono mt-1">
+                            {getCurrentFormattedTime()}
+                          </p>
+                          <p className="text-[11px] text-emerald-700 font-medium">
+                            Current exact time will be recorded
+                          </p>
+                        </div>
+                      ) : !isClockedOut ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Clock In Time</p>
+                            <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
+                              {todayPunch?.checkIn || todayPunch?.checkInTime || '--'}
+                            </p>
+                          </div>
+                          <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-center">
+                            <p className="text-[10px] font-bold text-amber-800 uppercase flex items-center justify-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Clock Out
+                            </p>
+                            <p className="text-sm font-extrabold text-amber-950 font-mono mt-0.5">
+                              {getCurrentFormattedTime()}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Clock In</p>
+                            <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
+                              {todayPunch?.checkIn || '--'}
+                            </p>
+                          </div>
+                          <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Clock Out</p>
+                            <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
+                              {todayPunch?.checkOut || '--'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quick Confirmation Button */}
+                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setIsDayPunchModalOpen(false)}
+                        className="px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <Button
+                        type="button"
+                        onClick={handleSaveDayPunch}
+                        variant="primary"
+                        size="sm"
+                        isLoading={isPunching}
+                        icon={!isClockedIn ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
+                        className={
+                          !isClockedIn
+                            ? '!bg-emerald-600 hover:!bg-emerald-500'
+                            : !isClockedOut
+                            ? '!bg-amber-500 hover:!bg-amber-600'
+                            : '!bg-slate-800 hover:!bg-slate-700'
+                        }
+                      >
+                        {!isClockedIn
+                          ? `Clock In Now (${getCurrentFormattedTime()})`
+                          : !isClockedOut
+                          ? `Clock Out Now (${getCurrentFormattedTime()})`
+                          : 'Save Record'}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           )}
 
           <Button
@@ -891,9 +1170,9 @@ export default function EmployeeDetailPage() {
         </div>
       </div>
 
-      {/* Detailed Monthly Attendance Breakdown Table */}
+      {/* Detailed Monthly Attendance Breakdown Table (Default 5 records with View More) */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden space-y-3 p-5 sm:p-6">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
           <div>
             <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
               <Clock className="w-4 h-4 text-emerald-600" />
@@ -902,6 +1181,11 @@ export default function EmployeeDetailPage() {
             <p className="text-xs text-slate-500 mt-0.5">
               Day-by-day biometric timestamps, work duration and verification locations
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl">
+              Showing {isDetailedLogsExpanded ? calendarDays.length : Math.min(5, calendarDays.length)} of {calendarDays.length} Days
+            </span>
           </div>
         </div>
 
@@ -919,9 +1203,16 @@ export default function EmployeeDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-              {calendarDays.map((d) => {
+              {(isDetailedLogsExpanded ? calendarDays : calendarDays.slice(0, 5)).map((d) => {
                 const punch = d.punch;
-                const status = punch ? punch.status : d.isDayOff ? 'Day Off' : 'Not Recorded';
+                const isAutoLate = punch && calculateAutoAttendanceStatus(punch.checkIn || punch.checkInTime, employeeCompany?.shiftTimings) === 'Late';
+                const status = (punch?.status === 'Present' && isAutoLate)
+                  ? 'Late'
+                  : punch
+                  ? punch.status
+                  : d.isDayOff
+                  ? 'Day Off'
+                  : 'Not Recorded';
                 const checkIn = punch?.checkIn || punch?.checkInTime || '--';
                 const checkOut = punch?.checkOut || punch?.checkOutTime || '--';
                 const workHours = punch?.workHours || (punch ? 'Completed' : '--');
@@ -975,6 +1266,29 @@ export default function EmployeeDetailPage() {
             </tbody>
           </table>
         </div>
+
+        {/* View More / Show Less Toggle Bar */}
+        {calendarDays.length > 5 && (
+          <div className="flex items-center justify-center pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsDetailedLogsExpanded((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl border border-slate-200 transition-all cursor-pointer active:scale-95 shadow-xs"
+            >
+              {isDetailedLogsExpanded ? (
+                <>
+                  <ChevronUp className="w-4 h-4 text-slate-600" />
+                  <span>Show Less (Show 5 Days)</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 text-slate-600" />
+                  <span>View More ({calendarDays.length - 5} More Days)</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Edit Employee Profile Modal */}
@@ -988,83 +1302,7 @@ export default function EmployeeDetailPage() {
           }}
         />
       )}
-
-      {/* Quick Attendance Punch / Adjust Modal */}
-      {isDayPunchModalOpen && (
-        <Modal
-          isOpen={isDayPunchModalOpen}
-          onClose={() => setIsDayPunchModalOpen(false)}
-          title="Mark / Adjust Attendance"
-          subtitle={`${employee.name} • ${selectedDateForPunch}`}
-          maxWidth="sm"
-        >
-          <form onSubmit={handleSaveDayPunch} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Attendance Status *
-              </label>
-              <select
-                value={punchStatus}
-                onChange={(e) => setPunchStatus(e.target.value as AttendanceStatus)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-              >
-                <option value="Present">✔️ Present</option>
-                <option value="Late">❗ Late Arrival</option>
-                <option value="Half Day">🌟 Half Day</option>
-                <option value="Absent">❌ Absent</option>
-                <option value="On Leave">🛫 On Leave</option>
-                <option value="Holiday">⭐ Holiday</option>
-                <option value="Day Off">📅 Day Off</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Check In Time"
-                value={punchCheckIn}
-                onChange={(e) => setPunchCheckIn(e.target.value)}
-                placeholder="09:00 AM"
-                icon={<Clock className="w-4 h-4" />}
-              />
-              <Input
-                label="Check Out Time"
-                value={punchCheckOut}
-                onChange={(e) => setPunchCheckOut(e.target.value)}
-                placeholder="06:00 PM"
-                icon={<Clock className="w-4 h-4" />}
-              />
-            </div>
-
-            <Input
-              label="Location / Note"
-              value={punchLocation}
-              onChange={(e) => setPunchLocation(e.target.value)}
-              placeholder="Office Premises / Remote"
-              icon={<Building2 className="w-4 h-4" />}
-            />
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsDayPunchModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="sm"
-                isLoading={isPunching}
-                icon={<Save className="w-4 h-4" />}
-              >
-                Save Attendance
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
     </div>
   );
 }
+

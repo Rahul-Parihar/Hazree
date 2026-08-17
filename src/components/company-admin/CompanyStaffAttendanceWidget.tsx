@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Users,
   Search,
@@ -15,6 +15,8 @@ import {
   Phone,
   Mail,
   User,
+  Activity,
+  Filter,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { fetchAttendanceAsync } from '../../redux/slices/attendanceSlice';
@@ -45,15 +47,18 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
   const myCompanyName = (currentUser?.companyName || currentCompany?.name || '').trim().toLowerCase();
 
   // Filter employees strictly for this company
-  const companyEmployees = allEmployees.filter((e) => {
-    const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
-    if (myCompanyId && empCompId && empCompId === myCompanyId) return true;
-    if (myCompanyName && e.companyName && e.companyName.trim().toLowerCase() === myCompanyName) return true;
-    return false;
-  });
+  const companyEmployees = useMemo(() => {
+    return allEmployees.filter((e) => {
+      const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
+      if (myCompanyId && empCompId && empCompId === myCompanyId) return true;
+      if (myCompanyName && e.companyName && e.companyName.trim().toLowerCase() === myCompanyName) return true;
+      return false;
+    });
+  }, [allEmployees, myCompanyId, myCompanyName]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED' | 'NOT_PUNCHED'>('ALL');
   const [selectedEmpForPunch, setSelectedEmpForPunch] = useState<Employee | null>(null);
   const [punchType, setPunchType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>('CLOCK_IN');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,33 +66,85 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Distinct roles for filter
-  const distinctRoles = Array.from(new Set(companyEmployees.map((e) => e.role).filter(Boolean)));
+  const distinctRoles = useMemo(() => {
+    return Array.from(new Set(companyEmployees.map((e) => e.role).filter(Boolean)));
+  }, [companyEmployees]);
 
-  const filteredEmployees = companyEmployees.filter((emp) => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      emp.name.toLowerCase().includes(q) ||
-      emp.email.toLowerCase().includes(q) ||
-      emp.department.toLowerCase().includes(q) ||
-      emp.role.toLowerCase().includes(q);
+  // Compute live presence stats
+  const staffPunchStats = useMemo(() => {
+    let activeSessions = 0;
+    let completedSessions = 0;
+    let notPunched = 0;
 
-    const matchesRole = roleFilter === 'ALL' || emp.role.toLowerCase() === roleFilter.toLowerCase();
-    return matchesSearch && matchesRole;
-  });
+    companyEmployees.forEach((emp) => {
+      const punch = attendanceRecords.find(
+        (r) =>
+          (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
+          (r.date === todayStr || !r.date)
+      );
 
-  // Calculate live presence stats
-  const presentCount = companyEmployees.filter((emp) => {
-    const punch = attendanceRecords.find(
-      (r) =>
-        (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
-        (r.date === todayStr || !r.date)
-    );
-    return punch && punch.checkIn && punch.checkIn !== '--';
-  }).length;
+      const isClockedIn = punch && punch.checkIn && punch.checkIn !== '--';
+      const isClockedOut = isClockedIn && punch.checkOut && punch.checkOut !== '--';
+
+      if (isClockedOut) {
+        completedSessions++;
+      } else if (isClockedIn) {
+        activeSessions++;
+      } else {
+        notPunched++;
+      }
+    });
+
+    const clockedInTotal = activeSessions + completedSessions;
+    const totalStaff = companyEmployees.length || 1;
+    const percentage = Math.round((clockedInTotal / totalStaff) * 100);
+
+    return {
+      clockedInTotal,
+      activeSessions,
+      completedSessions,
+      notPunched,
+      totalStaff: companyEmployees.length,
+      percentage,
+    };
+  }, [companyEmployees, attendanceRecords, todayStr]);
+
+  const filteredEmployees = useMemo(() => {
+    return companyEmployees.filter((emp) => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        emp.name.toLowerCase().includes(q) ||
+        emp.email.toLowerCase().includes(q) ||
+        emp.department.toLowerCase().includes(q) ||
+        emp.role.toLowerCase().includes(q);
+
+      const matchesRole = roleFilter === 'ALL' || emp.role.toLowerCase() === roleFilter.toLowerCase();
+
+      const todayPunch = attendanceRecords.find(
+        (r) =>
+          (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
+          (r.date === todayStr || !r.date)
+      );
+
+      const isClockedIn = todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--';
+      const isClockedOut = isClockedIn && todayPunch.checkOut && todayPunch.checkOut !== '--';
+
+      let matchesStatus = true;
+      if (statusFilter === 'ACTIVE') {
+        matchesStatus = Boolean(isClockedIn && !isClockedOut);
+      } else if (statusFilter === 'COMPLETED') {
+        matchesStatus = Boolean(isClockedOut);
+      } else if (statusFilter === 'NOT_PUNCHED') {
+        matchesStatus = !isClockedIn;
+      }
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [companyEmployees, searchQuery, roleFilter, statusFilter, attendanceRecords, todayStr]);
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-4">
-      {/* Header with Title and Filters */}
+    <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-5">
+      {/* 1. Header with Title & Quick Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-bold shadow-sm shrink-0">
@@ -99,7 +156,7 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
                 Staff Quick Punch Console
               </h3>
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                {presentCount} / {companyEmployees.length} Clocked In Today
+                {staffPunchStats.clockedInTotal} / {staffPunchStats.totalStaff} Clocked In Today
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -138,14 +195,110 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
         </div>
       </div>
 
-      {/* Staff Roster Grid / Table */}
+      {/* 2. Visual Punch Status Summary Bar & Interactive Status Filter Tabs */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50/80 p-3 rounded-2xl border border-slate-200/70">
+        {/* Total Roster Card */}
+        <button
+          onClick={() => setStatusFilter('ALL')}
+          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
+            statusFilter === 'ALL'
+              ? 'bg-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
+              : 'bg-white/60 border-slate-200 hover:bg-white'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-600">All Staff</span>
+            <Users className="w-3.5 h-3.5 text-slate-400" />
+          </div>
+          <p className="text-lg font-extrabold text-slate-900 mt-1 font-mono">{staffPunchStats.totalStaff}</p>
+          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
+            <div className="bg-slate-700 h-full rounded-full w-full" />
+          </div>
+        </button>
+
+        {/* Active Sessions Card */}
+        <button
+          onClick={() => setStatusFilter('ACTIVE')}
+          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
+            statusFilter === 'ACTIVE'
+              ? 'bg-white border-amber-500 shadow-sm ring-2 ring-amber-500/20'
+              : 'bg-white/60 border-slate-200 hover:bg-white'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-amber-800 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> Active Sessions
+            </span>
+            <Activity className="w-3.5 h-3.5 text-amber-500" />
+          </div>
+          <p className="text-lg font-extrabold text-amber-900 mt-1 font-mono">{staffPunchStats.activeSessions}</p>
+          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
+            <div
+              className="bg-amber-500 h-full rounded-full transition-all"
+              style={{
+                width: `${staffPunchStats.totalStaff ? (staffPunchStats.activeSessions / staffPunchStats.totalStaff) * 100 : 0}%`,
+              }}
+            />
+          </div>
+        </button>
+
+        {/* Completed Shifts Card */}
+        <button
+          onClick={() => setStatusFilter('COMPLETED')}
+          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
+            statusFilter === 'COMPLETED'
+              ? 'bg-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
+              : 'bg-white/60 border-slate-200 hover:bg-white'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-emerald-800">Completed Shift</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          </div>
+          <p className="text-lg font-extrabold text-emerald-900 mt-1 font-mono">{staffPunchStats.completedSessions}</p>
+          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
+            <div
+              className="bg-emerald-500 h-full rounded-full transition-all"
+              style={{
+                width: `${staffPunchStats.totalStaff ? (staffPunchStats.completedSessions / staffPunchStats.totalStaff) * 100 : 0}%`,
+              }}
+            />
+          </div>
+        </button>
+
+        {/* Pending Punch Card */}
+        <button
+          onClick={() => setStatusFilter('NOT_PUNCHED')}
+          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
+            statusFilter === 'NOT_PUNCHED'
+              ? 'bg-white border-rose-500 shadow-sm ring-2 ring-rose-500/20'
+              : 'bg-white/60 border-slate-200 hover:bg-white'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-600">Pending Punch</span>
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+          </div>
+          <p className="text-lg font-extrabold text-slate-900 mt-1 font-mono">{staffPunchStats.notPunched}</p>
+          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
+            <div
+              className="bg-rose-400 h-full rounded-full transition-all"
+              style={{
+                width: `${staffPunchStats.totalStaff ? (staffPunchStats.notPunched / staffPunchStats.totalStaff) * 100 : 0}%`,
+              }}
+            />
+          </div>
+        </button>
+      </div>
+
+      {/* 3. Staff Roster Grid / Table */}
       {filteredEmployees.length === 0 ? (
         <div className="p-8 text-center bg-slate-50/70 rounded-2xl border border-slate-200/60 space-y-2">
           <p className="text-sm font-bold text-slate-700">No Staff Members Found</p>
           <p className="text-xs text-slate-400">
             {companyEmployees.length === 0
               ? 'Onboard staff members to allow 1-click Clock In / Clock Out from this console.'
-              : 'Try clearing the search or filter query.'}
+              : 'Try adjusting the search query or status filter.'}
           </p>
         </div>
       ) : (
@@ -219,7 +372,7 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
                         </span>
                       ) : isClockedIn ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                          Active Session
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> Active Session
                         </span>
                       ) : (
                         <span className="text-slate-400 font-mono text-xs">--</span>
@@ -247,7 +400,7 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
                             setPunchType('CLOCK_OUT');
                             setIsModalOpen(true);
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer animate-pulse-subtle"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
                         >
                           <LogOut className="w-3.5 h-3.5" />
                           <span>Clock Out</span>
@@ -287,3 +440,4 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
     </div>
   );
 };
+
