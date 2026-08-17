@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { CompanyTable } from '../../../components/super-admin/CompanyTable';
 import { RegisterCompanyModal } from '../../../components/super-admin/RegisterCompanyModal';
 import { PlatformStats } from '../../../components/super-admin/PlatformStats';
+import { HazreeDataLoader } from '../../../components/ui/HazreeDataLoader';
 import { Company } from '../../../types';
 import { Building2, Plus, RefreshCw, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
@@ -117,11 +118,15 @@ export default function CompaniesPage() {
       {/* Platform Stats */}
       <PlatformStats totalCompanies={companies.length} />
 
-      {/* Company Table */}
-      <CompanyTable
-        companies={companies}
-        onStatusChange={handleCompanyStatusChange}
-      />
+      {/* Company Table or Skeleton */}
+      {isLoading && companies.length === 0 ? (
+        <HazreeDataLoader type="table-skeleton" rows={5} />
+      ) : (
+        <CompanyTable
+          companies={companies}
+          onStatusChange={handleCompanyStatusChange}
+        />
+      )}
 
       <RegisterCompanyModal
         isOpen={isRegisterModalOpen}

@@ -32,14 +32,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({ children, pageTi
   }, [pathname]);
 
   if (!mounted) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-900 text-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-slate-400 font-medium">Verifying Hazree session...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

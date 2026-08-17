@@ -40,6 +40,7 @@ import { fetchDepartmentsAsync } from '../../../redux/slices/departmentsSlice';
 import { AddEmployeeModal } from '../../../components/company-admin/AddEmployeeModal';
 import { EditEmployeeModal } from '../../../components/company-admin/EditEmployeeModal';
 import { MarkAttendanceModal } from '../../../components/company-admin/MarkAttendanceModal';
+import { HazreeDataLoader } from '../../../components/ui/HazreeDataLoader';
 import { Employee } from '../../../types';
 
 export default function EmployeesPage() {
@@ -283,7 +284,9 @@ export default function EmployeesPage() {
       </div>
 
       {/* Employee Professional Table List View */}
-      {filteredEmployees.length === 0 ? (
+      {isLoading && employees.length === 0 ? (
+        <HazreeDataLoader type="table-skeleton" rows={6} />
+      ) : filteredEmployees.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-3">
           <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
             <Users className="w-6 h-6" />

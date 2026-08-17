@@ -25,6 +25,7 @@ import {
   clearLeaveSuccess,
 } from '../../../redux/slices/leavesSlice';
 import { LeaveRequest, LeaveStatus, LeaveType } from '../../../types';
+import { HazreeDataLoader } from '../../../components/ui/HazreeDataLoader';
 
 export default function LeavesPage() {
   const dispatch = useAppDispatch();
@@ -215,7 +216,9 @@ export default function LeavesPage() {
 
       {/* Leave Cards */}
       <div className="space-y-4">
-        {filteredLeaves.length === 0 ? (
+        {isLoading && leaves.length === 0 ? (
+          <HazreeDataLoader type="table-skeleton" rows={4} />
+        ) : filteredLeaves.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-500">
             <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
             <p className="font-semibold text-sm">No leave requests found in this category.</p>
