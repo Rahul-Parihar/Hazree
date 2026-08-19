@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Search,
@@ -62,6 +62,16 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
   const [selectedEmpForPunch, setSelectedEmpForPunch] = useState<Employee | null>(null);
   const [punchType, setPunchType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>('CLOCK_IN');
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // 15-second polling to auto-refresh attendance from backend
+  // This enables customer self clock-ins to appear here automatically
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      dispatch(fetchAttendanceAsync());
+    }, 15000);
+
+    return () => clearInterval(pollInterval);
+  }, [dispatch]);
 
   const todayStr = new Date().toISOString().split('T')[0];
 

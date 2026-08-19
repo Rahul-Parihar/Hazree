@@ -42,6 +42,16 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
     dispatch(fetchDepartmentsAsync(currentUser?.companyId));
   }, [dispatch, currentUser?.companyId]);
 
+  // 15-second polling to keep attendance data synced with backend
+  // Customer self clock-ins will reflect here automatically
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      dispatch(fetchAttendanceAsync());
+    }, 15000);
+
+    return () => clearInterval(pollInterval);
+  }, [dispatch]);
+
   const currentCompany =
     companies.find(
       (c) =>
