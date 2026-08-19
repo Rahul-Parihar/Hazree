@@ -349,7 +349,9 @@ export const companiesSlice = createSlice({
     builder
       // Fetch Companies
       .addCase(fetchCompaniesAsync.pending, (state) => {
-        state.isLoading = true;
+        if (state.companies.length === 0) {
+          state.isLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchCompaniesAsync.fulfilled, (state, action) => {

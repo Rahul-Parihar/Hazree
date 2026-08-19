@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -112,16 +111,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const filteredNav = navItems.filter((item) => item.roles.includes(userRole));
 
+  useEffect(() => {
+    // Pre-cache all routes on mount for instantaneous navigation
+    filteredNav.forEach((item) => {
+      router.prefetch(item.href);
+    });
+  }, [router]);
+
   const handleLogout = () => {
     dispatch(logout());
     if (onCloseMobile) onCloseMobile();
     router.push('/login');
   };
 
-  const handleNavClick = () => {
+  const handleNavClick = (href: string) => {
     if (onCloseMobile) {
       onCloseMobile();
     }
+    router.push(href);
   };
 
   return (
@@ -205,12 +212,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const Icon = item.icon;
 
           return (
-            <Link
+            <button
               key={item.name}
-              href={item.href}
-              onClick={handleNavClick}
+              type="button"
+              onClick={() => handleNavClick(item.href)}
               className={cn(
-                'flex items-center gap-3 px-3 py-3 rounded-xl font-medium text-sm transition-all duration-200 group relative',
+                'w-full flex items-center gap-3 px-3 py-3 rounded-xl font-medium text-sm transition-all duration-200 group relative text-left cursor-pointer',
                 isActive
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -233,7 +240,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {item.badgeCount}
                 </span>
               )}
-            </Link>
+            </button>
           );
         })}
       </nav>

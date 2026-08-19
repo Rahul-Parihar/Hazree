@@ -162,7 +162,9 @@ export const employeesSlice = createSlice({
     builder
       // Fetch Employees
       .addCase(fetchEmployeesAsync.pending, (state) => {
-        state.isLoading = true;
+        if (state.employees.length === 0) {
+          state.isLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchEmployeesAsync.fulfilled, (state, action) => {

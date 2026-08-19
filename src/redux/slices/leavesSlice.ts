@@ -136,7 +136,9 @@ export const leavesSlice = createSlice({
     builder
       // Fetch Leaves
       .addCase(fetchLeavesAsync.pending, (state) => {
-        state.isLoading = true;
+        if (state.leaves.length === 0) {
+          state.isLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchLeavesAsync.fulfilled, (state, action) => {

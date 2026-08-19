@@ -152,7 +152,9 @@ export const attendanceSlice = createSlice({
     builder
       // Fetch Attendance Logs
       .addCase(fetchAttendanceAsync.pending, (state) => {
-        state.isLoading = true;
+        if (state.records.length === 0) {
+          state.isLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchAttendanceAsync.fulfilled, (state, action) => {

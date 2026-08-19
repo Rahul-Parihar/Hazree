@@ -57,7 +57,9 @@ export const subscriptionsSlice = createSlice({
     builder
       // Fetch Plans
       .addCase(fetchSubscriptionPlansAsync.pending, (state) => {
-        state.isLoading = true;
+        if (state.plans.length === 0) {
+          state.isLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchSubscriptionPlansAsync.fulfilled, (state, action: PayloadAction<BackendSubscriptionPlan[]>) => {

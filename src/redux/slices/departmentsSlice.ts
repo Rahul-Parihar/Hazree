@@ -101,7 +101,9 @@ const departmentsSlice = createSlice({
     // Fetch
     builder
       .addCase(fetchDepartmentsAsync.pending, (state) => {
-        state.isLoading = true;
+        if (state.departments.length === 0) {
+          state.isLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchDepartmentsAsync.fulfilled, (state, action: PayloadAction<BackendDepartment[]>) => {
