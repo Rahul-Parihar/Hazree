@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Sidebar from "./Sidebar";
 import TopNavbar from "./TopNavbar";
 import WeekTimelogsWidget from "./WeekTimelogsWidget";
@@ -27,6 +27,11 @@ import {
 } from "lucide-react";
 import { useCustomerApp } from "@/context/CustomerAppContext";
 import { useLiveClock } from "@/hooks/useLiveClock";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import {
+  fetchAttendanceAsync,
+  incrementElapsedSeconds,
+} from "@/redux/slices/attendanceSlice";
 
 interface EmployeeDashboardLayoutProps {
   onLogout: () => void;
@@ -35,26 +40,83 @@ interface EmployeeDashboardLayoutProps {
 export default function EmployeeDashboardLayout({
   onLogout,
 }: EmployeeDashboardLayoutProps) {
-  const { activeEmployee, todayPunch, recordPunch, leaveBalance } = useCustomerApp();
+  const dispatch = useAppDispatch();
+  const { activeEmployee, todayPunch, recordPunch, leaveBalance, punchRecords } = useCustomerApp();
   const { formattedTime } = useLiveClock();
   const [activeNav, setActiveNav] = useState("dashboard");
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [clockInTime, setClockInTime] = useState<string | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  React.useEffect(() => {
+  // Use Redux state for clock-in status (synced with backend)
+  const isClockedIn = useAppSelector((state) => state.attendance.isClockedIn);
+  const clockInTime = useAppSelector((state) => state.attendance.clockInTime);
+  const elapsedSeconds = useAppSelector((state) => state.attendance.elapsedSeconds);
+
+  // Elapsed seconds timer — driven by Redux
+  useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isClockedIn) {
       interval = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
+        dispatch(incrementElapsedSeconds());
       }, 1000);
-    } else {
-      if (interval) clearInterval(interval);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isClockedIn]);
+  }, [isClockedIn, dispatch]);
+
+  // 15-second polling to sync attendance state from backend
+  // This enables admin-initiated clock-ins to reflect here automatically
+  useEffect(() => {
+    if (!activeEmployee?.id) return;
+
+    const pollAttendance = () => {
+      dispatch(
+        fetchAttendanceAsync({
+          employeeId: activeEmployee.id,
+          employeeCode: activeEmployee.employeeCode,
+        })
+      );
+    };
+
+    // Poll every 15 seconds
+    const pollInterval = setInterval(pollAttendance, 15000);
+
+    return () => clearInterval(pollInterval);
+  }, [activeEmployee?.id, activeEmployee?.employeeCode, dispatch]);
+
+  // Compute dynamic attendance stats from punchRecords
+  const currentMonth = new Date().getMonth(); // 0-indexed
+  const currentYear = new Date().getFullYear();
+  const currentMonthName = new Date().toLocaleString("en-IN", { month: "long" });
+
+  const monthlyStats = useMemo(() => {
+    const empId = activeEmployee?.id;
+    if (!empId) return { present: 0, late: 0, halfDay: 0, absent: 0 };
+
+    const monthRecords = punchRecords.filter((p) => {
+      const targetId = Number(String(p.employeeId).replace("emp_", ""));
+      if (targetId !== Number(String(empId).replace("emp_", ""))) return false;
+      // Parse date — support YYYY-MM-DD and DD/MM/YYYY formats
+      let recordDate: Date | null = null;
+      if (p.date && p.date.includes("-")) {
+        recordDate = new Date(p.date);
+      } else if (p.date && p.date.includes("/")) {
+        const parts = p.date.split("/");
+        recordDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      }
+      if (!recordDate || isNaN(recordDate.getTime())) return false;
+      return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+    });
+
+    let present = 0, late = 0, halfDay = 0, absent = 0;
+    monthRecords.forEach((r) => {
+      if (r.status === "Present") present++;
+      else if (r.status === "Late") { late++; present++; } // Late is also present
+      else if (r.status === "Half Day") halfDay++;
+      else if (r.status === "Absent") absent++;
+    });
+
+    return { present, late, halfDay, absent };
+  }, [punchRecords, activeEmployee?.id, currentMonth, currentYear]);
 
   const formatElapsed = (totalSec: number) => {
     const hrs = Math.floor(totalSec / 3600).toString().padStart(2, "0");
@@ -64,21 +126,28 @@ export default function EmployeeDashboardLayout({
   };
 
   const handleClockToggle = () => {
-    if (isClockedIn) {
-      recordPunch("Web App", "Inside", 10);
-      setIsClockedIn(false);
-    } else {
-      recordPunch("Web App", "Inside", 10);
-      setIsClockedIn(true);
-      setClockInTime(formattedTime);
-      setElapsedSeconds(0);
-    }
+    recordPunch("Web App", "Inside", 10);
+    // After punch, re-fetch from backend to ensure sync
+    setTimeout(() => {
+      if (activeEmployee?.id) {
+        dispatch(
+          fetchAttendanceAsync({
+            employeeId: activeEmployee.id,
+            employeeCode: activeEmployee.employeeCode,
+          })
+        );
+      }
+    }, 500);
   };
 
   const userDisplayName = activeEmployee?.fullName || "Employee";
   const userRole = activeEmployee?.designation || "Staff Member";
   const employeeCode = activeEmployee?.employeeCode || `EMP-${activeEmployee?.id || 1}`;
   const companyName = activeEmployee?.companyName || "Hazree Organization";
+
+  // Derive punch in/out times from todayPunch (backend-synced)
+  const punchInDisplay = todayPunch?.punchInTime || clockInTime || "--:--";
+  const punchOutDisplay = todayPunch?.punchOutTime || (isClockedIn ? "--:--" : "--:--");
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] text-slate-800 flex font-sans antialiased">
@@ -128,7 +197,7 @@ export default function EmployeeDashboardLayout({
                       <p className="text-[11px] text-slate-400">
                         Active Shift •{" "}
                         <span className="text-emerald-600 font-medium font-mono">
-                          Clock In at {clockInTime} ({formatElapsed(elapsedSeconds)})
+                          Clock In at {punchInDisplay} ({formatElapsed(elapsedSeconds)})
                         </span>
                       </p>
                     </div>
@@ -214,7 +283,7 @@ export default function EmployeeDashboardLayout({
                 <div className="md:col-span-3 lg:col-span-3.5 bg-white rounded-xl shadow-xs border border-slate-200/80 p-5 flex flex-col justify-between">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-xs text-slate-700 uppercase tracking-wider">
-                      August Attendance
+                      {currentMonthName} Attendance
                     </h4>
                     <CalendarDays className="w-5 h-5 text-emerald-500" />
                   </div>
@@ -222,13 +291,13 @@ export default function EmployeeDashboardLayout({
                   <div className="flex items-center justify-between pt-4">
                     <div>
                       <p className="text-2xl font-bold text-emerald-600 font-mono">
-                        18
+                        {monthlyStats.present}
                       </p>
                       <span className="text-[11px] text-slate-400">Present Days</span>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-amber-500 font-mono">
-                        1
+                        {monthlyStats.late}
                       </p>
                       <span className="text-[11px] text-slate-400">Late Mark</span>
                     </div>
@@ -280,7 +349,7 @@ export default function EmployeeDashboardLayout({
                         Today's Attendance Status
                       </h3>
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
-                        GPS Geofence Verified
+                        {isClockedIn ? "🟢 Live Session Active" : "GPS Geofence Verified"}
                       </span>
                     </div>
 
@@ -288,13 +357,13 @@ export default function EmployeeDashboardLayout({
                       <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-slate-400 text-[11px]">Punch In</span>
                         <p className="font-mono font-bold text-slate-800 text-sm mt-0.5">
-                          {isClockedIn ? clockInTime : "--:--"}
+                          {punchInDisplay}
                         </p>
                       </div>
                       <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-slate-400 text-[11px]">Punch Out</span>
                         <p className="font-mono font-bold text-slate-800 text-sm mt-0.5">
-                          {!isClockedIn ? formattedTime : "--:--"}
+                          {punchOutDisplay}
                         </p>
                       </div>
                       <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">

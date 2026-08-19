@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Download,
   List,
@@ -16,67 +16,150 @@ import {
   Plane,
 } from "lucide-react";
 import { useCustomerApp } from "@/context/CustomerAppContext";
+import { useAppDispatch } from "@/redux/hooks";
+import { fetchAttendanceAsync } from "@/redux/slices/attendanceSlice";
 
 export default function AttendanceMatrixView() {
+  const dispatch = useAppDispatch();
   const { employees, activeEmployee, setActiveEmployee, punchRecords } =
     useCustomerApp();
-  const [selectedMonth, setSelectedMonth] = useState<string>("August");
-  const [selectedYear, setSelectedYear] = useState<string>("2026");
+
+  const now = new Date();
+  const currentDayNum = now.getDate();
+  const currentMonthIdx = now.getMonth();
+  const currentYearNum = now.getFullYear();
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+
+  const [selectedMonthIdx, setSelectedMonthIdx] = useState<number>(currentMonthIdx);
+  const [selectedYear, setSelectedYear] = useState<number>(currentYearNum);
   const [viewMode, setViewMode] = useState<"matrix" | "cards" | "clock" | "map">(
     "matrix"
   );
 
-  // Month days setup: August has 31 days. In 2026, Aug 1 is Saturday.
-  const daysInMonth = 31;
-  const dayNames = [
-    "Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri",
-    "Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri",
-    "Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri",
-    "Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri",
-    "Sat", "Sun", "Mon",
-  ];
+  const selectedMonthName = monthNames[selectedMonthIdx];
 
-  // Today is Aug 17, 2026
-  const currentDayNum = 17;
+  // 15-second polling to keep attendance records fresh
+  useEffect(() => {
+    if (!activeEmployee?.id) return;
+    const pollInterval = setInterval(() => {
+      dispatch(
+        fetchAttendanceAsync({
+          employeeId: activeEmployee.id,
+          employeeCode: activeEmployee.employeeCode,
+        })
+      );
+    }, 15000);
+    return () => clearInterval(pollInterval);
+  }, [activeEmployee?.id, activeEmployee?.employeeCode, dispatch]);
 
-  // Determine status for each day of the month for Anand Patel
-  const getDayStatus = (day: number) => {
-    if (day > currentDayNum) return "-";
-    // Sundays: 2, 9, 16, 23, 30
-    if (day === 2 || day === 9 || day === 16 || day === 23 || day === 30) {
-      return "✖️"; // Day Off / Sunday
+  // Calculate days in selected month
+  const daysInMonth = new Date(selectedYear, selectedMonthIdx + 1, 0).getDate();
+
+  // Calculate day names for the month
+  const dayNames = useMemo(() => {
+    const shortDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const d = new Date(selectedYear, selectedMonthIdx, i + 1);
+      return shortDays[d.getDay()];
+    });
+  }, [daysInMonth, selectedMonthIdx, selectedYear]);
+
+  // Is the selected month the current month?
+  const isCurrentMonth = selectedMonthIdx === currentMonthIdx && selectedYear === currentYearNum;
+
+  // Build a map of day -> punch record for the selected month
+  const dayPunchMap = useMemo(() => {
+    const empId = activeEmployee?.id;
+    if (!empId) return new Map<number, typeof punchRecords[0]>();
+
+    const map = new Map<number, typeof punchRecords[0]>();
+    punchRecords.forEach((p) => {
+      const targetId = Number(String(p.employeeId).replace("emp_", ""));
+      if (targetId !== Number(String(empId).replace("emp_", ""))) return;
+
+      let recordDate: Date | null = null;
+      if (p.date && p.date.includes("-")) {
+        recordDate = new Date(p.date);
+      } else if (p.date && p.date.includes("/")) {
+        const parts = p.date.split("/");
+        recordDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      }
+      if (!recordDate || isNaN(recordDate.getTime())) return;
+      if (
+        recordDate.getMonth() === selectedMonthIdx &&
+        recordDate.getFullYear() === selectedYear
+      ) {
+        map.set(recordDate.getDate(), p);
+      }
+    });
+    return map;
+  }, [punchRecords, activeEmployee?.id, selectedMonthIdx, selectedYear]);
+
+  // Determine status for each day
+  const getDayStatus = (day: number): string => {
+    // Future days in current month
+    if (isCurrentMonth && day > currentDayNum) return "-";
+    // Future months
+    if (selectedYear > currentYearNum) return "-";
+    if (selectedYear === currentYearNum && selectedMonthIdx > currentMonthIdx) return "-";
+
+    // Check if Sunday (day off)
+    const dayOfWeek = new Date(selectedYear, selectedMonthIdx, day).getDay();
+    if (dayOfWeek === 0) return "✖️"; // Sunday / Day Off
+
+    // Check punch record
+    const punch = dayPunchMap.get(day);
+    if (punch) {
+      switch (punch.status) {
+        case "Present": return "✔️";
+        case "Late": return "⚠️";
+        case "Half Day": return "🌟";
+        case "Absent": return "✖️";
+        case "On Leave": return "✈️";
+        case "Holiday": return "⭐";
+        case "Day Off": return "📅";
+        default: return "✔️";
+      }
     }
-    // Aug 15 Independence Day Holiday
-    if (day === 15) {
-      return "✔️";
-    }
-    // Present on normal working days
-    return "✔️";
+
+    // Past day with no record = absent (unless Sunday already handled)
+    if (isCurrentMonth && day < currentDayNum) return "✖️";
+    if (!isCurrentMonth && (selectedYear < currentYearNum || selectedMonthIdx < currentMonthIdx)) return "✖️";
+
+    return "-";
   };
 
   const calculateTotalPresent = () => {
     let count = 0;
-    for (let i = 1; i <= currentDayNum; i++) {
-      if (getDayStatus(i) === "✔️") count++;
+    for (let i = 1; i <= daysInMonth; i++) {
+      const status = getDayStatus(i);
+      if (status === "✔️" || status === "⚠️" || status === "🌟") count++;
     }
     return count;
   };
 
   const handleExport = () => {
-    const header = "Employee,Role," + Array.from({ length: 31 }, (_, i) => `Day ${i + 1}`).join(",") + ",Total";
+    const header = "Employee,Role," + Array.from({ length: daysInMonth }, (_, i) => `Day ${i + 1}`).join(",") + ",Total";
     const row = `${activeEmployee.fullName},${activeEmployee.designation},` +
-      Array.from({ length: 31 }, (_, i) => getDayStatus(i + 1)).join(",") +
-      `,${calculateTotalPresent()} / 31`;
+      Array.from({ length: daysInMonth }, (_, i) => getDayStatus(i + 1)).join(",") +
+      `,${calculateTotalPresent()} / ${daysInMonth}`;
     
     const csvContent = "data:text/csv;charset=utf-8," + [header, row].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Attendance_${selectedMonth}_${selectedYear}.csv`);
+    link.setAttribute("download", `Attendance_${selectedMonthName}_${selectedYear}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+  // Available years for selector
+  const yearOptions = [currentYearNum - 1, currentYearNum, currentYearNum + 1];
 
   return (
     <div className="space-y-4">
@@ -103,19 +186,29 @@ export default function AttendanceMatrixView() {
           {/* Month Selector */}
           <div className="flex items-center gap-2 px-4">
             <span className="text-slate-500 font-medium">Month</span>
-            <div className="flex items-center gap-1.5 font-bold text-slate-800 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200/80">
-              <span>{selectedMonth}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </div>
+            <select
+              value={selectedMonthIdx}
+              onChange={(e) => setSelectedMonthIdx(Number(e.target.value))}
+              className="font-bold text-slate-800 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {monthNames.map((m, idx) => (
+                <option key={m} value={idx}>{m}</option>
+              ))}
+            </select>
           </div>
 
           {/* Year Selector */}
           <div className="flex items-center gap-2 pl-4">
             <span className="text-slate-500 font-medium">Year</span>
-            <div className="flex items-center gap-1.5 font-bold text-slate-800 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200/80">
-              <span>{selectedYear}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </div>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="font-bold text-slate-800 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -217,7 +310,7 @@ export default function AttendanceMatrixView() {
         {/* Matrix Table */}
         <div className="overflow-x-auto border border-slate-200/80 rounded-lg">
           <table className="w-full text-left text-xs border-collapse">
-            {/* Header: Days 1 to 31 */}
+            {/* Header: Days 1 to N */}
             <thead>
               <tr className="bg-[#f0f4f9] text-slate-600 border-b border-slate-200">
                 <th className="py-2 px-3 font-semibold text-slate-700 whitespace-nowrap min-w-[170px] sticky left-0 bg-[#f0f4f9] z-10">
@@ -226,7 +319,7 @@ export default function AttendanceMatrixView() {
                 {Array.from({ length: daysInMonth }, (_, idx) => {
                   const dayNum = idx + 1;
                   const dayName = dayNames[idx];
-                  const isToday = dayNum === currentDayNum;
+                  const isToday = isCurrentMonth && dayNum === currentDayNum;
                   return (
                     <th
                       key={dayNum}
@@ -280,11 +373,11 @@ export default function AttendanceMatrixView() {
                   </div>
                 </td>
 
-                {/* Days Cells (1 to 31) */}
+                {/* Days Cells (1 to N) */}
                 {Array.from({ length: daysInMonth }, (_, idx) => {
                   const dayNum = idx + 1;
                   const status = getDayStatus(dayNum);
-                  const isToday = dayNum === currentDayNum;
+                  const isToday = isCurrentMonth && dayNum === currentDayNum;
 
                   return (
                     <td
@@ -295,6 +388,16 @@ export default function AttendanceMatrixView() {
                     >
                       {status === "✔️" ? (
                         <span className="text-emerald-600 font-bold">✔️</span>
+                      ) : status === "⚠️" ? (
+                        <span className="text-amber-600 font-bold">⚠️</span>
+                      ) : status === "🌟" ? (
+                        <span className="text-amber-500 font-bold">🌟</span>
+                      ) : status === "✈️" ? (
+                        <span className="text-rose-500 font-bold">✈️</span>
+                      ) : status === "⭐" ? (
+                        <span className="text-yellow-500 font-bold">⭐</span>
+                      ) : status === "📅" ? (
+                        <span className="text-blue-400 font-bold">📅</span>
                       ) : status === "✖️" ? (
                         <span className="text-slate-400 font-bold">✖️</span>
                       ) : (
@@ -306,7 +409,7 @@ export default function AttendanceMatrixView() {
 
                 {/* Total Column */}
                 <td className="py-3 px-3 text-center font-bold text-slate-900 font-mono text-xs border-l border-slate-200 bg-slate-50/40">
-                  {calculateTotalPresent()} / 31
+                  {calculateTotalPresent()} / {daysInMonth}
                 </td>
               </tr>
             </tbody>
