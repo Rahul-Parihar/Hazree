@@ -147,7 +147,7 @@ export default function AttendanceMatrixView() {
     const row = `${activeEmployee.fullName},${activeEmployee.designation},` +
       Array.from({ length: daysInMonth }, (_, i) => getDayStatus(i + 1)).join(",") +
       `,${calculateTotalPresent()} / ${daysInMonth}`;
-    
+
     const csvContent = "data:text/csv;charset=utf-8," + [header, row].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -228,44 +228,40 @@ export default function AttendanceMatrixView() {
         <div className="flex items-center bg-white border border-slate-300 rounded-lg p-0.5 shadow-xs overflow-hidden">
           <button
             onClick={() => setViewMode("matrix")}
-            className={`p-2 rounded-md transition-colors ${
-              viewMode === "matrix"
+            className={`p-2 rounded-md transition-colors ${viewMode === "matrix"
                 ? "bg-black text-white shadow-xs"
                 : "text-slate-500 hover:text-slate-800"
-            }`}
+              }`}
             title="Matrix View"
           >
             <List className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode("cards")}
-            className={`p-2 rounded-md transition-colors ${
-              viewMode === "cards"
+            className={`p-2 rounded-md transition-colors ${viewMode === "cards"
                 ? "bg-black text-white shadow-xs"
                 : "text-slate-500 hover:text-slate-800"
-            }`}
+              }`}
             title="Profile Cards"
           >
             <UserIcon className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode("clock")}
-            className={`p-2 rounded-md transition-colors ${
-              viewMode === "clock"
+            className={`p-2 rounded-md transition-colors ${viewMode === "clock"
                 ? "bg-black text-white shadow-xs"
                 : "text-slate-500 hover:text-slate-800"
-            }`}
+              }`}
             title="Timeline Logs"
           >
             <ClockIcon className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode("map")}
-            className={`p-2 rounded-md transition-colors ${
-              viewMode === "map"
+            className={`p-2 rounded-md transition-colors ${viewMode === "map"
                 ? "bg-black text-white shadow-xs"
                 : "text-slate-500 hover:text-slate-800"
-            }`}
+              }`}
             title="Geofence Map"
           >
             <MapPin className="w-4 h-4" />
@@ -323,9 +319,8 @@ export default function AttendanceMatrixView() {
                   return (
                     <th
                       key={dayNum}
-                      className={`py-2 px-1 text-center font-medium min-w-[28px] border-l border-slate-200/60 ${
-                        isToday ? "bg-blue-50 text-blue-700 font-bold" : ""
-                      }`}
+                      className={`py-2 px-1 text-center font-medium min-w-[28px] border-l border-slate-200/60 ${isToday ? "bg-blue-50 text-blue-700 font-bold" : ""
+                        }`}
                     >
                       <div className="text-[11px] font-bold leading-none">{dayNum}</div>
                       <div className="text-[9px] text-slate-400 font-normal mt-0.5">
@@ -382,9 +377,8 @@ export default function AttendanceMatrixView() {
                   return (
                     <td
                       key={dayNum}
-                      className={`py-3 px-1 text-center font-mono border-l border-slate-100 text-xs ${
-                        isToday ? "bg-blue-50/50" : ""
-                      }`}
+                      className={`py-3 px-1 text-center font-mono border-l border-slate-100 text-xs ${isToday ? "bg-blue-50/50" : ""
+                        }`}
                     >
                       {status === "✔️" ? (
                         <span className="text-emerald-600 font-bold">✔️</span>

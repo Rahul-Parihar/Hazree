@@ -122,7 +122,7 @@ export const attendanceSlice = createSlice({
             (p) =>
               Number(String(p.employeeId).replace("emp_", "")) === targetEmpId &&
               (p.date === today || p.date === todayAlt)
-          ) || (action.payload.livePunches.length > 0 ? action.payload.livePunches[0] : null);
+          ) || null;
 
         state.todayPunch = todayRecord || null;
         if (todayRecord && !todayRecord.punchOutTime) {
