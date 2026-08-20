@@ -8,6 +8,7 @@ import { AttendanceRecord, Employee } from '../../types';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { markAttendanceAsync } from '../../redux/slices/attendanceSlice';
 import { Calendar, Clock, MapPin, Smartphone, User, CheckCircle2, LogIn, LogOut } from 'lucide-react';
+import { validatePunchShiftWindow, formatShiftBadge } from '../../lib/shiftUtils';
 
 interface MarkAttendanceModalProps {
   isOpen: boolean;
@@ -40,46 +41,6 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
       c.name.toLowerCase() === (currentUser?.companyName || '').toLowerCase()
   );
 
-  // Helper to determine if a check-in time exceeds company shift start time by more than 10 minutes
-  const calculateAutoAttendanceStatus = (
-    checkInTimeStr?: string,
-    shiftTimingsStr?: string
-  ): AttendanceRecord['status'] => {
-    if (!checkInTimeStr || checkInTimeStr === '--') return 'Present';
-
-    let shiftStartMinutes = 9 * 60; // 540 (09:00 AM)
-
-    if (shiftTimingsStr) {
-      const match = shiftTimingsStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-      if (match) {
-        let hours = parseInt(match[1], 10);
-        const minutes = parseInt(match[2], 10);
-        const ampm = match[3].toUpperCase();
-        if (ampm === 'PM' && hours !== 12) hours += 12;
-        if (ampm === 'AM' && hours === 12) hours = 0;
-        shiftStartMinutes = hours * 60 + minutes;
-      }
-    }
-
-    const matchPunch = checkInTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!matchPunch) return 'Present';
-
-    let punchHours = parseInt(matchPunch[1], 10);
-    const punchMinutes = parseInt(matchPunch[2], 10);
-    const punchAmPm = matchPunch[3].toUpperCase();
-    if (punchAmPm === 'PM' && punchHours !== 12) punchHours += 12;
-    if (punchAmPm === 'AM' && punchHours === 12) punchHours = 0;
-
-    const totalPunchMinutes = punchHours * 60 + punchMinutes;
-    const graceCutoff = shiftStartMinutes + 10;
-
-    if (totalPunchMinutes > graceCutoff) {
-      return 'Late';
-    }
-
-    return 'Present';
-  };
-
   // Scoped employees for current company
   const isCompanyAdmin = userRole === 'COMPANY_ADMIN';
   const myCompanyId = currentUser?.companyId ? String(currentUser.companyId).replace('cmp_', '') : undefined;
@@ -99,6 +60,7 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
   const [selectedEmpId, setSelectedEmpId] = useState<string>('');
   const [empName, setEmpName] = useState('');
   const [empAvatar, setEmpAvatar] = useState('');
+  const [empShift, setEmpShift] = useState<string>('');
   const [department, setDepartment] = useState('Engineering');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [checkInTime, setCheckInTime] = useState('09:00 AM');
@@ -106,12 +68,17 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
   const [status, setStatus] = useState<AttendanceRecord['status']>('Present');
   const [location, setLocation] = useState('Official Office Premises (HR Override)');
   const [device, setDevice] = useState('Company Admin Portal Web');
+  const [forceOverride, setForceOverride] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Validate shift window using centralized shiftUtils
+  const shiftValidity = validatePunchShiftWindow(checkInTime, empShift, currentCompany);
 
   // When modal opens or preSelectedEmployee / initialPunchType changes, set defaults
   useEffect(() => {
     if (isOpen) {
       setErrorMessage(null);
+      setForceOverride(false);
       const todayStr = new Date().toISOString().split('T')[0];
       setDate(todayStr);
       setPunchType(initialPunchType);
@@ -130,12 +97,15 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
         targetEmp = companyEmployees[0];
       }
 
-      const autoStatus = calculateAutoAttendanceStatus(currentTimeStr, currentCompany?.shiftTimings);
+      const activeShiftStr = targetEmp?.assignedShift || currentCompany?.shiftTimings;
+      const initialShiftValidation = validatePunchShiftWindow(currentTimeStr, activeShiftStr, currentCompany);
+      const autoStatus = initialShiftValidation.status;
 
       if (targetEmp) {
         setSelectedEmpId(targetEmp.id);
         setEmpName(targetEmp.name);
         setEmpAvatar(targetEmp.avatar || '');
+        setEmpShift(targetEmp.assignedShift || 'Shift 1');
         setDepartment(targetEmp.department || 'Engineering');
 
         // Look for existing attendance record for today
@@ -158,20 +128,23 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
         setSelectedEmpId('');
         setEmpName('');
         setEmpAvatar('');
+        setEmpShift('');
         setDepartment('Engineering');
         setCheckInTime(currentTimeStr);
         setCheckOutTime('--');
         setStatus(autoStatus);
       }
     }
-  }, [isOpen, preSelectedEmployee, initialPunchType, companyEmployees.length, currentCompany?.shiftTimings]);
+  }, [isOpen, preSelectedEmployee, initialPunchType, companyEmployees.length, currentCompany]);
 
   const handleEmployeeSelect = (empId: string) => {
     setSelectedEmpId(empId);
+    setForceOverride(false);
     const emp = companyEmployees.find((e) => e.id === empId);
     if (emp) {
       setEmpName(emp.name);
       setEmpAvatar(emp.avatar || '');
+      setEmpShift(emp.assignedShift || 'Shift 1');
       setDepartment(emp.department || 'Engineering');
 
       const todayStr = date || new Date().toISOString().split('T')[0];
@@ -180,6 +153,10 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
           (r.employeeId === emp.id || r.employeeId === String(emp.id).replace('emp_', '')) &&
           (r.date === todayStr || !r.date)
       );
+
+      const activeShiftStr = emp.assignedShift || currentCompany?.shiftTimings;
+      const empShiftValidation = validatePunchShiftWindow(checkInTime, activeShiftStr, currentCompany);
+      const autoStatus = empShiftValidation.status;
 
       if (existingRec && existingRec.checkIn && (!existingRec.checkOut || existingRec.checkOut === '--')) {
         setPunchType('CLOCK_OUT');
@@ -191,6 +168,9 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
         const formattedHours = hours % 12 || 12;
         const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
         setCheckOutTime(`${formattedHours}:${formattedMinutes} ${ampm}`);
+        setStatus(existingRec.status || autoStatus);
+      } else {
+        setStatus(autoStatus);
       }
     }
   };
@@ -222,6 +202,11 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
       return;
     }
 
+    if (punchType === 'CLOCK_IN' && !shiftValidity.isValid && !forceOverride) {
+      setErrorMessage(`${shiftValidity.reason} Please enable HR Override below to proceed.`);
+      return;
+    }
+
     setErrorMessage(null);
 
     const targetCompanyId = currentUser?.companyId
@@ -244,6 +229,7 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
         work_hours: status === 'Absent' ? '0h' : status === 'Half Day' ? '4h 00m' : punchType === 'CLOCK_OUT' ? 'Completed' : 'Active',
         location: location,
         device: device,
+        force_override: forceOverride,
       })
     );
 
@@ -331,24 +317,38 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
 
         {/* Selected Employee Preview Card */}
         {empName && (
-          <div className="flex items-center gap-3 p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl">
-            {empAvatar ? (
-              <img
-                src={empAvatar}
-                alt={empName}
-                className="w-10 h-10 rounded-xl object-cover border border-emerald-300 shrink-0"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
-                {empName.charAt(0)}
+          <div className="flex items-center justify-between gap-3 p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl">
+            <div className="flex items-center gap-3 min-w-0">
+              {empAvatar ? (
+                <img
+                  src={empAvatar}
+                  alt={empName}
+                  className="w-10 h-10 rounded-xl object-cover border border-emerald-300 shrink-0"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                  {empName.charAt(0)}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-bold text-slate-900 text-sm truncate">{empName}</p>
+                <p className="text-xs text-emerald-800 font-medium truncate">
+                  Department: <strong>{department}</strong>
+                </p>
+              </div>
+            </div>
+
+            {empShift && (
+              <div className="flex flex-col items-end gap-0.5 shrink-0">
+                <div className="flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-lg border bg-white text-indigo-950 border-indigo-200 shadow-2xs">
+                  <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span>{shiftValidity.shiftName}</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-500 font-semibold">
+                  {shiftValidity.shiftStart} - {shiftValidity.shiftEnd}
+                </span>
               </div>
             )}
-            <div className="min-w-0">
-              <p className="font-bold text-slate-900 text-sm truncate">{empName}</p>
-              <p className="text-xs text-emerald-800 font-medium truncate">
-                Department: <strong>{department}</strong>
-              </p>
-            </div>
           </div>
         )}
 
@@ -446,6 +446,31 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
             </select>
           </div>
         </div>
+
+        {/* Shift Window Alert and Admin Override Box */}
+        {punchType === 'CLOCK_IN' && !shiftValidity.isValid && (
+          <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-2.5">
+            <div className="flex items-start gap-2">
+              <span className="text-base">⚠️</span>
+              <div className="text-xs">
+                <p className="font-bold text-amber-900">Shift Timing Restriction Alert</p>
+                <p className="text-amber-800 mt-0.5">{shiftValidity.reason}</p>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 p-2 bg-white/80 rounded-xl border border-amber-200 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={forceOverride}
+                onChange={(e) => setForceOverride(e.target.checked)}
+                className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+              />
+              <span className="text-xs font-bold text-slate-800">
+                Confirm HR Admin Override (Allow punch outside scheduled shift)
+              </span>
+            </label>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">

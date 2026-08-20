@@ -33,6 +33,7 @@ export interface AttendancePunchPayload {
   work_hours?: string;
   location?: string;
   device?: string;
+  force_override?: boolean;
 }
 
 export interface AttendanceStatsData {

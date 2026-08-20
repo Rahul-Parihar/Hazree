@@ -9,6 +9,7 @@ interface EmployeesState {
   departmentFilter: string;
   isLoading: boolean;
   isCreating: boolean;
+  isUpdating: boolean;
   error: string | null;
   successMessage: string | null;
 }
@@ -19,6 +20,7 @@ const initialState: EmployeesState = {
   departmentFilter: 'ALL',
   isLoading: false,
   isCreating: false,
+  isUpdating: false,
   error: null,
   successMessage: null,
 };
@@ -35,6 +37,7 @@ const mapBackendToEmployee = (be: BackendEmployeeResponse): Employee => ({
   avatar: be.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(be.name)}&background=059669&color=fff`,
   joinDate: be.join_date || (be.created_at ? be.created_at.split('T')[0] : '14/08/2026'),
   dob: be.dob || undefined,
+  assignedShift: be.assigned_shift && !be.assigned_shift.toLowerCase().includes('general') ? be.assigned_shift : (be.assigned_shift ? be.assigned_shift.replace(/General Shift/i, 'Shift 1') : 'Shift 1'),
   status: (be.status as EmployeeStatus) || 'Active',
 });
 
@@ -194,12 +197,12 @@ export const employeesSlice = createSlice({
 
       // Update Employee
       .addCase(updateEmployeeAsync.pending, (state) => {
-        state.isLoading = true;
+        state.isUpdating = true;
         state.error = null;
         state.successMessage = null;
       })
       .addCase(updateEmployeeAsync.fulfilled, (state, action) => {
-        state.isLoading = false;
+        state.isUpdating = false;
         const index = state.employees.findIndex((e) => e.id === action.payload.id);
         if (index !== -1) {
           state.employees[index] = action.payload;
@@ -207,7 +210,7 @@ export const employeesSlice = createSlice({
         state.successMessage = `Employee "${action.payload.name}" updated successfully!`;
       })
       .addCase(updateEmployeeAsync.rejected, (state, action) => {
-        state.isLoading = false;
+        state.isUpdating = false;
         state.error = (action.payload as string) || 'Failed to update employee';
       })
 

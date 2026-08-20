@@ -18,6 +18,7 @@ import {
   EyeOff,
   KeyRound,
   Copy,
+  Clock,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -28,6 +29,7 @@ import { createEmployeeAsync, fetchEmployeesAsync } from '../../redux/slices/emp
 import { fetchCompaniesAsync } from '../../redux/slices/companiesSlice';
 import { fetchDepartmentsAsync } from '../../redux/slices/departmentsSlice';
 import { BackendEmployeeCreate } from '../../services/employeesService';
+import { getCompanyShiftOptions } from '../../lib/shiftUtils';
 
 interface AddEmployeeModalProps {
   isOpen: boolean;
@@ -97,10 +99,27 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
     password: 'Hazree@123',
     joinDate: new Date().toISOString().split('T')[0],
     dob: '',
+    assignedShift: '',
     status: 'Active',
     avatar: AVATAR_PRESETS[0],
     selectedCompanyId: propCompanyId ? String(propCompanyId).replace('cmp_', '') : (currentCompany ? currentCompany.id.replace('cmp_', '') : '1'),
   });
+
+  // Calculate target company for shift options
+  const targetCompany = userRole === 'SUPER_ADMIN'
+    ? companies.find((c) => c.id.replace('cmp_', '') === String(formData.selectedCompanyId)) || currentCompany
+    : currentCompany;
+
+  const shiftOptions = React.useMemo(() => {
+    return getCompanyShiftOptions(targetCompany);
+  }, [targetCompany]);
+
+  // Ensure default shift is set from available shift options
+  useEffect(() => {
+    if (shiftOptions.length > 0 && (!formData.assignedShift || !shiftOptions.includes(formData.assignedShift))) {
+      setFormData((prev) => ({ ...prev, assignedShift: shiftOptions[0] }));
+    }
+  }, [shiftOptions]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string; name: string } | null>(null);
@@ -173,6 +192,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
       department: formData.department,
       join_date: formData.joinDate,
       dob: formData.dob.trim() || undefined,
+      assigned_shift: formData.assignedShift || shiftOptions[0] || 'Shift 1',
       status: formData.status,
       avatar: formData.avatar,
       company_id: resolvedCompanyId,
@@ -301,6 +321,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
                   password: 'Hazree@123',
                   joinDate: new Date().toISOString().split('T')[0],
                   dob: '',
+                  assignedShift: shiftOptions[0] || 'Shift 1',
                   status: 'Active',
                   avatar: AVATAR_PRESETS[0],
                   selectedCompanyId: propCompanyId ? String(propCompanyId).replace('cmp_', '') : (currentCompany ? currentCompany.id.replace('cmp_', '') : '1'),
@@ -479,6 +500,34 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
               onChange={(e) => handleChange('dob', e.target.value)}
               icon={<Calendar className="w-4 h-4" />}
             />
+          </div>
+
+          {/* Assigned Working Shift (Dynamic per Company Shift Configuration) */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-emerald-600" />
+                <span>Assigned Working Shift *</span>
+              </label>
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                {targetCompany?.shiftCount ? `${targetCompany.shiftCount} Shift Company` : 'Active Shift'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Select which shift this employee will work in based on {targetCompany?.name || 'company'} schedule
+            </p>
+            <select
+              value={formData.assignedShift}
+              onChange={(e) => handleChange('assignedShift', e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+              required
+            >
+              {shiftOptions.map((shift, idx) => (
+                <option key={idx} value={shift}>
+                  {shift}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Avatar Presets Selection */}

@@ -12,6 +12,7 @@ export interface BackendEmployeeCreate {
   status?: string;
   join_date?: string;
   dob?: string;
+  assigned_shift?: string;
   company_id?: number;
 }
 
@@ -28,6 +29,7 @@ export interface BackendEmployeeResponse {
   status: string;
   join_date?: string;
   dob?: string;
+  assigned_shift?: string;
   created_at?: string;
 }
 

@@ -105,8 +105,8 @@ export const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
       setFormData((prev) => ({
         ...prev,
         shiftCount: 1,
-        shiftType: '1 Shift (General Day)',
-        shiftTimings: 'General Shift: 09:00 AM - 06:00 PM (15m Grace)',
+        shiftType: '1 Shift (Day Shift)',
+        shiftTimings: 'Shift 1 (Day): 09:00 AM - 06:00 PM (15m Grace)',
       }));
     } else if (count === 2) {
       setFormData((prev) => ({

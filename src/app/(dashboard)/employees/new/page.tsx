@@ -24,6 +24,7 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Clock,
 } from 'lucide-react';
 import { Input } from '../../../../components/ui/Input';
 import { Button } from '../../../../components/ui/Button';
@@ -36,6 +37,7 @@ import {
   createDepartmentAsync,
 } from '../../../../redux/slices/departmentsSlice';
 import { BackendEmployeeCreate } from '../../../../services/employeesService';
+import { getCompanyShiftOptions } from '../../../../lib/shiftUtils';
 
 const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
@@ -100,10 +102,25 @@ export default function NewEmployeePage() {
     password: 'Hazree@123',
     joinDate: new Date().toISOString().split('T')[0],
     dob: '',
+    assignedShift: '',
     status: 'Active',
     avatar: AVATAR_PRESETS[0],
     selectedCompanyId: currentCompany ? currentCompany.id.replace('cmp_', '') : '1',
   });
+
+  const targetCompany = userRole === 'SUPER_ADMIN'
+    ? companies.find((c) => c.id.replace('cmp_', '') === String(formData.selectedCompanyId)) || currentCompany
+    : currentCompany;
+
+  const shiftOptions = React.useMemo(() => {
+    return getCompanyShiftOptions(targetCompany);
+  }, [targetCompany]);
+
+  useEffect(() => {
+    if (shiftOptions.length > 0 && (!formData.assignedShift || !shiftOptions.includes(formData.assignedShift))) {
+      setFormData((prev) => ({ ...prev, assignedShift: shiftOptions[0] }));
+    }
+  }, [shiftOptions]);
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -172,6 +189,7 @@ export default function NewEmployeePage() {
       department: formData.department,
       join_date: formData.joinDate,
       dob: formData.dob.trim() || undefined,
+      assigned_shift: formData.assignedShift || shiftOptions[0] || 'Shift 1',
       status: formData.status,
       avatar: formData.avatar,
       company_id: resolvedCompanyId,
@@ -458,6 +476,25 @@ export default function NewEmployeePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-emerald-600" />
+                <span>Assigned Working Shift *</span>
+              </label>
+              <select
+                value={formData.assignedShift}
+                onChange={(e) => handleChange('assignedShift', e.target.value)}
+                className="w-full rounded-xl bg-slate-50 border border-slate-200 text-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold cursor-pointer"
+                required
+              >
+                {shiftOptions.map((shift, idx) => (
+                  <option key={idx} value={shift}>
+                    {shift}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">Configured for {targetCompany?.name || 'company'} roster</p>
+            </div>
 
             {userRole === 'SUPER_ADMIN' && (
               <div>

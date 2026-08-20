@@ -43,6 +43,7 @@ export interface Employee {
   avatar: string;
   joinDate: string;
   dob?: string;
+  assignedShift?: string;
   status: EmployeeStatus;
 }
 

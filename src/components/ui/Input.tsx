@@ -20,7 +20,7 @@ export const Input: React.FC<InputProps> = ({
   return (
     <div className="w-full space-y-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
+        <label htmlFor={inputId} className="block text-xs font-extrabold uppercase tracking-wider text-slate-800">
           {label}
         </label>
       )}
@@ -33,7 +33,7 @@ export const Input: React.FC<InputProps> = ({
         <input
           id={inputId}
           className={cn(
-            'w-full rounded-xl bg-white/80 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm py-2.5 transition-all duration-200',
+            'w-full rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm py-2.5 transition-all duration-200 font-medium',
             icon ? 'pl-10 pr-4' : 'px-4',
             error && 'border-rose-500 focus:ring-rose-500',
             className

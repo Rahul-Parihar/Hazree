@@ -70,21 +70,21 @@ export const RegisterCompanyModal: React.FC<RegisterCompanyModalProps> = ({
           shiftCount: 1,
           shiftHours: 12,
           shiftType: '1 Shift • 12 Hours (Extended Shift)',
-          shiftTimings: 'Day Shift: 08:00 AM - 08:00 PM (12 hrs)',
+          shiftTimings: 'Shift 1 (Day): 08:00 AM - 08:00 PM (12 hrs)',
         };
       } else if (hours === 6) {
         return {
           shiftCount: 1,
           shiftHours: 6,
           shiftType: '1 Shift • 6 Hours (Part-time Shift)',
-          shiftTimings: 'Morning Shift: 09:00 AM - 03:00 PM (6 hrs)',
+          shiftTimings: 'Shift 1 (Morning): 09:00 AM - 03:00 PM (6 hrs)',
         };
       } else {
         return {
           shiftCount: 1,
           shiftHours: 9,
-          shiftType: '1 Shift • 9 Hours (General Day)',
-          shiftTimings: 'General Shift: 09:00 AM - 06:00 PM (9 hrs)',
+          shiftType: '1 Shift • 9 Hours (Day Shift)',
+          shiftTimings: 'Shift 1 (Day): 09:00 AM - 06:00 PM (9 hrs)',
         };
       }
     } else if (count === 2) {

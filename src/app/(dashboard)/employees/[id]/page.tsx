@@ -42,6 +42,7 @@ import {
 } from '../../../../redux/slices/attendanceSlice';
 import { EditEmployeeModal } from '../../../../components/company-admin/EditEmployeeModal';
 import { Employee, AttendanceRecord, AttendanceStatus } from '../../../../types';
+import { validatePunchShiftWindow } from '../../../../lib/shiftUtils';
 
 const MONTH_NAMES = [
   'January',
@@ -60,15 +61,14 @@ const MONTH_NAMES = [
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Helper to determine if a check-in time exceeds company shift start time by more than 10 minutes
+// Helper to determine if a check-in time exceeds employee shift start time by more than 15 minutes
 export const calculateAutoAttendanceStatus = (
   checkInTimeStr?: string,
   shiftTimingsStr?: string
 ): AttendanceStatus => {
   if (!checkInTimeStr || checkInTimeStr === '--') return 'Present';
 
-  // Default company shift start: 09:00 AM (540 minutes from midnight)
-  let shiftStartMinutes = 9 * 60; // 540
+  let shiftStartMinutes = 9 * 60; // 540 (09:00 AM)
 
   if (shiftTimingsStr) {
     const match = shiftTimingsStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -93,10 +93,10 @@ export const calculateAutoAttendanceStatus = (
 
   const totalPunchMinutes = punchHours * 60 + punchMinutes;
 
-  // 10 minutes grace buffer (e.g. 09:00 AM shift allows up to 09:10 AM)
-  const graceCutoff = shiftStartMinutes + 10;
+  // 15 minutes grace buffer
+  const graceCutoff = shiftStartMinutes + 15;
 
-  if (totalPunchMinutes > graceCutoff) {
+  if (totalPunchMinutes > graceCutoff && totalPunchMinutes - shiftStartMinutes < 12 * 60) {
     return 'Late';
   }
 
@@ -145,6 +145,7 @@ export default function EmployeeDetailPage() {
   const [punchCheckOut, setPunchCheckOut] = useState('06:00 PM');
   const [punchLocation, setPunchLocation] = useState('Office Premises (Verified)');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [dayPunchForceOverride, setDayPunchForceOverride] = useState(false);
 
   // Find Employee
   const employee: Employee | undefined = useMemo(() => {
@@ -360,14 +361,14 @@ export default function EmployeeDetailPage() {
   const handleOpenDayPunch = (dateStr: string, existingPunch?: AttendanceRecord) => {
     if (!isCompanyAdmin) return;
     setSelectedDateForPunch(dateStr);
+    setDayPunchForceOverride(false);
     const nowTime = getCurrentFormattedTime();
 
+    const empShiftStr = employee?.assignedShift || employeeCompany?.shiftTimings;
+    const shiftVal = validatePunchShiftWindow(nowTime, empShiftStr, employeeCompany);
+
     if (existingPunch) {
-      const autoStatus = calculateAutoAttendanceStatus(
-        existingPunch.checkIn || existingPunch.checkInTime || nowTime,
-        employeeCompany?.shiftTimings
-      );
-      setPunchStatus(existingPunch.status || autoStatus);
+      setPunchStatus(existingPunch.status || shiftVal.status);
       setPunchCheckIn(existingPunch.checkIn || existingPunch.checkInTime || nowTime);
       
       // If already clocked in and now clocking out, set actual real-time as check out
@@ -382,8 +383,7 @@ export default function EmployeeDetailPage() {
       }
       setPunchLocation(existingPunch.location || 'Office Premises (Verified)');
     } else {
-      const autoStatus = calculateAutoAttendanceStatus(nowTime, employeeCompany?.shiftTimings);
-      setPunchStatus(autoStatus);
+      setPunchStatus(shiftVal.status);
       setPunchCheckIn(nowTime);
       setPunchCheckOut('--');
       setPunchLocation('Office Premises (Verified)');
@@ -391,7 +391,7 @@ export default function EmployeeDetailPage() {
     setIsDayPunchModalOpen(true);
   };
 
-  // Save Day Punch to Server with Exact Current Time & 10-Min Late Detection
+  // Save Day Punch to Server with Strict Shift Validation & HR Override
   const handleSaveDayPunch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!employee || !selectedDateForPunch) return;
@@ -404,11 +404,19 @@ export default function EmployeeDetailPage() {
       const finalCheckIn = !isClockedIn ? liveTime : todayPunch?.checkIn || punchCheckIn || liveTime;
       const finalCheckOut = !isClockedIn ? '--' : liveTime;
 
-      // Automatically determine if late (> 10 minutes past shift start)
-      const autoStatus = calculateAutoAttendanceStatus(finalCheckIn, employeeCompany?.shiftTimings);
+      // Validate shift window
+      const empShiftStr = employee.assignedShift || employeeCompany?.shiftTimings;
+      const shiftValidation = validatePunchShiftWindow(finalCheckIn, empShiftStr, employeeCompany);
+
+      if (!isClockedIn && !shiftValidation.isValid && !dayPunchForceOverride) {
+        alert(`${shiftValidation.reason}\n\nPlease tick 'Confirm HR Override' below to proceed.`);
+        return;
+      }
+
+      const autoStatus = shiftValidation.status;
       const finalStatus = punchStatus === 'Present' ? autoStatus : punchStatus;
 
-      await dispatch(
+      const punchResult = await dispatch(
         markAttendanceAsync({
           employee_id: Number(employeeId),
           employee_name: employee.name,
@@ -421,26 +429,31 @@ export default function EmployeeDetailPage() {
           status: finalStatus,
           location: punchLocation,
           device: 'Admin Console Live Punch',
+          force_override: dayPunchForceOverride,
         })
       );
 
-      setSaveSuccessMsg(
-        !isClockedIn
-          ? `Clock In recorded at ${finalCheckIn} (${finalStatus}) for ${employee.name}`
-          : `Clock Out recorded at ${finalCheckOut} for ${employee.name}`
-      );
-      setTimeout(() => setSaveSuccessMsg(null), 3500);
-      setIsDayPunchModalOpen(false);
+      if (markAttendanceAsync.fulfilled.match(punchResult)) {
+        setSaveSuccessMsg(
+          !isClockedIn
+            ? `Clock In recorded at ${finalCheckIn} [${shiftValidation.shiftName}] for ${employee.name}`
+            : `Clock Out recorded at ${finalCheckOut} for ${employee.name}`
+        );
+        setTimeout(() => setSaveSuccessMsg(null), 4000);
+        setIsDayPunchModalOpen(false);
 
-      // Refresh records
-      dispatch(
-        fetchAttendanceAsync({
-          employeeId: Number(employeeId),
-          month: monthQueryString,
-        })
-      );
-    } catch (err) {
-      console.error('Failed to save punch:', err);
+        // Refresh records
+        dispatch(
+          fetchAttendanceAsync({
+            employeeId: Number(employeeId),
+            month: monthQueryString,
+          })
+        );
+      } else if (markAttendanceAsync.rejected.match(punchResult)) {
+        alert((punchResult.payload as string) || 'Failed to record attendance punch: Outside shift hours.');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to save punch.');
     }
   };
 
@@ -742,87 +755,127 @@ export default function EmployeeDetailPage() {
                     </div>
 
                     {/* Live Timestamp Card (Replaces manual 09:00 AM / 06:00 PM inputs) */}
-                    <div className="p-3 rounded-2xl border text-center space-y-1 bg-slate-50/90 border-slate-200/80">
-                      {!isClockedIn ? (
-                        <div className="bg-emerald-50/90 border border-emerald-200/80 p-3 rounded-xl">
-                          <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            Live Clock In Timestamp
-                          </p>
-                          <p className="text-2xl font-black text-emerald-950 font-mono mt-1">
-                            {getCurrentFormattedTime()}
-                          </p>
-                          <p className="text-[11px] text-emerald-700 font-medium">
-                            Current exact time will be recorded
-                          </p>
-                        </div>
-                      ) : !isClockedOut ? (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase">Clock In Time</p>
-                            <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
-                              {todayPunch?.checkIn || todayPunch?.checkInTime || '--'}
-                            </p>
-                          </div>
-                          <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-center">
-                            <p className="text-[10px] font-bold text-amber-800 uppercase flex items-center justify-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Clock Out
-                            </p>
-                            <p className="text-sm font-extrabold text-amber-950 font-mono mt-0.5">
-                              {getCurrentFormattedTime()}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase">Clock In</p>
-                            <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
-                              {todayPunch?.checkIn || '--'}
-                            </p>
-                          </div>
-                          <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase">Clock Out</p>
-                            <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
-                              {todayPunch?.checkOut || '--'}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    {(() => {
+                      const currentLiveTime = getCurrentFormattedTime();
+                      const empShiftStr = employee?.assignedShift || employeeCompany?.shiftTimings;
+                      const shiftVal = validatePunchShiftWindow(currentLiveTime, empShiftStr, employeeCompany);
 
-                    {/* Quick Confirmation Button */}
-                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
-                      <button
-                        type="button"
-                        onClick={() => setIsDayPunchModalOpen(false)}
-                        className="px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <Button
-                        type="button"
-                        onClick={handleSaveDayPunch}
-                        variant="primary"
-                        size="sm"
-                        isLoading={isPunching}
-                        icon={!isClockedIn ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
-                        className={
-                          !isClockedIn
-                            ? '!bg-emerald-600 hover:!bg-emerald-500'
-                            : !isClockedOut
-                            ? '!bg-amber-500 hover:!bg-amber-600'
-                            : '!bg-slate-800 hover:!bg-slate-700'
-                        }
-                      >
-                        {!isClockedIn
-                          ? `Clock In Now (${getCurrentFormattedTime()})`
-                          : !isClockedOut
-                          ? `Clock Out Now (${getCurrentFormattedTime()})`
-                          : 'Save Record'}
-                      </Button>
-                    </div>
+                      return (
+                        <>
+                          <div className="p-3 rounded-2xl border text-center space-y-1 bg-slate-50/90 border-slate-200/80">
+                            {!isClockedIn ? (
+                              <div className="bg-emerald-50/90 border border-emerald-200/80 p-3 rounded-xl">
+                                <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                  Live Clock In Timestamp
+                                </p>
+                                <p className="text-2xl font-black text-emerald-950 font-mono mt-1">
+                                  {currentLiveTime}
+                                </p>
+                                <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-emerald-800 font-semibold">
+                                  <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>{shiftVal.shiftName} ({shiftVal.shiftStart} - {shiftVal.shiftEnd})</span>
+                                </div>
+                              </div>
+                            ) : !isClockedOut ? (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase">Clock In Time</p>
+                                  <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
+                                    {todayPunch?.checkIn || todayPunch?.checkInTime || '--'}
+                                  </p>
+                                </div>
+                                <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-center">
+                                  <p className="text-[10px] font-bold text-amber-800 uppercase flex items-center justify-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    Clock Out
+                                  </p>
+                                  <p className="text-sm font-extrabold text-amber-950 font-mono mt-0.5">
+                                    {currentLiveTime}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase">Clock In</p>
+                                  <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
+                                    {todayPunch?.checkIn || '--'}
+                                  </p>
+                                </div>
+                                <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase">Clock Out</p>
+                                  <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
+                                    {todayPunch?.checkOut || '--'}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Shift Validation Warning & HR Override */}
+                          {!isClockedIn && !shiftVal.isValid && (
+                            <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 space-y-2 text-left">
+                              <div className="flex items-start gap-2">
+                                <span className="text-sm">⚠️</span>
+                                <div className="text-xs">
+                                  <p className="font-bold text-amber-900">Shift Timing Restriction Alert</p>
+                                  <p className="text-amber-800 text-[11px] mt-0.5">{shiftVal.reason}</p>
+                                </div>
+                              </div>
+                              <label className="flex items-center gap-2 p-1.5 bg-white/90 rounded-lg border border-amber-200 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={dayPunchForceOverride}
+                                  onChange={(e) => setDayPunchForceOverride(e.target.checked)}
+                                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                                />
+                                <span className="text-[11px] font-bold text-slate-800">
+                                  Confirm HR Admin Override (Punch outside shift)
+                                </span>
+                              </label>
+                            </div>
+                          )}
+
+                          {/* Quick Confirmation Button */}
+                          <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                            <button
+                              type="button"
+                              onClick={() => setIsDayPunchModalOpen(false)}
+                              className="px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <Button
+                              type="button"
+                              onClick={handleSaveDayPunch}
+                              variant="primary"
+                              size="sm"
+                              isLoading={isPunching}
+                              disabled={isPunching || (!isClockedIn && !shiftVal.isValid && !dayPunchForceOverride)}
+                              icon={!isClockedIn ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
+                              className={
+                                !isClockedIn
+                                  ? !shiftVal.isValid && !dayPunchForceOverride
+                                    ? '!bg-slate-300 !text-slate-500 !border-slate-300 !cursor-not-allowed'
+                                    : '!bg-emerald-600 hover:!bg-emerald-500'
+                                  : !isClockedOut
+                                  ? '!bg-amber-500 hover:!bg-amber-600'
+                                  : '!bg-slate-800 hover:!bg-slate-700'
+                              }
+                            >
+                              {!isClockedIn
+                                ? !shiftVal.isValid && !dayPunchForceOverride
+                                  ? 'Clock In Locked (Outside Shift)'
+                                  : `Clock In Now (${currentLiveTime})`
+                                : !isClockedOut
+                                ? `Clock Out Now (${currentLiveTime})`
+                                : 'Save Record'}
+                            </Button>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </>
               )}
@@ -848,14 +901,13 @@ export default function EmployeeDetailPage() {
           </Button>
 
           {isCompanyAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditModalOpen(true)}
-              icon={<Edit className="w-4 h-4" />}
+            <Link
+              href={`/employees/${employeeId}/edit`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 shadow-2xs transition-all"
             >
-              Edit Staff
-            </Button>
+              <Edit className="w-4 h-4 text-emerald-600" />
+              <span>Edit Staff</span>
+            </Link>
           )}
         </div>
       </div>
@@ -1290,18 +1342,6 @@ export default function EmployeeDetailPage() {
           </div>
         )}
       </div>
-
-      {/* Edit Employee Profile Modal */}
-      {isEditModalOpen && (
-        <EditEmployeeModal
-          isOpen={isEditModalOpen}
-          employee={employee}
-          onClose={() => setIsEditModalOpen(false)}
-          onSuccess={() => {
-            dispatch(fetchEmployeesAsync());
-          }}
-        />
-      )}
     </div>
   );
 }

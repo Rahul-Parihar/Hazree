@@ -13,6 +13,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Clock,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -22,6 +23,7 @@ import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { updateEmployeeAsync } from '../../redux/slices/employeesSlice';
 import { fetchDepartmentsAsync } from '../../redux/slices/departmentsSlice';
 import { BackendEmployeeCreate } from '../../services/employeesService';
+import { getCompanyShiftOptions } from '../../lib/shiftUtils';
 
 interface EditEmployeeModalProps {
   isOpen: boolean;
@@ -47,7 +49,19 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const dbDepartments = useAppSelector((state) => state.departments.departments);
+  const companies = useAppSelector((state) => state.companies.companies);
   const isLoading = useAppSelector((state) => state.employees.isLoading);
+
+  const currentCompany = companies.find(
+    (c) =>
+      c.id === employee?.companyId ||
+      c.id === `cmp_${employee?.companyId}` ||
+      c.name.toLowerCase() === (employee?.companyName || '').toLowerCase()
+  ) || (companies.length > 0 ? companies[0] : null);
+
+  const shiftOptions = React.useMemo(() => {
+    return getCompanyShiftOptions(currentCompany);
+  }, [currentCompany]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -59,6 +73,7 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
     status: 'Active' as EmployeeStatus,
     joinDate: '',
     dob: '',
+    assignedShift: '',
     avatar: AVATAR_PRESETS[0],
   });
 
@@ -67,7 +82,7 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
 
   useEffect(() => {
     if (isOpen && employee) {
-      dispatch(fetchDepartmentsAsync());
+      dispatch(fetchDepartmentsAsync(employee.companyId));
       setFormData({
         name: employee.name || '',
         email: employee.email || '',
@@ -78,12 +93,13 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
         status: employee.status || 'Active',
         joinDate: employee.joinDate || new Date().toISOString().split('T')[0],
         dob: employee.dob || '',
+        assignedShift: employee.assignedShift || (shiftOptions.length > 0 ? shiftOptions[0] : 'Shift 1'),
         avatar: employee.avatar || AVATAR_PRESETS[0],
       });
       setErrorMessage(null);
       setShowPassword(false);
     }
-  }, [isOpen, employee, dispatch]);
+  }, [isOpen, employee, dispatch, shiftOptions]);
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -123,6 +139,7 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
       status: formData.status,
       join_date: formData.joinDate,
       dob: formData.dob.trim() || undefined,
+      assigned_shift: formData.assignedShift || shiftOptions[0] || 'Shift 1',
       avatar: formData.avatar,
     };
 
@@ -266,6 +283,23 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Assigned Working Shift *</span>
+            </label>
+            <select
+              value={formData.assignedShift}
+              onChange={(e) => handleChange('assignedShift', e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            >
+              {shiftOptions.map((shift, idx) => (
+                <option key={idx} value={shift}>
+                  {shift}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
