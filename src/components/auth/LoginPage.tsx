@@ -9,6 +9,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import ResetPasswordModal from "./ResetPasswordModal";
+import { toast } from "sonner";
 
 interface LoginPageProps {
   onLoginSuccess: (email: string) => void;
@@ -39,6 +40,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
     setTimeout(() => {
       setIsLoading(false);
+      toast.success(`Welcome back! Signed in as ${email}`);
       onLoginSuccess(email);
     }, 600);
   };

@@ -33,6 +33,7 @@ import {
   removeToast as removeToastRedux,
   ToastNotification,
 } from "@/redux/slices/uiSlice";
+import { toast } from "sonner";
 
 interface CustomerAppContextType {
   employees: EmployeeProfile[];
@@ -97,10 +98,13 @@ export function CustomerAppProvider({
     type: "success" | "info" | "error" = "success"
   ) => {
     dispatch(showToastRedux({ text, type }));
-    const id = `${Date.now()}`;
-    setTimeout(() => {
-      // Auto dismiss oldest toast if needed
-    }, 4500);
+    if (type === "success") {
+      toast.success(text);
+    } else if (type === "error") {
+      toast.error(text);
+    } else {
+      toast.info(text);
+    }
   };
 
   const removeToast = (id: string) => {

@@ -32,6 +32,7 @@ import {
   fetchAttendanceAsync,
   incrementElapsedSeconds,
 } from "@/redux/slices/attendanceSlice";
+import { toast } from "sonner";
 
 interface EmployeeDashboardLayoutProps {
   onLogout: () => void;
@@ -182,7 +183,7 @@ export default function EmployeeDashboardLayout({
 
   const handleClockToggle = () => {
     if (!isClockedIn && !shiftWindow.isAllowed) {
-      alert(shiftWindow.reason);
+      toast.error(shiftWindow.reason);
       return;
     }
 

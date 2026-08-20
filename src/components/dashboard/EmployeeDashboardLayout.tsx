@@ -13,6 +13,7 @@ import NoticeBoardView from "./NoticeBoardView";
 import ProfileSettingsView from "./ProfileSettingsView";
 import MessagesView from "./MessagesView";
 import EventsView from "./EventsView";
+import { toast } from "sonner";
 import {
   User,
   LogOut,
@@ -123,7 +124,7 @@ export default function EmployeeDashboardLayout({
       setIsClockedIn(false);
     } else {
       if (!shiftWindow.isAllowed) {
-        alert(shiftWindow.reason);
+        toast.error(shiftWindow.reason);
         return;
       }
       recordPunch("Web App", "Inside", 10);

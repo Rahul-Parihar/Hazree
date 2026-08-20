@@ -15,6 +15,7 @@ import { useAppDispatch } from "@/redux/hooks";
 import { loginAsync } from "@/redux/slices/authSlice";
 import { EmployeeProfile } from "@/types/customer";
 import ResetPasswordModal from "./ResetPasswordModal";
+import { toast } from "sonner";
 
 interface LoginPageProps {
   onLoginSuccess: (profile: EmployeeProfile) => void;
@@ -55,22 +56,25 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       );
 
       if (loginAsync.fulfilled.match(resultAction)) {
-        setSuccessInfo(`Welcome back, ${resultAction.payload.profile.fullName}!`);
+        const welcome = `Welcome back, ${resultAction.payload.profile.fullName}!`;
+        setSuccessInfo(welcome);
+        toast.success(welcome);
         setTimeout(() => {
           onLoginSuccess(resultAction.payload.profile);
         }, 400);
       } else {
         setIsLoading(false);
-        setErrorMessage(
+        const err =
           (resultAction.payload as string) ||
-            "Failed to sign in. Please verify your employee email and password."
-        );
+          "Failed to sign in. Please verify your employee email and password.";
+        setErrorMessage(err);
+        toast.error(err);
       }
     } catch (err: any) {
       setIsLoading(false);
-      setErrorMessage(
-        err?.message || "Failed to sign in. Please verify your employee email and password."
-      );
+      const errM = err?.message || "Failed to sign in. Please verify your employee email and password.";
+      setErrorMessage(errM);
+      toast.error(errM);
     }
   };
 
