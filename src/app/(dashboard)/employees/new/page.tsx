@@ -38,6 +38,7 @@ import {
 } from '../../../../redux/slices/departmentsSlice';
 import { BackendEmployeeCreate } from '../../../../services/employeesService';
 import { getCompanyShiftOptions } from '../../../../lib/shiftUtils';
+import { toast } from 'sonner';
 
 const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
@@ -201,19 +202,23 @@ export default function NewEmployeePage() {
       const actionResult = await dispatch(createEmployeeAsync(payload));
       if (createEmployeeAsync.fulfilled.match(actionResult)) {
         setIsSuccess(true);
+        toast.success(`Employee ${payload.name} registered successfully!`);
         dispatch(fetchEmployeesAsync());
         dispatch(fetchCompaniesAsync());
         setTimeout(() => {
           router.push('/employees');
         }, 1200);
       } else if (createEmployeeAsync.rejected.match(actionResult)) {
-        setErrorMessage(
+        const err =
           (actionResult.payload as string) ||
-            'Failed to register employee. Please check email uniqueness.'
-        );
+          'Failed to register employee. Please check email uniqueness.';
+        setErrorMessage(err);
+        toast.error(err);
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Unexpected network error occurred.');
+      const errM = err?.message || 'Unexpected network error occurred.';
+      setErrorMessage(errM);
+      toast.error(errM);
     }
   };
 

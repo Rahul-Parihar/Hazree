@@ -23,6 +23,7 @@ import { cn } from '../../lib/utils';
 import { UserRole } from '../../types';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
 import { logout } from '../../redux/slices/authSlice';
+import { toast } from 'sonner';
 
 interface SidebarProps {
   userRole: UserRole;
@@ -121,6 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleLogout = () => {
     dispatch(logout());
     if (onCloseMobile) onCloseMobile();
+    toast.info('Signed out of admin portal.');
     router.push('/login');
   };
 

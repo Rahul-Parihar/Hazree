@@ -43,6 +43,7 @@ import {
 import { EditEmployeeModal } from '../../../../components/company-admin/EditEmployeeModal';
 import { Employee, AttendanceRecord, AttendanceStatus } from '../../../../types';
 import { validatePunchShiftWindow } from '../../../../lib/shiftUtils';
+import { toast } from 'sonner';
 
 const MONTH_NAMES = [
   'January',
@@ -434,11 +435,11 @@ export default function EmployeeDetailPage() {
       );
 
       if (markAttendanceAsync.fulfilled.match(punchResult)) {
-        setSaveSuccessMsg(
-          !isClockedIn
-            ? `Clock In recorded at ${finalCheckIn} [${shiftValidation.shiftName}] for ${employee.name}`
-            : `Clock Out recorded at ${finalCheckOut} for ${employee.name}`
-        );
+        const msg = !isClockedIn
+          ? `Clock In recorded at ${finalCheckIn} [${shiftValidation.shiftName}] for ${employee.name}`
+          : `Clock Out recorded at ${finalCheckOut} for ${employee.name}`;
+        setSaveSuccessMsg(msg);
+        toast.success(msg);
         setTimeout(() => setSaveSuccessMsg(null), 4000);
         setIsDayPunchModalOpen(false);
 
@@ -450,10 +451,14 @@ export default function EmployeeDetailPage() {
           })
         );
       } else if (markAttendanceAsync.rejected.match(punchResult)) {
-        alert((punchResult.payload as string) || 'Failed to record attendance punch: Outside shift hours.');
+        const err = (punchResult.payload as string) || 'Failed to record attendance punch: Outside shift hours.';
+        toast.error(err);
+        alert(err);
       }
     } catch (err: any) {
-      alert(err?.message || 'Failed to save punch.');
+      const errM = err?.message || 'Failed to save punch.';
+      toast.error(errM);
+      alert(errM);
     }
   };
 

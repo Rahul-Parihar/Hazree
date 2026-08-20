@@ -8,6 +8,7 @@ import { Input } from '../ui/Input';
 import { UserRole } from '../../types';
 import { useAppDispatch } from '../../redux/hooks';
 import { login, loginSuperAdminAsync } from '../../redux/slices/authSlice';
+import { toast } from 'sonner';
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
@@ -41,16 +42,20 @@ export const LoginForm: React.FC = () => {
       const resultAction = await dispatch(loginSuperAdminAsync({ email, password }));
       if (loginSuperAdminAsync.fulfilled.match(resultAction)) {
         setIsLoading(false);
+        toast.success(`Welcome back! Signed in as ${email}`);
         router.push('/');
         return;
       } else {
         const errorDetail = (resultAction.payload as string) || 'Authentication failed';
         setErrorMessage(errorDetail);
+        toast.error(errorDetail);
         setIsLoading(false);
         return;
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Network connection failed. Please ensure backend is running.');
+      const msg = err?.message || 'Network connection failed. Please ensure backend is running.';
+      setErrorMessage(msg);
+      toast.error(msg);
       setIsLoading(false);
       return;
     }

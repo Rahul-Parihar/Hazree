@@ -9,6 +9,7 @@ import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { markAttendanceAsync } from '../../redux/slices/attendanceSlice';
 import { Calendar, Clock, MapPin, Smartphone, User, CheckCircle2, LogIn, LogOut } from 'lucide-react';
 import { validatePunchShiftWindow, formatShiftBadge } from '../../lib/shiftUtils';
+import { toast } from 'sonner';
 
 interface MarkAttendanceModalProps {
   isOpen: boolean;
@@ -234,10 +235,17 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
     );
 
     if (markAttendanceAsync.fulfilled.match(result)) {
+      toast.success(
+        punchType === 'CLOCK_IN'
+          ? `Clock In recorded for ${empName.trim()} at ${checkInTime}`
+          : `Clock Out recorded for ${empName.trim()} at ${checkOutTime}`
+      );
       onClose();
       if (onSuccess) onSuccess();
     } else if (markAttendanceAsync.rejected.match(result)) {
-      setErrorMessage((result.payload as string) || 'Failed to record punch');
+      const err = (result.payload as string) || 'Failed to record punch: Outside shift window';
+      setErrorMessage(err);
+      toast.error(err);
     }
   };
 
