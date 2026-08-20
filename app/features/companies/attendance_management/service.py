@@ -334,6 +334,69 @@ def record_punch(
     return _to_response(new_record, company_name=company.name)
 
 
+def auto_close_expired_shifts(db: Session, company_id: Optional[int] = None) -> int:
+    """
+    Automatically closes open attendance sessions (check_out_time == '--' or None)
+    when an employee's scheduled shift has ended or when the next shift has commenced.
+    """
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+    current_minutes = now.hour * 60 + now.minute
+
+    # Query all active / open attendance records
+    open_query = db.query(Attendance).filter(
+        (Attendance.check_out_time == "--") | (Attendance.check_out_time == None) | (Attendance.check_out_time == "")
+    )
+    if company_id:
+        open_query = open_query.filter(Attendance.company_id == company_id)
+
+    open_records = open_query.all()
+    if not open_records:
+        return 0
+
+    closed_count = 0
+    for rec in open_records:
+        emp = db.query(Employee).filter(Employee.id == rec.employee_id).first() if rec.employee_id else None
+        co = db.query(Company).filter(Company.id == rec.company_id).first()
+
+        emp_shift = emp.assigned_shift if emp and emp.assigned_shift else (co.shift_timings if co else None)
+        co_timings = co.shift_timings if co else None
+        co_shift_count = co.shift_count if co else 1
+
+        s_mins, e_mins, start_str, end_str, shift_title = parse_shift_window(
+            assigned_shift_str=emp_shift,
+            company_shift_timings=co_timings,
+            company_shift_count=co_shift_count,
+        )
+
+        should_auto_close = False
+
+        # If record is from previous date (< today), it must be closed
+        if rec.date < today_str:
+            should_auto_close = True
+        elif rec.date == today_str:
+            if s_mins < e_mins:
+                # Daytime shift: e.g. 09:00 AM (540) to 06:00 PM (1080)
+                # Auto-close if current time is at or past shift end
+                if current_minutes >= e_mins:
+                    should_auto_close = True
+            else:
+                # Overnight shift: e.g. 08:00 PM (1200) to 08:00 AM (480)
+                # If current time is morning past e_mins (e.g. 08:00 AM to 07:00 PM)
+                if e_mins <= current_minutes < s_mins:
+                    should_auto_close = True
+
+        if should_auto_close:
+            rec.check_out_time = end_str or "06:00 PM"
+            rec.work_hours = "Completed"
+            closed_count += 1
+
+    if closed_count > 0:
+        db.commit()
+
+    return closed_count
+
+
 def get_attendance_records(
     db: Session,
     company_id: Optional[int] = None,
@@ -345,6 +408,12 @@ def get_attendance_records(
     limit: int = 500,
 ) -> List[AttendanceRecordResponse]:
     """Retrieve attendance records with optional company, employee, date, month, and status filtering."""
+    # Real-time shift evaluation: Auto-close any completed shifts
+    try:
+        auto_close_expired_shifts(db, company_id=company_id)
+    except Exception:
+        pass
+
     query = (
         db.query(Attendance, Company.name.label("company_name"))
         .join(Company, Attendance.company_id == Company.id)
@@ -376,6 +445,11 @@ def get_attendance_stats(
     date: Optional[str] = None,
 ) -> AttendanceStatsResponse:
     """Calculate daily attendance statistics & analytics."""
+    try:
+        auto_close_expired_shifts(db, company_id=company_id)
+    except Exception:
+        pass
+
     target_date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     # Staff count

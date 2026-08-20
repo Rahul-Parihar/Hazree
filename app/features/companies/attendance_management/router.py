@@ -11,7 +11,8 @@ from app.features.companies.attendance_management.schemas import (
     AttendanceUpdate,
 )
 from app.features.super_admin.super_admin_auth.schemas import UserAuthResponse
-from app.features.super_admin.super_admin_auth.service import get_current_user
+from app.features.super_admin.super_admin_auth.service import get_current_user, get_current_user_optional
+from app.features.companies.employee_management.models import Employee
 
 router = APIRouter(
     prefix="/attendance",
@@ -29,15 +30,21 @@ async def read_attendance_logs(
     skip: int = 0,
     limit: int = 500,
     db: Session = Depends(get_db),
-    current_user: UserAuthResponse = Depends(get_current_user),
+    current_user: Optional[UserAuthResponse] = Depends(get_current_user_optional),
 ):
     """
     Fetch attendance log records:
     - Company Admin: strictly scoped to own company_id.
+    - Employee / Customer Portal: scoped to employee_id or company.
     - Super Admin: sees all attendance logs or filters by query parameter.
     """
-    scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "EMPLOYEE") else company_id
-    scoped_employee_id = current_user.id if current_user.role == "EMPLOYEE" and not employee_id else employee_id
+    if current_user:
+        scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "EMPLOYEE") else company_id
+        scoped_employee_id = current_user.id if current_user.role == "EMPLOYEE" and not employee_id else employee_id
+    else:
+        scoped_company_id = company_id
+        scoped_employee_id = employee_id
+
     return service.get_attendance_records(
         db,
         company_id=scoped_company_id,
@@ -59,22 +66,29 @@ async def read_attendance_logs(
 async def punch_attendance(
     punch_in: AttendancePunchCreate,
     db: Session = Depends(get_db),
-    current_user: UserAuthResponse = Depends(get_current_user),
+    current_user: Optional[UserAuthResponse] = Depends(get_current_user_optional),
 ):
     """
     Record attendance punch (Employee self-punch, Company Admin manual override, or Kiosk):
     - Automatically links to user's company_id and employee profile.
     """
-    if current_user.role in ("COMPANY_ADMIN", "EMPLOYEE"):
-        target_company_id = current_user.company_id or punch_in.company_id
+    if current_user:
+        if current_user.role in ("COMPANY_ADMIN", "EMPLOYEE"):
+            target_company_id = current_user.company_id or punch_in.company_id
+        else:
+            target_company_id = punch_in.company_id
+
+        if current_user.role == "EMPLOYEE":
+            if not punch_in.employee_id:
+                punch_in.employee_id = current_user.id
+            if not punch_in.employee_name or punch_in.employee_name == "Staff Member":
+                punch_in.employee_name = current_user.full_name or "Employee"
     else:
         target_company_id = punch_in.company_id
-
-    if current_user.role == "EMPLOYEE":
-        if not punch_in.employee_id:
-            punch_in.employee_id = current_user.id
-        if not punch_in.employee_name or punch_in.employee_name == "Staff Member":
-            punch_in.employee_name = current_user.full_name or "Employee"
+        if not target_company_id and punch_in.employee_id:
+            emp = db.query(Employee).filter(Employee.id == punch_in.employee_id).first()
+            if emp:
+                target_company_id = emp.company_id
 
     if not target_company_id:
         raise HTTPException(
@@ -83,6 +97,24 @@ async def punch_attendance(
         )
 
     return service.record_punch(db, punch_in, company_id=target_company_id)
+
+
+@router.post("/auto-close-shifts", summary="Trigger Auto Clock-Out for Expired Shifts")
+async def trigger_auto_close_shifts(
+    company_id: Optional[int] = Query(None, description="Optional company ID to scope auto-close"),
+    db: Session = Depends(get_db),
+    current_user: Optional[UserAuthResponse] = Depends(get_current_user_optional),
+):
+    """
+    Scans all open sessions and automatically clocks out employees whose scheduled shift has completed.
+    """
+    scoped_company_id = current_user.company_id if current_user and current_user.role == "COMPANY_ADMIN" else company_id
+    closed_count = service.auto_close_expired_shifts(db, company_id=scoped_company_id)
+    return {
+        "status": "success",
+        "closed_count": closed_count,
+        "message": f"Successfully auto-closed {closed_count} completed shift attendance sessions.",
+    }
 
 
 @router.get("/stats", response_model=AttendanceStatsResponse, summary="Get Attendance Statistics")

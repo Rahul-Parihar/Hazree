@@ -18,12 +18,13 @@ PUBLIC_EXACT_PATHS = {
     "/redoc",
 }
 
-# Regex pattern for public subpaths (like swagger static files or documentation)
+# Regex pattern for public subpaths (like swagger static files, attendance punches, documentation)
 PUBLIC_PATH_PATTERNS = [
     re.compile(r"^/docs(/.*)?$"),
     re.compile(r"^/redoc(/.*)?$"),
     re.compile(r"^/static(/.*)?$"),
     re.compile(r"^/subscriptions/plans(/.*)?$"),
+    re.compile(r"^/attendance(/.*)?$"),
 ]
 
 

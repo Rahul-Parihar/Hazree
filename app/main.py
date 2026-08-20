@@ -52,10 +52,31 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("hazree.main")
 
 
+async def auto_close_shifts_background_loop():
+    """Periodic worker checking for expired shifts every 60 seconds."""
+    import asyncio
+    while True:
+        try:
+            await asyncio.sleep(60)
+            db = SessionLocal()
+            try:
+                from app.features.companies.attendance_management.service import auto_close_expired_shifts
+                closed = auto_close_expired_shifts(db)
+                if closed > 0:
+                    logger.info(f"Auto-closed {closed} expired shift attendance sessions.")
+            finally:
+                db.close()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Error in auto_close_shifts_background_loop: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup actions
     logger.info("Initializing database connection and tables...")
+    bg_task = None
     try:
         init_db()
         logger.info("Database tables verified/created successfully.")
@@ -78,10 +99,17 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
+        # Start periodic auto-shift-closing worker
+        import asyncio
+        bg_task = asyncio.create_task(auto_close_shifts_background_loop())
+        logger.info("Auto shift close background worker started.")
+
     except Exception as e:
         logger.error(f"Failed during application startup: {e}", exc_info=True)
     yield
     # Shutdown actions
+    if bg_task:
+        bg_task.cancel()
     logger.info("Shutting down Hazree backend...")
 
 

@@ -487,6 +487,20 @@ def get_current_user(
     raise credentials_exception
 
 
+def get_current_user_optional(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Optional[UserAuthResponse]:
+    """
+    FastAPI Dependency: Optional Authenticate active user.
+    Returns UserAuthResponse if valid token provided, otherwise None.
+    """
+    try:
+        return get_current_user(request, db)
+    except Exception:
+        return None
+
+
 def get_current_super_admin(
     request: Request,
     db: Session = Depends(get_db),
