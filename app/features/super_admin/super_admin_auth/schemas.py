@@ -50,6 +50,7 @@ class UserAuthResponse(BaseModel):
     avatar: Optional[str] = None
     employee_code: Optional[str] = None
     dob: Optional[str] = None
+    assigned_shift: Optional[str] = "Shift 1: 09:00 AM - 06:00 PM"
     status: Optional[str] = "Active"
     is_super_admin: bool = False
     is_active: bool = True

@@ -297,6 +297,7 @@ async def login_customer_service(
         avatar=employee.avatar,
         employee_code=f"EMP-{employee.id:04d}",
         dob=employee.dob,
+        assigned_shift=getattr(employee, "assigned_shift", None) or (emp_company.shift_timings if emp_company else "Shift 1: 09:00 AM - 06:00 PM"),
         status=employee.status or "Active",
         is_super_admin=False,
         is_active=True,

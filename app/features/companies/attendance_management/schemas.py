@@ -16,6 +16,7 @@ class AttendancePunchCreate(BaseModel):
     work_hours: Optional[str] = Field("Active", example="Active")
     location: Optional[str] = Field("Office Premises (Verified)", example="Mumbai BKC Office")
     device: Optional[str] = Field("Web Portal Punch", example="Admin Portal Web Console")
+    force_override: Optional[bool] = Field(False, description="Allow HR Admin override outside shift hours")
 
 
 class AttendanceUpdate(BaseModel):

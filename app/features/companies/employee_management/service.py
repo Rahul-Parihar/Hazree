@@ -27,6 +27,7 @@ def _to_response(emp: Employee, company_name: Optional[str] = None) -> EmployeeR
         status=emp.status,
         join_date=emp.join_date,
         dob=emp.dob,
+        assigned_shift=getattr(emp, "assigned_shift", "Shift 1: 09:00 AM - 06:00 PM") or "Shift 1: 09:00 AM - 06:00 PM",
         created_at=emp.created_at,
     )
 
@@ -97,6 +98,7 @@ def create_employee(
         status=employee_in.status or "Active",
         join_date=join_date_str,
         dob=employee_in.dob.strip() if employee_in.dob else None,
+        assigned_shift=employee_in.assigned_shift.strip() if employee_in.assigned_shift else "Shift 1: 09:00 AM - 06:00 PM",
     )
 
     db.add(new_emp)

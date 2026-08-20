@@ -13,6 +13,7 @@ class EmployeeBase(BaseModel):
     status: Optional[str] = Field("Active", example="Active")
     join_date: Optional[str] = Field(None, example="14/08/2026")
     dob: Optional[str] = Field(None, example="15/08/1996", description="Employee date of birth")
+    assigned_shift: Optional[str] = Field("Shift 1: 09:00 AM - 06:00 PM", example="Shift 1: 06:00 AM - 02:00 PM (8h)", description="Assigned working shift for the employee")
 
 
 class EmployeeCreate(EmployeeBase):
@@ -37,6 +38,7 @@ class EmployeeUpdate(BaseModel):
     status: Optional[str] = None
     join_date: Optional[str] = None
     dob: Optional[str] = None
+    assigned_shift: Optional[str] = None
 
 
 class EmployeeResponse(EmployeeBase):

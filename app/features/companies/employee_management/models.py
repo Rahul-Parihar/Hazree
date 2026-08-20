@@ -18,4 +18,5 @@ class Employee(Base):
     status = Column(String(50), default="Active", nullable=False)
     join_date = Column(String(50), nullable=True)
     dob = Column(String(50), nullable=True)
+    assigned_shift = Column(String(150), default="Shift 1: 09:00 AM - 06:00 PM", nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

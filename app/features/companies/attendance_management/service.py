@@ -35,12 +35,184 @@ def _to_response(att: Attendance, company_name: Optional[str] = None) -> Attenda
     )
 
 
+def parse_time_to_minutes(time_str: str) -> Optional[int]:
+    import re
+    match = re.search(r'(\d{1,2}):(\d{2})\s*(AM|PM)', time_str, re.IGNORECASE)
+    if not match:
+        return None
+    h = int(match.group(1))
+    m = int(match.group(2))
+    ampm = match.group(3).upper()
+    if ampm == "PM" and h != 12:
+        h += 12
+    elif ampm == "AM" and h == 12:
+        h = 0
+    return h * 60 + m
+
+
+def parse_shift_window(
+    assigned_shift_str: Optional[str] = None,
+    company_shift_timings: Optional[str] = None,
+    company_shift_count: int = 1,
+) -> tuple[int, int, str, str, str]:
+    """
+    Extracts (start_minutes, end_minutes, start_str, end_str, shift_title) from assigned shift or company shift configuration.
+    e.g. 'Shift 2 (Night): 08:00 PM - 08:00 AM (12h)' -> (1200, 480, '08:00 PM', '08:00 AM', 'Shift 2 (Night)')
+    """
+    import re
+
+    raw_candidate = (assigned_shift_str or "").strip()
+    shift_title = raw_candidate.split(":")[0].strip() if ":" in raw_candidate else (raw_candidate or "Shift 1")
+
+    # 1. First, check if assigned_shift itself contains a time interval (e.g. "08:00 PM - 08:00 AM")
+    if raw_candidate:
+        match = re.search(
+            r'(\d{1,2}:\d{2}\s*(?:AM|PM))\s*(?:-|to)\s*(\d{1,2}:\d{2}\s*(?:AM|PM))',
+            raw_candidate,
+            re.IGNORECASE
+        )
+        if match:
+            start_str = match.group(1).strip()
+            end_str = match.group(2).strip()
+            s_mins = parse_time_to_minutes(start_str)
+            e_mins = parse_time_to_minutes(end_str)
+            if s_mins is not None and e_mins is not None:
+                return (s_mins, e_mins, start_str, end_str, shift_title)
+
+    # 2. If assigned_shift has no timing regex, look up in company_shift_timings (split by '|')
+    if company_shift_timings:
+        segments = [s.strip() for s in company_shift_timings.split("|") if s.strip()]
+        lower_assigned = raw_candidate.lower()
+
+        # Try to find segment matching assigned shift name/number
+        matched_segment = None
+        for seg in segments:
+            seg_lower = seg.lower()
+            if lower_assigned and (
+                (lower_assigned in seg_lower) or
+                ("shift 2" in lower_assigned and "shift 2" in seg_lower) or
+                ("shift 3" in lower_assigned and "shift 3" in seg_lower) or
+                ("shift 1" in lower_assigned and "shift 1" in seg_lower) or
+                ("night" in lower_assigned and "night" in seg_lower) or
+                ("evening" in lower_assigned and "evening" in seg_lower)
+            ):
+                matched_segment = seg
+                break
+
+        if not matched_segment and segments:
+            # If only 1 segment or no specific match, use first segment
+            matched_segment = segments[0]
+
+        if matched_segment:
+            seg_title = matched_segment.split(":")[0].strip() if ":" in matched_segment else matched_segment.strip()
+            match = re.search(
+                r'(\d{1,2}:\d{2}\s*(?:AM|PM))\s*(?:-|to)\s*(\d{1,2}:\d{2}\s*(?:AM|PM))',
+                matched_segment,
+                re.IGNORECASE
+            )
+            if match:
+                start_str = match.group(1).strip()
+                end_str = match.group(2).strip()
+                s_mins = parse_time_to_minutes(start_str)
+                e_mins = parse_time_to_minutes(end_str)
+                if s_mins is not None and e_mins is not None:
+                    return (s_mins, e_mins, start_str, end_str, shift_title or seg_title)
+
+    # 3. Standard fallback by shift name keywords
+    lower = raw_candidate.lower()
+    if "shift 2" in lower or "night" in lower or "evening" in lower:
+        if "evening" in lower or "afternoon" in lower:
+            return (14 * 60, 22 * 60, "02:00 PM", "10:00 PM", "Shift 2 (Evening)")
+        return (20 * 60, 8 * 60, "08:00 PM", "08:00 AM", "Shift 2 (Night)")
+    elif "shift 3" in lower:
+        return (22 * 60, 6 * 60, "10:00 PM", "06:00 AM", "Shift 3 (Night)")
+    elif "day" in lower or "morning" in lower:
+        return (8 * 60, 20 * 60, "08:00 AM", "08:00 PM", "Shift 1 (Day)")
+
+    return (9 * 60, 18 * 60, "09:00 AM", "06:00 PM", "Shift 1 (Day Shift)")
+
+
+def validate_and_calculate_shift_window(
+    punch_time_str: str,
+    assigned_shift_str: Optional[str] = None,
+    company_shift_timings: Optional[str] = None,
+    company_shift_count: int = 1,
+) -> tuple[bool, str, str]:
+    """
+    Validates if the employee is punching within their assigned shift window and calculates status.
+    Returns: (is_allowed: bool, status: str, rejection_reason: str)
+    """
+    if not punch_time_str or punch_time_str == "--":
+        return True, "Present", ""
+
+    punch_mins = parse_time_to_minutes(punch_time_str)
+    if punch_mins is None:
+        return True, "Present", ""
+
+    s_mins, e_mins, start_str, end_str, shift_title = parse_shift_window(
+        assigned_shift_str=assigned_shift_str,
+        company_shift_timings=company_shift_timings,
+        company_shift_count=company_shift_count,
+    )
+
+    # Format early clock-in time string (45 minutes before shift start)
+    earliest_allowed = (s_mins - 45) % 1440
+    earliest_h = (earliest_allowed // 60) % 24
+    earliest_m = earliest_allowed % 60
+    earliest_ampm = "AM" if earliest_h < 12 else "PM"
+    earliest_h_12 = earliest_h % 12 or 12
+    earliest_fmt = f"{earliest_h_12:02d}:{earliest_m:02d} {earliest_ampm}"
+
+    # Standard Day Shift (e.g. 08:00 AM to 08:00 PM: 480 to 1200)
+    if s_mins < e_mins:
+        earliest_mins = s_mins - 45
+        latest_mins = e_mins
+
+        if punch_mins < earliest_mins:
+            return False, "Present", (
+                f"Clock-in rejected: Early punch not allowed. Your assigned shift '{shift_title}' ({start_str} - {end_str}) "
+                f"starts at {start_str}. Early clock-in opens at {earliest_fmt}."
+            )
+
+        if punch_mins > latest_mins:
+            return False, "Late", (
+                f"Clock-in rejected: Shift is closed. Your assigned shift '{shift_title}' ({start_str} - {end_str}) "
+                f"ended at {end_str}. You cannot clock in after your scheduled shift hours."
+            )
+
+        # Inside valid window
+        if punch_mins <= s_mins + 15:
+            return True, "Present", ""
+        else:
+            return True, "Late", ""
+
+    else:
+        # Overnight Shift (e.g. 08:00 PM to 08:00 AM: 1200 to 480)
+        earliest_mins = (s_mins - 45) % 1440  # 1155 (07:15 PM)
+        latest_mins = e_mins                 # 480 (08:00 AM)
+
+        is_inside_window = (punch_mins >= earliest_mins) or (punch_mins <= latest_mins)
+
+        if not is_inside_window:
+            return False, "Late", (
+                f"Clock-in rejected: Outside shift window. Your assigned shift '{shift_title}' "
+                f"is active from {start_str} to {end_str}. Early clock-in opens at {earliest_fmt}."
+            )
+
+        # On-time vs Late for overnight shift
+        on_time_cutoff = (s_mins + 15) % 1440
+        if (punch_mins >= earliest_mins and (punch_mins <= on_time_cutoff or on_time_cutoff < earliest_mins)) or (on_time_cutoff < earliest_mins and punch_mins <= on_time_cutoff):
+            return True, "Present", ""
+        else:
+            return True, "Late", ""
+
+
 def record_punch(
     db: Session,
     punch_in: AttendancePunchCreate,
     company_id: int,
 ) -> AttendanceRecordResponse:
-    """Record manual or biometric attendance punch (Clock In / Clock Out)."""
+    """Record manual or biometric attendance punch (Clock In / Clock Out) with Strict Shift validation."""
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(
@@ -63,6 +235,7 @@ def record_punch(
 
     emp_name = (emp.name if emp else punch_in.employee_name).strip()
     emp_dept = (emp.department if emp else punch_in.department).strip()
+    emp_shift = getattr(emp, "assigned_shift", None) if emp else None
     avatar_url = (emp.avatar if emp and emp.avatar else punch_in.employee_avatar) or f"https://ui-avatars.com/api/?name={emp_name.replace(' ', '+')}&background=059669&color=fff"
     emp_id = emp.id if emp else punch_in.employee_id
 
@@ -89,12 +262,39 @@ def record_punch(
             .first()
         )
 
+    # If this is a Clock Out action
+    is_clock_out_action = bool(
+        (punch_in.check_out_time and punch_in.check_out_time != "--") or
+        (punch_in.work_hours == "Completed")
+    )
+
+    # For Clock-In action: Enforce Strict Shift Window Validation
+    if not is_clock_out_action and (not existing_record or not existing_record.check_in_time):
+        is_allowed, auto_status, rejection_reason = validate_and_calculate_shift_window(
+            punch_time_str=current_time_str,
+            assigned_shift_str=emp_shift,
+            company_shift_timings=company.shift_timings,
+            company_shift_count=company.shift_count or 1,
+        )
+
+        if not is_allowed and not punch_in.force_override:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=rejection_reason,
+            )
+
+        computed_status = punch_in.status if punch_in.status in ["Absent", "Half Day"] else auto_status
+    else:
+        computed_status = punch_in.status or "Present"
+
     if existing_record:
         if punch_in.check_out_time and punch_in.check_out_time != "--":
             existing_record.check_out_time = punch_in.check_out_time
-        elif existing_record.check_in_time and (not existing_record.check_out_time or existing_record.check_out_time == "--"):
+        elif is_clock_out_action and existing_record.check_in_time and (not existing_record.check_out_time or existing_record.check_out_time == "--"):
             # Clocking out existing check-in session
-            existing_record.check_out_time = punch_in.check_in_time or current_time_str
+            existing_record.check_out_time = punch_in.check_out_time if (punch_in.check_out_time and punch_in.check_out_time != "--") else current_time_str
+        elif punch_in.check_in_time and punch_in.check_in_time != "--" and (not existing_record.check_in_time or existing_record.check_in_time == "--"):
+            existing_record.check_in_time = punch_in.check_in_time
 
         if punch_in.status:
             existing_record.status = punch_in.status
@@ -121,7 +321,7 @@ def record_punch(
         date=today_str,
         check_in_time=current_time_str,
         check_out_time=punch_in.check_out_time or "--",
-        status=punch_in.status or "Present",
+        status=computed_status or "Present",
         work_hours=punch_in.work_hours or "Active",
         location=punch_in.location or "Office Premises (Verified)",
         device=punch_in.device or "Web Portal Punch",

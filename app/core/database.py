@@ -52,11 +52,13 @@ def init_db():
             conn.execute(text("ALTER TABLE companies ADD COLUMN IF NOT EXISTS saturday_policy VARCHAR(50) DEFAULT 'ALL_WORKING';"))
             conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255);"))
             conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS dob VARCHAR(50);"))
+            conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS assigned_shift VARCHAR(150) DEFAULT 'Shift 1: 09:00 AM - 06:00 PM';"))
             # Backfill any existing employees that have null hashed_password
             default_hashed = get_password_hash("Hazree@123")
             conn.execute(text(f"UPDATE employees SET hashed_password = '{default_hashed}' WHERE hashed_password IS NULL;"))
             # Backfill default date of birth for existing employees
             conn.execute(text("UPDATE employees SET dob = '1996-08-15' WHERE dob IS NULL;"))
+            conn.execute(text("UPDATE employees SET assigned_shift = 'Shift 1: 09:00 AM - 06:00 PM' WHERE assigned_shift IS NULL OR assigned_shift = 'General Shift';"))
             conn.commit()
     except Exception as e:
         logger.warning(f"Note on schema verification: {e}")
