@@ -62,11 +62,70 @@ export default function EmployeeDashboardLayout({
     return `${hrs}:${mins}:${secs}`;
   };
 
+  const checkShiftWindow = () => {
+    if (!activeEmployee?.shiftStart || !activeEmployee?.shiftEnd) return { isAllowed: true, reason: "" };
+
+    const parseMins = (t: string) => {
+      const m = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+      if (!m) return 0;
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const ap = m[3] ? m[3].toUpperCase() : "";
+      if (ap === "PM" && h !== 12) h += 12;
+      if (ap === "AM" && h === 12) h = 0;
+      return h * 60 + min;
+    };
+
+    const sMins = parseMins(activeEmployee.shiftStart);
+    const eMins = parseMins(activeEmployee.shiftEnd);
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    const earliestAllowed = (sMins - 45 + 1440) % 1440;
+    const eh = Math.floor(earliestAllowed / 60) % 24;
+    const em = earliestAllowed % 60;
+    const eampm = eh >= 12 ? "PM" : "AM";
+    const eh12 = eh % 12 || 12;
+    const earliestFmt = `${eh12 < 10 ? "0" : ""}${eh12}:${em < 10 ? "0" : ""}${em} ${eampm}`;
+
+    if (sMins < eMins) {
+      if (nowMins < sMins - 45) {
+        return {
+          isAllowed: false,
+          reason: `Early Clock-in: Shift starts at ${activeEmployee.shiftStart}. Clock-in opens at ${earliestFmt}.`,
+        };
+      }
+      if (nowMins > eMins) {
+        return {
+          isAllowed: false,
+          reason: `Shift Closed: Your assigned shift ended at ${activeEmployee.shiftEnd}. Clock-in is closed for your shift hours.`,
+        };
+      }
+    } else {
+      // Overnight Shift (e.g. 08:00 PM to 08:00 AM)
+      const isAllowed = nowMins >= (sMins - 45 + 1440) % 1440 || nowMins <= eMins;
+      if (!isAllowed) {
+        return {
+          isAllowed: false,
+          reason: `Outside Shift Window: Your assigned shift (${activeEmployee.shiftName || 'Shift 2'}) is active from ${activeEmployee.shiftStart} to ${activeEmployee.shiftEnd}. Early clock-in opens at ${earliestFmt}.`,
+        };
+      }
+    }
+
+    return { isAllowed: true, reason: "" };
+  };
+
+  const shiftWindow = checkShiftWindow();
+
   const handleClockToggle = () => {
     if (isClockedIn) {
       recordPunch("Web App", "Inside", 10);
       setIsClockedIn(false);
     } else {
+      if (!shiftWindow.isAllowed) {
+        alert(shiftWindow.reason);
+        return;
+      }
       recordPunch("Web App", "Inside", 10);
       setIsClockedIn(true);
       setClockInTime(formattedTime);
@@ -102,6 +161,9 @@ export default function EmployeeDashboardLayout({
                   <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                     Welcome {userDisplayName}
                   </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Shift: <strong>{activeEmployee?.shiftName || 'Shift 1'} ({activeEmployee?.shiftStart || '09:00 AM'} - {activeEmployee?.shiftEnd || '06:00 PM'})</strong>
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -124,9 +186,13 @@ export default function EmployeeDashboardLayout({
 
                   <button
                     onClick={handleClockToggle}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white font-semibold text-xs shadow-md transition-all active:scale-95 ${
+                    disabled={!isClockedIn && !shiftWindow.isAllowed}
+                    title={!isClockedIn && !shiftWindow.isAllowed ? shiftWindow.reason : undefined}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white font-semibold text-xs shadow-md transition-all active:scale-95 cursor-pointer ${
                       isClockedIn
                         ? "bg-[#d32f2f] hover:bg-[#b71c1c] shadow-red-500/20"
+                        : !shiftWindow.isAllowed
+                        ? "bg-slate-400 text-slate-200 cursor-not-allowed shadow-none"
                         : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"
                     }`}
                   >
@@ -134,6 +200,11 @@ export default function EmployeeDashboardLayout({
                       <>
                         <LogOut className="w-4 h-4" />
                         <span>Clock Out</span>
+                      </>
+                    ) : !shiftWindow.isAllowed ? (
+                      <>
+                        <Clock className="w-4 h-4" />
+                        <span>Clock In Locked (Outside Shift)</span>
                       </>
                     ) : (
                       <>
@@ -144,6 +215,14 @@ export default function EmployeeDashboardLayout({
                   </button>
                 </div>
               </div>
+
+              {/* Shift Warning Banner if outside assigned shift window */}
+              {!isClockedIn && !shiftWindow.isAllowed && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs font-semibold flex items-center gap-2 shadow-xs">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{shiftWindow.reason}</span>
+                </div>
+              )}
 
               {/* Top Stats Grid: Profile Summary, Attendance Stats, Leave Quota */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-5">

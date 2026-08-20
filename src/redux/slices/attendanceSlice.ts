@@ -49,27 +49,34 @@ export const fetchAttendanceAsync = createAsyncThunk(
  */
 export const recordPunchAsync = createAsyncThunk(
   "attendance/recordPunchAsync",
-  async ({
-    employee,
-    type = "Web App",
-    geofenceStatus = "Inside",
-    distanceMeters = 10,
-    selfieSnapshot,
-  }: {
-    employee: EmployeeProfile;
-    type?: "Web App" | "Mobile GPS" | "Kiosk PIN" | "Biometric";
-    geofenceStatus?: "Inside" | "Outside" | "Remote Verified";
-    distanceMeters?: number;
-    selfieSnapshot?: string;
-  }) => {
-    const result = await attendanceService.recordPunch(
+  async (
+    {
       employee,
-      type,
-      geofenceStatus,
-      distanceMeters,
-      selfieSnapshot
-    );
-    return result;
+      type = "Web App",
+      geofenceStatus = "Inside",
+      distanceMeters = 10,
+      selfieSnapshot,
+    }: {
+      employee: EmployeeProfile;
+      type?: "Web App" | "Mobile GPS" | "Kiosk PIN" | "Biometric";
+      geofenceStatus?: "Inside" | "Outside" | "Remote Verified";
+      distanceMeters?: number;
+      selfieSnapshot?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await attendanceService.recordPunch(
+        employee,
+        type,
+        geofenceStatus,
+        distanceMeters,
+        selfieSnapshot
+      );
+      return result;
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Failed to record punch");
+    }
   }
 );
 

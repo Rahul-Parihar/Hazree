@@ -17,7 +17,7 @@ export const INITIAL_EMPLOYEES: EmployeeProfile[] = [
     department: "Engineering",
     employeeCode: "EMP-1001",
     avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    shiftName: "General Shift",
+    shiftName: "Shift 1 (Day)",
     shiftStart: "09:30",
     shiftEnd: "18:30",
     companyName: "Apex Innovations Pvt Ltd",

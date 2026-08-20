@@ -79,12 +79,37 @@ export const attendanceService = {
       savePunches(punches);
       return { record: updatedRecord, isCheckOut: true };
     } else {
-      // Punch-in logic
-      const shiftParts = employee.shiftStart.split(":");
-      const shiftStartMinutes =
-        parseInt(shiftParts[0], 10) * 60 + parseInt(shiftParts[1], 10);
+      // Punch-in logic with shift window check
+      const parseMins = (t: string) => {
+        const m = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (!m) return 0;
+        let h = parseInt(m[1], 10);
+        const min = parseInt(m[2], 10);
+        const ap = m[3] ? m[3].toUpperCase() : "";
+        if (ap === "PM" && h !== 12) h += 12;
+        if (ap === "AM" && h === 12) h = 0;
+        return h * 60 + min;
+      };
+
+      const sMins = employee.shiftStart ? parseMins(employee.shiftStart) : 540;
+      const eMins = employee.shiftEnd ? parseMins(employee.shiftEnd) : 1080;
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const isLate = currentMinutes > shiftStartMinutes + 15;
+
+      // Check shift window
+      if (employee.shiftStart && employee.shiftEnd) {
+        if (sMins < eMins) {
+          if (currentMinutes < sMins - 45 || currentMinutes > eMins) {
+            throw new Error(`Outside shift window. Your shift is active from ${employee.shiftStart} to ${employee.shiftEnd}.`);
+          }
+        } else {
+          const isAllowed = currentMinutes >= (sMins - 45 + 1440) % 1440 || currentMinutes <= eMins;
+          if (!isAllowed) {
+            throw new Error(`Outside shift window. Your shift is active from ${employee.shiftStart} to ${employee.shiftEnd}.`);
+          }
+        }
+      }
+
+      const isLate = currentMinutes > sMins + 15;
 
       const newRecord: PunchRecord = {
         id: Date.now(),

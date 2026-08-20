@@ -46,11 +46,61 @@ export default function KioskTerminal({ onExitKiosk }: KioskTerminalProps) {
     setErrorMsg("");
   };
 
+  const checkEmployeeShiftWindow = (emp: EmployeeProfile) => {
+    if (!emp.shiftStart || !emp.shiftEnd) return { isAllowed: true, reason: '' };
+
+    const parseMins = (t: string) => {
+      const m = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+      if (!m) return 0;
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const ap = m[3] ? m[3].toUpperCase() : '';
+      if (ap === 'PM' && h !== 12) h += 12;
+      if (ap === 'AM' && h === 12) h = 0;
+      return h * 60 + min;
+    };
+
+    const sMins = parseMins(emp.shiftStart);
+    const eMins = parseMins(emp.shiftEnd);
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    const earliestAllowed = (sMins - 45 + 1440) % 1440;
+    const eh = Math.floor(earliestAllowed / 60) % 24;
+    const em = earliestAllowed % 60;
+    const eampm = eh >= 12 ? 'PM' : 'AM';
+    const eh12 = eh % 12 || 12;
+    const earliestFmt = `${eh12 < 10 ? '0' : ''}${eh12}:${em < 10 ? '0' : ''}${em} ${eampm}`;
+
+    if (sMins < eMins) {
+      if (nowMins < sMins - 45) {
+        return { isAllowed: false, reason: `Early Clock-in: Shift starts at ${emp.shiftStart}. Punch opens at ${earliestFmt}.` };
+      }
+      if (nowMins > eMins) {
+        return { isAllowed: false, reason: `Shift Closed: Assigned shift ended at ${emp.shiftEnd}.` };
+      }
+    } else {
+      const isAllowed = nowMins >= (sMins - 45 + 1440) % 1440 || nowMins <= eMins;
+      if (!isAllowed) {
+        return { isAllowed: false, reason: `Outside Shift Window: Shift is active from ${emp.shiftStart} to ${emp.shiftEnd}. Opens at ${earliestFmt}.` };
+      }
+    }
+    return { isAllowed: true, reason: '' };
+  };
+
   const verifyPin = (pinToTest: string) => {
     setIsVerifying(true);
     setTimeout(() => {
       const matched = employeeService.verifyPin(pinToTest);
       if (matched) {
+        const shiftCheck = checkEmployeeShiftWindow(matched);
+        if (!shiftCheck.isAllowed) {
+          setErrorMsg(shiftCheck.reason);
+          setPin("");
+          setIsVerifying(false);
+          return;
+        }
+
         setSuccessEmp(matched);
         recordPunch("Kiosk PIN", "Inside", 8);
         setPin("");

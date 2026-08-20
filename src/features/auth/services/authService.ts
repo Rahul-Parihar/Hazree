@@ -18,6 +18,7 @@ export interface BackendAuthUser {
   avatar?: string;
   employee_code?: string;
   dob?: string;
+  assigned_shift?: string;
   status?: string;
   is_super_admin?: boolean;
   is_active?: boolean;
@@ -31,6 +32,48 @@ export interface BackendLoginResponse {
   };
   message: string;
   status: string;
+}
+
+function parseShiftDetails(rawShift?: string): { shiftName: string; shiftStart: string; shiftEnd: string } {
+  if (!rawShift) {
+    return { shiftName: 'Shift 1', shiftStart: '09:00 AM', shiftEnd: '06:00 PM' };
+  }
+
+  const raw = rawShift.trim();
+  const shiftName = raw.includes(':') ? raw.split(':')[0].trim().replace(/General Shift/i, 'Shift 1') : raw.replace(/General Shift/i, 'Shift 1');
+
+  // Match standard time range "08:00 PM - 08:00 AM" or "08:00 AM to 08:00 PM"
+  const match = raw.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))\s*(?:-|to)\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+  if (match) {
+    return {
+      shiftName,
+      shiftStart: match[1].trim(),
+      shiftEnd: match[2].trim(),
+    };
+  }
+
+  // Fallbacks based on shift keywords
+  const lower = raw.toLowerCase();
+  if (lower.includes('shift 2') || lower.includes('night') || lower.includes('evening')) {
+    if (lower.includes('evening') || lower.includes('afternoon')) {
+      return { shiftName: 'Shift 2 (Evening)', shiftStart: '02:00 PM', shiftEnd: '10:00 PM' };
+    }
+    return { shiftName: 'Shift 2 (Night)', shiftStart: '08:00 PM', shiftEnd: '08:00 AM' };
+  }
+
+  if (lower.includes('shift 3')) {
+    return { shiftName: 'Shift 3 (Night)', shiftStart: '10:00 PM', shiftEnd: '06:00 AM' };
+  }
+
+  if (lower.includes('day') || lower.includes('morning')) {
+    return { shiftName: 'Shift 1 (Day)', shiftStart: '08:00 AM', shiftEnd: '08:00 PM' };
+  }
+
+  return {
+    shiftName: 'Shift 1 (Day Shift)',
+    shiftStart: '09:00 AM',
+    shiftEnd: '06:00 PM',
+  };
 }
 
 const BACKEND_BASE_URL =
@@ -88,6 +131,8 @@ export const authService = {
         );
       }
 
+      const shiftInfo = parseShiftDetails(user.assigned_shift);
+
       // Transform backend user data into EmployeeProfile format
       const profile: EmployeeProfile = {
         id: user.id,
@@ -102,9 +147,9 @@ export const authService = {
           `https://ui-avatars.com/api/?name=${encodeURIComponent(
             user.full_name || cleanEmail
           )}&background=059669&color=fff`,
-        shiftName: "General Shift",
-        shiftStart: "09:00",
-        shiftEnd: "18:00",
+        shiftName: shiftInfo.shiftName,
+        shiftStart: shiftInfo.shiftStart,
+        shiftEnd: shiftInfo.shiftEnd,
         companyName: user.company_name || "Hazree Organization",
         companyId: user.company_id || 1,
         pin: "1234",

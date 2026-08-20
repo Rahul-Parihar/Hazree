@@ -32,6 +32,62 @@ export default function PunchWidget() {
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [punchingLoading, setPunchingLoading] = useState<boolean>(false);
 
+  const checkShiftWindow = () => {
+    if (!activeEmployee?.shiftStart || !activeEmployee?.shiftEnd) return { isAllowed: true, reason: '' };
+
+    const parseMins = (t: string) => {
+      const m = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+      if (!m) return 0;
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const ap = m[3] ? m[3].toUpperCase() : '';
+      if (ap === 'PM' && h !== 12) h += 12;
+      if (ap === 'AM' && h === 12) h = 0;
+      return h * 60 + min;
+    };
+
+    const sMins = parseMins(activeEmployee.shiftStart);
+    const eMins = parseMins(activeEmployee.shiftEnd);
+
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    const earliestAllowed = (sMins - 45 + 1440) % 1440;
+    const eh = Math.floor(earliestAllowed / 60) % 24;
+    const em = earliestAllowed % 60;
+    const eampm = eh >= 12 ? 'PM' : 'AM';
+    const eh12 = eh % 12 || 12;
+    const earliestFmt = `${eh12 < 10 ? '0' : ''}${eh12}:${em < 10 ? '0' : ''}${em} ${eampm}`;
+
+    if (sMins < eMins) {
+      if (nowMins < sMins - 45) {
+        return {
+          isAllowed: false,
+          reason: `Early Clock-in: Shift starts at ${activeEmployee.shiftStart}. Clock-in opens at ${earliestFmt}.`,
+        };
+      }
+      if (nowMins > eMins) {
+        return {
+          isAllowed: false,
+          reason: `Shift Closed: Your assigned shift ended at ${activeEmployee.shiftEnd}. Clock-in is closed for your shift hours.`,
+        };
+      }
+    } else {
+      // Overnight Shift (e.g. 08:00 PM to 08:00 AM)
+      const isAllowed = nowMins >= (sMins - 45 + 1440) % 1440 || nowMins <= eMins;
+      if (!isAllowed) {
+        return {
+          isAllowed: false,
+          reason: `Outside Shift Window: Your assigned shift (${activeEmployee.shiftName || 'Shift 2'}) is active from ${activeEmployee.shiftStart} to ${activeEmployee.shiftEnd}. Early clock-in opens at ${earliestFmt}.`,
+        };
+      }
+    }
+
+    return { isAllowed: true, reason: '' };
+  };
+
+  const shiftWindow = checkShiftWindow();
+
   const handleCaptureSelfie = () => {
     setCameraActive(true);
     setTimeout(() => {
@@ -43,6 +99,11 @@ export default function PunchWidget() {
   };
 
   const handlePunchAction = () => {
+    if (!isCheckedIn && !shiftWindow.isAllowed) {
+      alert(shiftWindow.reason);
+      return;
+    }
+
     setPunchingLoading(true);
     setTimeout(() => {
       const geoStatus = isInside ? "Inside" : "Outside";
@@ -81,10 +142,18 @@ export default function PunchWidget() {
             <div className="text-4xl sm:text-6xl font-black tracking-tight text-white font-mono flex items-baseline gap-2 mt-1">
               <span>{formattedTime}</span>
             </div>
-            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-emerald-400" />
-              Assigned Shift: <span className="text-slate-200 font-medium">{activeEmployee.shiftName}</span> ({activeEmployee.shiftStart} - {activeEmployee.shiftEnd})
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{activeEmployee.shiftName || 'Assigned Shift'}: {activeEmployee.shiftStart} - {activeEmployee.shiftEnd}</span>
+              </span>
+              {!isCheckedIn && !isCheckedOut && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                  <Sparkles className="w-3 h-3 text-cyan-400" />
+                  Shift Auto-Validation Enabled
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Active Duty Timer */}
@@ -240,13 +309,28 @@ export default function PunchWidget() {
             )}
           </div>
 
+          {/* Shift Timing Restriction Warning */}
+          {!isCheckedIn && !shiftWindow.isAllowed && (
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-1">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-bold text-amber-200">Shift Window Restricted</p>
+                  <p className="text-[11px] text-amber-300/90 mt-0.5">{shiftWindow.reason}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Action Button */}
           <button
             onClick={handlePunchAction}
-            disabled={punchingLoading}
+            disabled={punchingLoading || (!isCheckedIn && !shiftWindow.isAllowed)}
             className={`w-full relative group overflow-hidden py-4 px-6 rounded-2xl font-bold text-base shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${
               isCheckedIn
                 ? "bg-gradient-to-r from-amber-500 via-rose-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white shadow-rose-500/20"
+                : !shiftWindow.isAllowed
+                ? "bg-slate-800 text-slate-500 border border-white/10 cursor-not-allowed opacity-70"
                 : "bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-300 text-slate-950 shadow-emerald-500/25"
             }`}
           >
@@ -259,6 +343,11 @@ export default function PunchWidget() {
               <>
                 <LogOut className="w-5 h-5" />
                 <span>PUNCH OUT (Check-Out)</span>
+              </>
+            ) : !shiftWindow.isAllowed ? (
+              <>
+                <Clock className="w-5 h-5" />
+                <span>CLOCK IN CLOSED (Outside Shift)</span>
               </>
             ) : (
               <>

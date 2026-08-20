@@ -156,7 +156,7 @@ export const attendanceService = {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      await fetch(`${BACKEND_BASE_URL}/attendance/punch`, {
+      const res = await fetch(`${BACKEND_BASE_URL}/attendance/punch`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -173,11 +173,29 @@ export const attendanceService = {
           device: punchType,
         }),
       });
-    } catch (err) {
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const msg = errorData.detail || `Punch rejected: Outside assigned shift window.`;
+        throw new Error(msg);
+      }
+
+      const data = await res.json();
+      const mapped = mapBackendAttendanceToPunch(data, employee.employeeCode);
+      const otherPunches = punches.filter((p) => !(p.employeeId === employee.id && p.date === today));
+      const combined = [mapped, ...otherPunches];
+      savePunches(combined);
+
+      const isActualCheckOut = Boolean(mapped.punchOutTime && mapped.punchOutTime !== "--");
+      return { record: mapped, isCheckOut: isActualCheckOut };
+    } catch (err: any) {
+      if (err.message && (err.message.includes("rejected") || err.message.includes("shift") || err.message.includes("Clock-in"))) {
+        throw err;
+      }
       console.warn("Backend punch submission offline, stored locally:", err);
     }
 
-    // 2. Update local state
+    // 2. Fallback: Update local state if backend unreachable
     if (isCheckOut) {
       const existing = punches[existingIndex];
       const updatedRecord: PunchRecord = {

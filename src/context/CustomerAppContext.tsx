@@ -130,14 +130,14 @@ export function CustomerAppProvider({
     showToast("Signed out of Hazree portal.", "info");
   };
 
-  const recordPunch = (
+  const recordPunch = async (
     type: "Web App" | "Mobile GPS" | "Kiosk PIN" | "Biometric" = "Web App",
     geofenceStatus: "Inside" | "Outside" | "Remote Verified" = "Inside",
     distanceMeters: number = 12,
     selfieSnapshot?: string
   ) => {
     if (!activeEmployee) return;
-    dispatch(
+    const res = await dispatch(
       recordPunchAsync({
         employee: activeEmployee,
         type,
@@ -146,10 +146,14 @@ export function CustomerAppProvider({
         selfieSnapshot,
       })
     );
-    showToast(
-      `Punch event recorded via ${type}! Location: ${geofenceStatus}`,
-      "success"
-    );
+    if (recordPunchAsync.fulfilled.match(res)) {
+      showToast(
+        `Punch event recorded via ${type}! Location: ${geofenceStatus}`,
+        "success"
+      );
+    } else if (recordPunchAsync.rejected.match(res)) {
+      showToast((res.payload as string) || "Failed to record punch: Outside shift window", "error");
+    }
   };
 
   const applyLeave = (leaveData: any) => {
