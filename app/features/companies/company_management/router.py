@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -12,6 +12,7 @@ from app.features.companies.company_management.schemas import (
 )
 from app.features.super_admin.super_admin_auth.schemas import UserAuthResponse
 from app.features.super_admin.super_admin_auth.service import get_current_super_admin, get_current_user
+from app.features.super_admin.super_admin_auth.models import AdminUser
 
 router = APIRouter(
     prefix="/companies",
