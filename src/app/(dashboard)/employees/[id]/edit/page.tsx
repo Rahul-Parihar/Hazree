@@ -169,8 +169,8 @@ export default function EditEmployeePage() {
       const compId = targetEmployee?.companyId
         ? Number(String(targetEmployee.companyId).replace('cmp_', ''))
         : currentUser?.companyId
-        ? Number(String(currentUser.companyId).replace('cmp_', ''))
-        : undefined;
+          ? Number(String(currentUser.companyId).replace('cmp_', ''))
+          : undefined;
 
       await dispatch(
         createDepartmentAsync({
@@ -356,7 +356,7 @@ export default function EditEmployeePage() {
 
             <Input
               label="Official Contact Phone"
-              placeholder="e.g. +91 98765 43210"
+              placeholder="Enter Your Contact Number"
               value={formData.phone}
               onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
             />
@@ -553,11 +553,10 @@ export default function EditEmployeePage() {
                     key={idx}
                     type="button"
                     onClick={() => setFormData((prev) => ({ ...prev, avatar: preset.url }))}
-                    className={`group relative flex flex-col items-center gap-1.5 p-2 rounded-2xl border-2 transition-all cursor-pointer ${
-                      isSelected
+                    className={`group relative flex flex-col items-center gap-1.5 p-2 rounded-2xl border-2 transition-all cursor-pointer ${isSelected
                         ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20 shadow-xs scale-102'
                         : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 bg-white'
-                    }`}
+                      }`}
                   >
                     <div className="relative">
                       <img
@@ -572,9 +571,8 @@ export default function EditEmployeePage() {
                       )}
                     </div>
                     <span
-                      className={`text-[10px] font-black tracking-tight ${
-                        isSelected ? 'text-emerald-900' : 'text-slate-500 group-hover:text-slate-800'
-                      }`}
+                      className={`text-[10px] font-black tracking-tight ${isSelected ? 'text-emerald-900' : 'text-slate-500 group-hover:text-slate-800'
+                        }`}
                     >
                       {preset.name}
                     </span>

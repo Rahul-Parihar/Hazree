@@ -216,15 +216,15 @@ export const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Company Name *"
-              placeholder="e.g. Acme Technologies Pvt Ltd"
+              placeholder="Enter Your Company Name"
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
               icon={<Building2 className="w-4 h-4" />}
               required
             />
             <Input
-              label="HQ Location"
-              placeholder="e.g. Indore, MP"
+              label="Location"
+              placeholder="Enter Your Location"
               value={formData.location}
               onChange={(e) => handleChange('location', e.target.value)}
               icon={<MapPin className="w-4 h-4" />}
@@ -235,7 +235,7 @@ export const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Admin Name"
-              placeholder="e.g. Rajesh Sharma"
+              placeholder="Enter Your Full Name"
               value={formData.adminName}
               onChange={(e) => handleChange('adminName', e.target.value)}
               icon={<User className="w-4 h-4" />}
@@ -243,7 +243,7 @@ export const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
             <Input
               label="Admin / Official Email *"
               type="email"
-              placeholder="e.g. admin@company.com"
+              placeholder="Enter Your Company Email Address"
               value={formData.adminEmail}
               onChange={(e) => handleChange('adminEmail', e.target.value)}
               icon={<Mail className="w-4 h-4" />}
@@ -254,7 +254,7 @@ export const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Official Phone Number"
-              placeholder="e.g. +91 98765 43210"
+              placeholder="Enter Your Phone Number"
               value={formData.adminPhone}
               onChange={(e) => handleChange('adminPhone', e.target.value)}
               icon={<Phone className="w-4 h-4" />}
@@ -344,11 +344,10 @@ export const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleShiftPreset(1)}
-                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center ${
-                  formData.shiftCount === 1
+                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center ${formData.shiftCount === 1
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                     : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 1 Shift
                 <span className="block text-[10px] font-normal opacity-80">Day (09am-06pm)</span>
@@ -357,11 +356,10 @@ export const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleShiftPreset(2)}
-                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center ${
-                  formData.shiftCount === 2
+                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center ${formData.shiftCount === 2
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                     : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 2 Shifts
                 <span className="block text-[10px] font-normal opacity-80">Day & Night</span>
@@ -370,11 +368,10 @@ export const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleShiftPreset(3)}
-                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center ${
-                  formData.shiftCount === 3
+                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center ${formData.shiftCount === 3
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                     : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 3 Shifts ⭐
                 <span className="block text-[10px] font-normal opacity-80">24x7 Rotational</span>

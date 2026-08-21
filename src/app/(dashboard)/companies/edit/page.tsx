@@ -369,7 +369,7 @@ function EditCompanyPageInner() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <Input
                 label="Company Name *"
-                placeholder="e.g. Acme Technologies Pvt Ltd"
+                placeholder="Enter Your company Name"
                 value={formData.name}
                 onChange={(e) => handleChange('name', e.target.value)}
                 icon={<Building2 className="w-4 h-4" />}
@@ -377,17 +377,17 @@ function EditCompanyPageInner() {
               />
 
               <Input
-                label="Headquarters Location / City"
-                placeholder="e.g. Indore, Madhya Pradesh"
+                label="Location"
+                placeholder="Enter Your Location"
                 value={formData.location}
                 onChange={(e) => handleChange('location', e.target.value)}
                 icon={<MapPin className="w-4 h-4" />}
               />
 
               <Input
-                label="Official Contact Email *"
+                label="Official Contact Email "
                 type="email"
-                placeholder="e.g. contact@acme.com"
+                placeholder="Enter Your Company Email"
                 value={formData.adminEmail}
                 onChange={(e) => handleChange('adminEmail', e.target.value)}
                 icon={<Mail className="w-4 h-4" />}
@@ -397,7 +397,7 @@ function EditCompanyPageInner() {
               <Input
                 label="Official Phone / Support"
                 type="tel"
-                placeholder="e.g. +91 98765 43210"
+                placeholder="Enter Your Phone Number"
                 value={formData.adminPhone}
                 onChange={(e) => handleChange('adminPhone', e.target.value)}
                 icon={<Phone className="w-4 h-4" />}
@@ -405,7 +405,7 @@ function EditCompanyPageInner() {
 
               <Input
                 label="Primary Admin Full Name"
-                placeholder="e.g. Rajesh Sharma"
+                placeholder="Enter Your Full Name"
                 value={formData.adminName}
                 onChange={(e) => handleChange('adminName', e.target.value)}
                 icon={<User className="w-4 h-4" />}
@@ -469,11 +469,10 @@ function EditCompanyPageInner() {
                 <button
                   type="button"
                   onClick={() => handleShiftPreset(1)}
-                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
-                    formData.shiftCount === 1
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${formData.shiftCount === 1
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <p className="font-extrabold text-sm">1 Shift (Day)</p>
                   <p className={`text-xs mt-1 ${formData.shiftCount === 1 ? 'text-emerald-100' : 'text-slate-500'}`}>
@@ -484,11 +483,10 @@ function EditCompanyPageInner() {
                 <button
                   type="button"
                   onClick={() => handleShiftPreset(2)}
-                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
-                    formData.shiftCount === 2
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${formData.shiftCount === 2
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <p className="font-extrabold text-sm">2 Shifts</p>
                   <p className={`text-xs mt-1 ${formData.shiftCount === 2 ? 'text-emerald-100' : 'text-slate-500'}`}>
@@ -499,11 +497,10 @@ function EditCompanyPageInner() {
                 <button
                   type="button"
                   onClick={() => handleShiftPreset(3)}
-                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
-                    formData.shiftCount === 3
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${formData.shiftCount === 3
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <p className="font-extrabold text-sm flex items-center justify-between">
                     <span>3 Shifts</span>
@@ -548,11 +545,10 @@ function EditCompanyPageInner() {
                 <button
                   type="button"
                   onClick={() => handleChange('saturdayPolicy', 'ALL_WORKING')}
-                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
-                    formData.saturdayPolicy === 'ALL_WORKING'
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${formData.saturdayPolicy === 'ALL_WORKING'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <p className="font-extrabold text-sm flex items-center justify-between">
                     <span>🏢 All Saturdays Working</span>
@@ -568,11 +564,10 @@ function EditCompanyPageInner() {
                 <button
                   type="button"
                   onClick={() => handleChange('saturdayPolicy', 'SECOND_FOURTH_OFF')}
-                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
-                    formData.saturdayPolicy === 'SECOND_FOURTH_OFF'
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${formData.saturdayPolicy === 'SECOND_FOURTH_OFF'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <p className="font-extrabold text-sm flex items-center justify-between">
                     <span>⚖️ 2nd & 4th Saturday Off</span>
@@ -588,11 +583,10 @@ function EditCompanyPageInner() {
                 <button
                   type="button"
                   onClick={() => handleChange('saturdayPolicy', 'ALL_OFF')}
-                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
-                    formData.saturdayPolicy === 'ALL_OFF'
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${formData.saturdayPolicy === 'ALL_OFF'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <p className="font-extrabold text-sm flex items-center justify-between">
                     <span>🌴 All Saturdays Off</span>
@@ -608,11 +602,10 @@ function EditCompanyPageInner() {
                 <button
                   type="button"
                   onClick={() => handleChange('saturdayPolicy', 'FIRST_THIRD_OFF')}
-                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${
-                    formData.saturdayPolicy === 'FIRST_THIRD_OFF'
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer ${formData.saturdayPolicy === 'FIRST_THIRD_OFF'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <p className="font-extrabold text-sm flex items-center justify-between">
                     <span>🔄 1st & 3rd Saturday Off</span>
