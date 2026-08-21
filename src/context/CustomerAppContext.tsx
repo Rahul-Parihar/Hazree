@@ -19,11 +19,32 @@ import {
   logout,
   initializeAuth,
 } from "@/redux/slices/authSlice";
+import { wsService } from "../services/websocketService";
 import {
   recordPunchAsync,
   fetchAttendanceAsync,
   initializeAttendance,
+  handleRealtimePunch,
 } from "@/redux/slices/attendanceSlice";
+
+function mapBackendAttendanceToPunchRecord(be: any, employeeCode: string = "EMP-0001"): PunchRecord {
+  const isCheckedOut = be.check_out_time && be.check_out_time !== "--";
+  return {
+    id: be.id,
+    employeeId: be.employee_id || 1,
+    employeeName: be.employee_name,
+    employeeCode: employeeCode,
+    date: be.date,
+    punchInTime: be.check_in_time,
+    punchOutTime: isCheckedOut ? be.check_out_time : null,
+    status: be.status || "Present",
+    workHours: isCheckedOut ? 8.5 : 0,
+    punchLocation: be.location || "Office Premises (Verified)",
+    geofenceStatus: "Inside",
+    distanceMeters: 10,
+    punchType: be.device || "Web App",
+  };
+}
 import {
   applyLeave as applyLeaveRedux,
   initializeLeaves,
@@ -84,14 +105,68 @@ export function CustomerAppProvider({
     checkBackendHealth().then((status) => setBackendOnline(status));
   }, [dispatch]);
 
+  const activeEmployee = reduxAuth.user || employeeService.getCurrentEmployee();
+  const activeEmployeeRef = React.useRef(activeEmployee);
+  activeEmployeeRef.current = activeEmployee;
+
   useEffect(() => {
     const current = reduxAuth.user || employeeService.getCurrentEmployee();
     if (current) {
       dispatch(initializeAttendance({ employeeId: current.id }));
       dispatch(fetchAttendanceAsync({ employeeId: current.id, employeeCode: current.employeeCode }));
       dispatch(initializeLeaves({ employeeId: current.id }));
+      wsService.connect(current.companyId, current.id);
     }
   }, [reduxAuth.user, dispatch]);
+
+  useEffect(() => {
+    wsService.connect(activeEmployee?.companyId, activeEmployee?.id);
+
+    const unsubscribe = wsService.subscribe((msg: any) => {
+      if (!msg || !msg.event) return;
+
+      if (msg.event === "ATTENDANCE_PUNCH" || msg.event === "ATTENDANCE_UPDATE") {
+        if (msg.data) {
+          const currentEmp = activeEmployeeRef.current;
+          const empCode = currentEmp?.employeeCode || "EMP-0001";
+          const punchRec = mapBackendAttendanceToPunchRecord(msg.data, empCode);
+
+          dispatch(
+            handleRealtimePunch({
+              punch: punchRec,
+              targetEmployeeId: currentEmp?.id,
+              targetEmployeeName: currentEmp?.fullName,
+            })
+          );
+
+          // Check if it's for current user
+          const rawTargetId = currentEmp?.id ? Number(String(currentEmp.id).replace("emp_", "")) : undefined;
+          const rawPunchEmpId = Number(String(msg.employee_id || msg.data.employee_id).replace("emp_", ""));
+          const isForMe =
+            (rawTargetId !== undefined && rawPunchEmpId === rawTargetId) ||
+            (currentEmp?.fullName && (
+              (msg.employee_name && currentEmp.fullName.toLowerCase().trim() === msg.employee_name.toLowerCase().trim()) ||
+              (msg.data.employee_name && currentEmp.fullName.toLowerCase().trim() === msg.data.employee_name.toLowerCase().trim())
+            ));
+
+          if (isForMe) {
+            const isOut = Boolean(msg.action === "CLOCK_OUT" || (msg.data.check_out_time && msg.data.check_out_time !== "--"));
+            const timeStr = isOut ? (msg.data.check_out_time || "") : (msg.data.check_in_time || "");
+            toast.success(
+              isOut
+                ? `Real-Time Sync: Clock Out recorded at ${timeStr}!`
+                : `Real-Time Sync: Clock In recorded at ${timeStr}!`,
+              { id: `rt_punch_${msg.data.id || Date.now()}`, duration: 3000 }
+            );
+          }
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [dispatch]);
 
   const showToast = (
     text: string,
@@ -110,8 +185,6 @@ export function CustomerAppProvider({
   const removeToast = (id: string) => {
     dispatch(removeToastRedux(id));
   };
-
-  const activeEmployee = reduxAuth.user || employeeService.getCurrentEmployee();
 
   const setActiveEmployee = (emp: EmployeeProfile) => {
     dispatch(setUser(emp));

@@ -18,14 +18,18 @@ import { useCustomerApp } from "@/context/CustomerAppContext";
 import { useLiveClock } from "@/hooks/useLiveClock";
 import { useGeofence } from "@/hooks/useGeofence";
 import { usePunchTimer } from "@/hooks/usePunchTimer";
+import { useAppSelector } from "@/redux/hooks";
 
 export default function PunchWidget() {
   const { activeEmployee, todayPunch, recordPunch } = useCustomerApp();
+  const reduxTodayPunch = useAppSelector((state) => state.attendance.todayPunch);
+  const activeTodayPunch = reduxTodayPunch || todayPunch;
+
   const { formattedTime, formattedDate } = useLiveClock();
   const { isInside, distanceMeters, toggleSimulation } = useGeofence(true);
   const { formattedElapsed } = usePunchTimer(
-    todayPunch?.punchInTime,
-    todayPunch?.punchOutTime
+    activeTodayPunch?.punchInTime,
+    activeTodayPunch?.punchOutTime
   );
 
   const [cameraActive, setCameraActive] = useState<boolean>(false);
@@ -98,22 +102,23 @@ export default function PunchWidget() {
     }, 1000);
   };
 
-  const handlePunchAction = () => {
+  const handlePunchAction = async () => {
     if (!isCheckedIn && !shiftWindow.isAllowed) {
       alert(shiftWindow.reason);
       return;
     }
 
     setPunchingLoading(true);
-    setTimeout(() => {
+    try {
       const geoStatus = isInside ? "Inside" : "Outside";
-      recordPunch("Web App", geoStatus, distanceMeters, capturedPhoto || undefined);
+      await recordPunch("Web App", geoStatus, distanceMeters, capturedPhoto || undefined);
+    } finally {
       setPunchingLoading(false);
-    }, 600);
+    }
   };
 
-  const isCheckedIn = !!todayPunch && !todayPunch.punchOutTime;
-  const isCheckedOut = !!todayPunch && !!todayPunch.punchOutTime;
+  const isCheckedIn = !!activeTodayPunch && !activeTodayPunch.punchOutTime;
+  const isCheckedOut = !!activeTodayPunch && !!activeTodayPunch.punchOutTime;
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-white/10 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
@@ -166,10 +171,10 @@ export default function PunchWidget() {
                 </div>
                 <div>
                   <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider">
-                    Checked In At {todayPunch.punchInTime}
+                    Checked In At {activeTodayPunch?.punchInTime}
                   </p>
                   <p className="text-xs text-slate-300">
-                    Status: <span className="font-bold text-emerald-300">{todayPunch.status}</span>
+                    Status: <span className="font-bold text-emerald-300">{activeTodayPunch?.status}</span>
                   </p>
                 </div>
               </div>
@@ -195,7 +200,7 @@ export default function PunchWidget() {
                     Shift Completed Today!
                   </p>
                   <p className="text-xs text-slate-400">
-                    In: {todayPunch.punchInTime} • Out: {todayPunch.punchOutTime}
+                    In: {activeTodayPunch?.punchInTime} • Out: {activeTodayPunch?.punchOutTime}
                   </p>
                 </div>
               </div>
@@ -204,7 +209,7 @@ export default function PunchWidget() {
                   Total Logged
                 </p>
                 <p className="text-lg font-bold font-mono text-cyan-400">
-                  {todayPunch.workHours} hrs
+                  {activeTodayPunch?.workHours} hrs
                 </p>
               </div>
             </div>

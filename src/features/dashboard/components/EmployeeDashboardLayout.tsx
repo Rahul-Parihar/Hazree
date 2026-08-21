@@ -181,24 +181,13 @@ export default function EmployeeDashboardLayout({
 
   const shiftWindow = checkShiftWindow();
 
-  const handleClockToggle = () => {
+  const handleClockToggle = async () => {
     if (!isClockedIn && !shiftWindow.isAllowed) {
       toast.error(shiftWindow.reason);
       return;
     }
 
-    recordPunch("Web App", "Inside", 10);
-    // After punch, re-fetch from backend to ensure sync
-    setTimeout(() => {
-      if (activeEmployee?.id) {
-        dispatch(
-          fetchAttendanceAsync({
-            employeeId: activeEmployee.id,
-            employeeCode: activeEmployee.employeeCode,
-          })
-        );
-      }
-    }, 500);
+    await recordPunch("Web App", "Inside", 10);
   };
 
   const userDisplayName = activeEmployee?.fullName || "Employee";
@@ -206,9 +195,12 @@ export default function EmployeeDashboardLayout({
   const employeeCode = activeEmployee?.employeeCode || `EMP-${activeEmployee?.id || 1}`;
   const companyName = activeEmployee?.companyName || "Hazree Organization";
 
-  // Derive punch in/out times from todayPunch (backend-synced)
-  const punchInDisplay = todayPunch?.punchInTime || clockInTime || "--:--";
-  const punchOutDisplay = todayPunch?.punchOutTime || (isClockedIn ? "--:--" : "--:--");
+  const reduxTodayPunch = useAppSelector((state) => state.attendance.todayPunch);
+  const activeTodayPunch = reduxTodayPunch || todayPunch;
+
+  // Derive punch in/out times from activeTodayPunch (real-time Redux + WS synced)
+  const punchInDisplay = activeTodayPunch?.punchInTime || clockInTime || "--:--";
+  const punchOutDisplay = activeTodayPunch?.punchOutTime || (isClockedIn ? "--:--" : "--:--");
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] text-slate-800 flex font-sans antialiased">

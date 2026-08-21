@@ -105,6 +105,46 @@ export const attendanceSlice = createSlice({
         }
       }
     },
+    handleRealtimePunch: (
+      state,
+      action: PayloadAction<{ punch: PunchRecord; targetEmployeeId?: number | string; targetEmployeeName?: string }>
+    ) => {
+      const { punch, targetEmployeeId, targetEmployeeName } = action.payload;
+      const today = getTodayDateString();
+      const todayAlt = today.split("-").reverse().join("/");
+
+      // Check if punch matches current active employee
+      const rawTargetId = targetEmployeeId ? Number(String(targetEmployeeId).replace("emp_", "")) : undefined;
+      const rawPunchEmpId = Number(String(punch.employeeId).replace("emp_", ""));
+      const isMyPunch =
+        (rawTargetId !== undefined && (rawPunchEmpId === rawTargetId || punch.employeeId === targetEmployeeId)) ||
+        (targetEmployeeName && punch.employeeName && targetEmployeeName.toLowerCase() === punch.employeeName.toLowerCase());
+
+      // Update in punches array
+      const existingIdx = state.punches.findIndex(
+        (p) =>
+          Number(String(p.employeeId).replace("emp_", "")) === rawPunchEmpId &&
+          (p.date === punch.date || p.date === today || p.date === todayAlt)
+      );
+      if (existingIdx !== -1) {
+        state.punches[existingIdx] = { ...state.punches[existingIdx], ...punch };
+      } else {
+        state.punches.unshift(punch);
+      }
+
+      // If matches active employee, update todayPunch and isClockedIn
+      if (isMyPunch && (punch.date === today || punch.date === todayAlt || !punch.date)) {
+        state.todayPunch = punch;
+        if (punch.punchOutTime && punch.punchOutTime !== "--") {
+          state.isClockedIn = false;
+          state.clockInTime = null;
+          state.elapsedSeconds = 0;
+        } else if (punch.punchInTime && punch.punchInTime !== "--") {
+          state.isClockedIn = true;
+          state.clockInTime = punch.punchInTime;
+        }
+      }
+    },
     incrementElapsedSeconds: (state) => {
       if (state.isClockedIn) {
         state.elapsedSeconds += 1;
@@ -163,6 +203,7 @@ export const attendanceSlice = createSlice({
 
 export const {
   initializeAttendance,
+  handleRealtimePunch,
   incrementElapsedSeconds,
 } = attendanceSlice.actions;
 
