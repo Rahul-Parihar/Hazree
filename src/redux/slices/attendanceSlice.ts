@@ -111,6 +111,29 @@ export const attendanceSlice = createSlice({
   name: 'attendance',
   initialState,
   reducers: {
+    handleRealtimePunch: (state, action: PayloadAction<AttendanceRecord>) => {
+      const incoming = action.payload;
+      const index = state.records.findIndex(
+        (r) =>
+          r.date === incoming.date &&
+          (r.employeeId === incoming.employeeId ||
+            String(r.employeeId).replace('emp_', '') === String(incoming.employeeId).replace('emp_', '') ||
+            (r.employeeName && incoming.employeeName && r.employeeName.toLowerCase() === incoming.employeeName.toLowerCase()))
+      );
+      if (index !== -1) {
+        state.records[index] = { ...state.records[index], ...incoming };
+      } else {
+        state.records.unshift(incoming);
+      }
+    },
+    handleRealtimeDelete: (state, action: PayloadAction<{ recordId?: string | number; employeeId?: string | number }>) => {
+      const { recordId, employeeId } = action.payload;
+      state.records = state.records.filter((r) => {
+        if (recordId && (r.id === String(recordId) || r.id === `att_${recordId}`)) return false;
+        if (employeeId && (r.employeeId === String(employeeId) || r.employeeId === `emp_${employeeId}`)) return false;
+        return true;
+      });
+    },
     addAttendanceRecord: (state, action: PayloadAction<AttendanceRecord>) => {
       state.records.unshift(action.payload);
     },
@@ -206,6 +229,8 @@ export const attendanceSlice = createSlice({
 });
 
 export const {
+  handleRealtimePunch,
+  handleRealtimeDelete,
   addAttendanceRecord,
   updateAttendanceStatus,
   updateAttendanceRecord,

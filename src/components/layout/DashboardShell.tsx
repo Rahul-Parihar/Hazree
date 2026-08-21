@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAppSelector } from '../../redux/hooks';
+import { useAttendanceWebSocket } from '../../hooks/useAttendanceWebSocket';
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface DashboardShellProps {
 }
 
 export const DashboardShell: React.FC<DashboardShellProps> = ({ children, pageTitle }) => {
+  useAttendanceWebSocket();
   const router = useRouter();
   const pathname = usePathname();
   const userRole = useAppSelector((state) => state.auth.userRole);
