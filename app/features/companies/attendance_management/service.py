@@ -312,15 +312,14 @@ def record_punch(
         db.refresh(existing_record)
         resp = _to_response(existing_record, company_name=company.name)
         try:
-            from app.core.websocket_manager import ws_manager
-            ws_manager.broadcast_sync({
-                "event": "ATTENDANCE_PUNCH",
-                "action": "CLOCK_OUT" if is_clock_out_action else "CLOCK_IN",
-                "employee_id": existing_record.employee_id,
-                "employee_name": existing_record.employee_name,
-                "company_id": existing_record.company_id,
-                "data": resp.model_dump(mode="json"),
-            })
+            from app.websocket import broadcast_punch_event
+            broadcast_punch_event(
+                action="CLOCK_OUT" if is_clock_out_action else "CLOCK_IN",
+                record_data=resp.model_dump(mode="json"),
+                employee_id=existing_record.employee_id,
+                employee_name=existing_record.employee_name,
+                company_id=existing_record.company_id,
+            )
         except Exception:
             pass
         return resp
@@ -345,15 +344,14 @@ def record_punch(
     db.refresh(new_record)
     resp = _to_response(new_record, company_name=company.name)
     try:
-        from app.core.websocket_manager import ws_manager
-        ws_manager.broadcast_sync({
-            "event": "ATTENDANCE_PUNCH",
-            "action": "CLOCK_IN",
-            "employee_id": new_record.employee_id,
-            "employee_name": new_record.employee_name,
-            "company_id": new_record.company_id,
-            "data": resp.model_dump(mode="json"),
-        })
+        from app.websocket import broadcast_punch_event
+        broadcast_punch_event(
+            action="CLOCK_IN",
+            record_data=resp.model_dump(mode="json"),
+            employee_id=new_record.employee_id,
+            employee_name=new_record.employee_name,
+            company_id=new_record.company_id,
+        )
     except Exception:
         pass
 
@@ -540,15 +538,13 @@ def update_attendance(
     company = db.query(Company).filter(Company.id == record.company_id).first()
     resp = _to_response(record, company_name=company.name if company else None)
     try:
-        from app.core.websocket_manager import ws_manager
-        ws_manager.broadcast_sync({
-            "event": "ATTENDANCE_UPDATE",
-            "action": "UPDATE",
-            "employee_id": record.employee_id,
-            "employee_name": record.employee_name,
-            "company_id": record.company_id,
-            "data": resp.model_dump(mode="json"),
-        })
+        from app.websocket import broadcast_update_event
+        broadcast_update_event(
+            record_data=resp.model_dump(mode="json"),
+            employee_id=record.employee_id,
+            employee_name=record.employee_name,
+            company_id=record.company_id,
+        )
     except Exception:
         pass
     return resp
@@ -578,14 +574,12 @@ def delete_attendance(
     db.commit()
 
     try:
-        from app.core.websocket_manager import ws_manager
-        ws_manager.broadcast_sync({
-            "event": "ATTENDANCE_DELETE",
-            "action": "DELETE",
-            "record_id": record_id,
-            "employee_id": emp_id,
-            "company_id": comp_id,
-        })
+        from app.websocket import broadcast_delete_event
+        broadcast_delete_event(
+            record_id=record_id,
+            employee_id=emp_id,
+            company_id=comp_id,
+        )
     except Exception:
         pass
 
