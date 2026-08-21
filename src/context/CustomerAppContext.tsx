@@ -116,6 +116,15 @@ export function CustomerAppProvider({
       dispatch(fetchAttendanceAsync({ employeeId: current.id, employeeCode: current.employeeCode }));
       dispatch(initializeLeaves({ employeeId: current.id }));
       wsService.connect(current.companyId, current.id);
+
+      // Periodic auto-sync to ensure auto-close shift updates are reflected immediately
+      const syncInterval = setInterval(() => {
+        dispatch(fetchAttendanceAsync({ employeeId: current.id, employeeCode: current.employeeCode }));
+      }, 30000);
+
+      return () => {
+        clearInterval(syncInterval);
+      };
     }
   }, [reduxAuth.user, dispatch]);
 

@@ -135,11 +135,16 @@ export const attendanceService = {
     const timeStr = `${formattedHours}:${formattedMinutes} ${ampm}`;
 
     const punches = getStoredPunches();
+    const todayAlt = today.split("-").reverse().join("/");
+    const targetEmpId = Number(String(employee.id).replace("emp_", ""));
     const existingIndex = punches.findIndex(
-      (p) => p.employeeId === employee.id && p.date === today
+      (p) =>
+        Number(String(p.employeeId).replace("emp_", "")) === targetEmpId &&
+        (p.date === today || p.date === todayAlt)
     );
 
-    const isCheckOut = existingIndex >= 0 && !punches[existingIndex].punchOutTime;
+    const existingPunch = existingIndex >= 0 ? punches[existingIndex] : null;
+    const isCheckOut = Boolean(existingPunch && existingPunch.punchInTime && !existingPunch.punchOutTime);
 
     // 1. Send live punch to backend
     try {
@@ -159,15 +164,16 @@ export const attendanceService = {
         method: "POST",
         headers,
         body: JSON.stringify({
-          employee_id: employee.id,
+          employee_id: targetEmpId,
           employee_name: employee.fullName,
           employee_avatar: employee.avatarUrl,
           department: employee.department,
-          company_id: employee.companyId,
+          company_id: typeof employee.companyId === "string" ? Number(String(employee.companyId).replace("cmp_", "")) : employee.companyId,
           date: today,
-          check_in_time: isCheckOut ? punches[existingIndex].punchInTime : timeStr,
+          check_in_time: isCheckOut ? existingPunch?.punchInTime : timeStr,
           check_out_time: isCheckOut ? timeStr : "--",
-          status: isCheckOut ? punches[existingIndex].status : "Present",
+          work_hours: isCheckOut ? "Completed" : "Active",
+          status: isCheckOut ? (existingPunch?.status || "Present") : "Present",
           location: `${employee.companyName} Premises (Verified)`,
           device: punchType,
         }),

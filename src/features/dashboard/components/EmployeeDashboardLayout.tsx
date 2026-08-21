@@ -181,7 +181,16 @@ export default function EmployeeDashboardLayout({
 
   const shiftWindow = checkShiftWindow();
 
+  const reduxTodayPunch = useAppSelector((state) => state.attendance.todayPunch);
+  const activeTodayPunch = reduxTodayPunch || todayPunch;
+
+  const isClockedOut = Boolean(activeTodayPunch && activeTodayPunch.punchOutTime && activeTodayPunch.punchOutTime !== '--');
+
   const handleClockToggle = async () => {
+    if (isClockedOut) {
+      toast.info("Today's shift attendance is completed. You cannot clock in again today.");
+      return;
+    }
     if (!isClockedIn && !shiftWindow.isAllowed) {
       toast.error(shiftWindow.reason);
       return;
@@ -194,9 +203,6 @@ export default function EmployeeDashboardLayout({
   const userRole = activeEmployee?.designation || "Staff Member";
   const employeeCode = activeEmployee?.employeeCode || `EMP-${activeEmployee?.id || 1}`;
   const companyName = activeEmployee?.companyName || "Hazree Organization";
-
-  const reduxTodayPunch = useAppSelector((state) => state.attendance.todayPunch);
-  const activeTodayPunch = reduxTodayPunch || todayPunch;
 
   // Derive punch in/out times from activeTodayPunch (real-time Redux + WS synced)
   const punchInDisplay = activeTodayPunch?.punchInTime || clockInTime || "--:--";
@@ -258,11 +264,19 @@ export default function EmployeeDashboardLayout({
 
                   <button
                     onClick={handleClockToggle}
-                    disabled={!isClockedIn && !shiftWindow.isAllowed}
-                    title={!isClockedIn && !shiftWindow.isAllowed ? shiftWindow.reason : undefined}
+                    disabled={isClockedOut || (!isClockedIn && !shiftWindow.isAllowed)}
+                    title={
+                      isClockedOut
+                        ? "Today's shift is completed. Clock-in closed for today."
+                        : !isClockedIn && !shiftWindow.isAllowed
+                        ? shiftWindow.reason
+                        : undefined
+                    }
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white font-semibold text-xs shadow-md transition-all active:scale-95 cursor-pointer ${
                       isClockedIn
                         ? "bg-[#d32f2f] hover:bg-[#b71c1c] shadow-red-500/20"
+                        : isClockedOut
+                        ? "bg-slate-800 text-emerald-400 border border-emerald-500/30 cursor-not-allowed shadow-none"
                         : !shiftWindow.isAllowed
                         ? "bg-slate-400 text-slate-200 cursor-not-allowed shadow-none"
                         : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"
@@ -272,6 +286,11 @@ export default function EmployeeDashboardLayout({
                       <>
                         <LogOut className="w-4 h-4" />
                         <span>Clock Out</span>
+                      </>
+                    ) : isClockedOut ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Shift Completed</span>
                       </>
                     ) : !shiftWindow.isAllowed ? (
                       <>

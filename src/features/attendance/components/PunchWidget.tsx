@@ -103,6 +103,10 @@ export default function PunchWidget() {
   };
 
   const handlePunchAction = async () => {
+    if (isCheckedOut) {
+      alert("Shift attendance is already completed for today. You cannot clock in again.");
+      return;
+    }
     if (!isCheckedIn && !shiftWindow.isAllowed) {
       alert(shiftWindow.reason);
       return;
@@ -330,13 +334,15 @@ export default function PunchWidget() {
           {/* Action Button */}
           <button
             onClick={handlePunchAction}
-            disabled={punchingLoading || (!isCheckedIn && !shiftWindow.isAllowed)}
+            disabled={punchingLoading || isCheckedOut || (!isCheckedIn && !shiftWindow.isAllowed)}
             className={`w-full relative group overflow-hidden py-4 px-6 rounded-2xl font-bold text-base shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${
               isCheckedIn
-                ? "bg-gradient-to-r from-amber-500 via-rose-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white shadow-rose-500/20"
+                ? "bg-gradient-to-r from-amber-500 via-rose-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white shadow-rose-500/20 cursor-pointer"
+                : isCheckedOut
+                ? "bg-slate-900/90 text-emerald-400 border border-emerald-500/30 cursor-not-allowed shadow-none"
                 : !shiftWindow.isAllowed
-                ? "bg-slate-800 text-slate-500 border border-white/10 cursor-not-allowed opacity-70"
-                : "bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-300 text-slate-950 shadow-emerald-500/25"
+                ? "bg-slate-800 text-slate-500 border border-white/10 cursor-not-allowed opacity-70 shadow-none"
+                : "bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-300 text-slate-950 shadow-emerald-500/25 cursor-pointer"
             }`}
           >
             {punchingLoading ? (
@@ -348,6 +354,11 @@ export default function PunchWidget() {
               <>
                 <LogOut className="w-5 h-5" />
                 <span>PUNCH OUT (Check-Out)</span>
+              </>
+            ) : isCheckedOut ? (
+              <>
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <span>SHIFT COMPLETED (Clock-In Closed for Today)</span>
               </>
             ) : !shiftWindow.isAllowed ? (
               <>
