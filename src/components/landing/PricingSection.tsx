@@ -11,7 +11,7 @@ import {
   ArrowRight,
   Calculator,
 } from "lucide-react";
-import { PRICING_PLANS } from "../../lib/mockData";
+import { PRICING_PLANS } from "../../lib/landingData";
 import { formatCurrencyINR } from "../../lib/utils";
 
 interface PricingSectionProps {

@@ -10,11 +10,10 @@ import {
   ArrowLeftRight,
   Sparkles,
 } from "lucide-react";
-import { INITIAL_SHIFTS } from "../../lib/mockData";
 import { ShiftDay } from "../../types/customer";
 
 export default function ShiftRoster() {
-  const [shifts] = useState<ShiftDay[]>(INITIAL_SHIFTS);
+  const [shifts] = useState<ShiftDay[]>([]);
   const [swapSuccessMsg, setSwapSuccessMsg] = useState<string>("");
 
   const handleRequestSwap = (day: string) => {

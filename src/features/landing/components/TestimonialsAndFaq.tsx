@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Star, ChevronDown, HelpCircle } from "lucide-react";
-import { TESTIMONIALS, FAQS } from "@/lib/mockData";
+import { TESTIMONIALS, FAQS } from "@/lib/landingData";
 
 export default function TestimonialsAndFaq() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);

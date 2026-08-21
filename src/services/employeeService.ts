@@ -1,14 +1,13 @@
 import { EmployeeProfile } from "../types/customer";
 import { STORAGE_KEYS } from "../config/constants";
-import { INITIAL_EMPLOYEES } from "../lib/mockData";
 
 function getStoredEmployees(): EmployeeProfile[] {
-  if (typeof window === "undefined") return INITIAL_EMPLOYEES;
+  if (typeof window === "undefined") return [];
   try {
     const data = localStorage.getItem(STORAGE_KEYS.EMPLOYEES);
-    return data ? JSON.parse(data) : INITIAL_EMPLOYEES;
+    return data ? JSON.parse(data) : [];
   } catch {
-    return INITIAL_EMPLOYEES;
+    return [];
   }
 }
 

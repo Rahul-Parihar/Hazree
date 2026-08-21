@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { PunchRecord, EmployeeProfile, ShiftDay } from "@/types/customer";
 import { attendanceService } from "@/features/attendance/services/attendanceService";
-import { INITIAL_SHIFTS } from "@/lib/mockData";
 import { getTodayDateString } from "@/lib/utils";
 
 export interface AttendanceState {
@@ -17,7 +16,7 @@ export interface AttendanceState {
 const initialState: AttendanceState = {
   punches: [],
   todayPunch: null,
-  shifts: INITIAL_SHIFTS,
+  shifts: [],
   isClockedIn: false,
   clockInTime: null,
   elapsedSeconds: 0,

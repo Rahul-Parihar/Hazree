@@ -1,7 +1,13 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { LeaveBalance, LeaveRequest, EmployeeProfile } from "@/types/customer";
 import { leaveService } from "@/features/leaves/services/leaveService";
-import { INITIAL_LEAVE_BALANCE } from "@/lib/mockData";
+
+const DEFAULT_LEAVE_BALANCE: LeaveBalance = {
+  casual: { total: 12, used: 0, remaining: 12 },
+  sick: { total: 10, used: 0, remaining: 10 },
+  earned: { total: 15, used: 0, remaining: 15 },
+  unpaid: { used: 0 },
+};
 
 export interface LeavesState {
   balance: LeaveBalance;
@@ -9,7 +15,7 @@ export interface LeavesState {
 }
 
 const initialState: LeavesState = {
-  balance: INITIAL_LEAVE_BALANCE,
+  balance: DEFAULT_LEAVE_BALANCE,
   requests: [],
 };
 

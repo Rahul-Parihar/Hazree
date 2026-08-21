@@ -1,15 +1,14 @@
 import { PunchRecord, EmployeeProfile, AttendanceStatus } from "../types/customer";
 import { STORAGE_KEYS } from "../config/constants";
-import { INITIAL_PUNCH_RECORDS } from "../lib/mockData";
 import { getTodayDateString } from "../lib/utils";
 
 function getStoredPunches(): PunchRecord[] {
-  if (typeof window === "undefined") return INITIAL_PUNCH_RECORDS;
+  if (typeof window === "undefined") return [];
   try {
     const data = localStorage.getItem(STORAGE_KEYS.PUNCH_RECORDS);
-    return data ? JSON.parse(data) : INITIAL_PUNCH_RECORDS;
+    return data ? JSON.parse(data) : [];
   } catch {
-    return INITIAL_PUNCH_RECORDS;
+    return [];
   }
 }
 

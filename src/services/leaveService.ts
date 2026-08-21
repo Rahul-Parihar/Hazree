@@ -1,25 +1,31 @@
 import { LeaveBalance, LeaveRequest, EmployeeProfile } from "../types/customer";
 import { STORAGE_KEYS } from "../config/constants";
-import { INITIAL_LEAVE_BALANCE, INITIAL_LEAVE_REQUESTS } from "../lib/mockData";
 import { getTodayDateString } from "../lib/utils";
 
+const DEFAULT_LEAVE_BALANCE: LeaveBalance = {
+  casual: { total: 12, used: 0, remaining: 12 },
+  sick: { total: 10, used: 0, remaining: 10 },
+  earned: { total: 15, used: 0, remaining: 15 },
+  unpaid: { used: 0 },
+};
+
 function getStoredLeaves(): LeaveRequest[] {
-  if (typeof window === "undefined") return INITIAL_LEAVE_REQUESTS;
+  if (typeof window === "undefined") return [];
   try {
     const data = localStorage.getItem(STORAGE_KEYS.LEAVE_REQUESTS);
-    return data ? JSON.parse(data) : INITIAL_LEAVE_REQUESTS;
+    return data ? JSON.parse(data) : [];
   } catch {
-    return INITIAL_LEAVE_REQUESTS;
+    return [];
   }
 }
 
 function getStoredBalance(): LeaveBalance {
-  if (typeof window === "undefined") return INITIAL_LEAVE_BALANCE;
+  if (typeof window === "undefined") return DEFAULT_LEAVE_BALANCE;
   try {
     const data = localStorage.getItem(STORAGE_KEYS.LEAVE_BALANCE);
-    return data ? JSON.parse(data) : INITIAL_LEAVE_BALANCE;
+    return data ? JSON.parse(data) : DEFAULT_LEAVE_BALANCE;
   } catch {
-    return INITIAL_LEAVE_BALANCE;
+    return DEFAULT_LEAVE_BALANCE;
   }
 }
 

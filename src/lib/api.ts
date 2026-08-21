@@ -6,12 +6,6 @@ import {
   AttendanceStatus,
   CompanyOnboardingData,
 } from "../types/customer";
-import {
-  INITIAL_EMPLOYEES,
-  INITIAL_LEAVE_BALANCE,
-  INITIAL_LEAVE_REQUESTS,
-  INITIAL_PUNCH_RECORDS,
-} from "./mockData";
 
 const BACKEND_BASE_URL = "http://localhost:8000";
 
@@ -23,6 +17,13 @@ const STORAGE_KEYS = {
   LEAVE_REQUESTS: "hazree_leaves_v1",
   LEAVE_BALANCE: "hazree_balance_v1",
   ONBOARDED_COMPANIES: "hazree_companies_v1",
+};
+
+const DEFAULT_LEAVE_BALANCE: LeaveBalance = {
+  casual: { total: 12, used: 0, remaining: 12 },
+  sick: { total: 10, used: 0, remaining: 10 },
+  earned: { total: 15, used: 0, remaining: 15 },
+  unpaid: { used: 0 },
 };
 
 // Safe LocalStorage helpers
@@ -48,12 +49,13 @@ function setItem<T>(key: string, value: T): void {
 
 export const HazreeStorage = {
   getEmployees(): EmployeeProfile[] {
-    return getItem<EmployeeProfile[]>(STORAGE_KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
+    return getItem<EmployeeProfile[]>(STORAGE_KEYS.EMPLOYEES, []);
   },
 
-  getCurrentEmployee(): EmployeeProfile {
+  getCurrentEmployee(): EmployeeProfile | undefined {
     const employees = this.getEmployees();
-    const currentId = getItem<number>(STORAGE_KEYS.CURRENT_USER_ID, 101);
+    if (employees.length === 0) return undefined;
+    const currentId = getItem<number>(STORAGE_KEYS.CURRENT_USER_ID, employees[0]?.id || 0);
     return employees.find((e) => e.id === currentId) || employees[0];
   },
 
@@ -62,7 +64,7 @@ export const HazreeStorage = {
   },
 
   getPunchRecords(): PunchRecord[] {
-    return getItem<PunchRecord[]>(STORAGE_KEYS.PUNCH_RECORDS, INITIAL_PUNCH_RECORDS);
+    return getItem<PunchRecord[]>(STORAGE_KEYS.PUNCH_RECORDS, []);
   },
 
   getTodayPunch(employeeId: number): PunchRecord | undefined {
@@ -146,7 +148,7 @@ export const HazreeStorage = {
   getLeaveRequests(employeeId?: number): LeaveRequest[] {
     const leaves = getItem<LeaveRequest[]>(
       STORAGE_KEYS.LEAVE_REQUESTS,
-      INITIAL_LEAVE_REQUESTS
+      []
     );
     if (employeeId) {
       return leaves.filter((l) => l.employeeId === employeeId);
@@ -199,7 +201,7 @@ export const HazreeStorage = {
   },
 
   getLeaveBalance(): LeaveBalance {
-    return getItem<LeaveBalance>(STORAGE_KEYS.LEAVE_BALANCE, INITIAL_LEAVE_BALANCE);
+    return getItem<LeaveBalance>(STORAGE_KEYS.LEAVE_BALANCE, DEFAULT_LEAVE_BALANCE);
   },
 
   saveOnboardedCompany(data: CompanyOnboardingData): void {
