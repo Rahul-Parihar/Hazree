@@ -109,7 +109,8 @@ def trigger_auto_close_shifts(
     Scans all open sessions and automatically clocks out employees whose scheduled shift has completed.
     """
     scoped_company_id = current_user.company_id if current_user and current_user.role == "COMPANY_ADMIN" else company_id
-    closed_count = service.auto_close_expired_shifts(db, company_id=scoped_company_id)
+    closed_records = service.auto_close_expired_shifts(db, company_id=scoped_company_id)
+    closed_count = len(closed_records) if isinstance(closed_records, list) else int(closed_records)
     return {
         "status": "success",
         "closed_count": closed_count,

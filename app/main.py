@@ -65,9 +65,10 @@ async def auto_close_shifts_background_loop():
             db = SessionLocal()
             try:
                 from app.features.companies.attendance_management.service import auto_close_expired_shifts
-                closed = auto_close_expired_shifts(db)
-                if closed > 0:
-                    logger.info(f"Auto-closed {closed} expired shift attendance sessions.")
+                closed_records = auto_close_expired_shifts(db)
+                if closed_records:
+                    names = [item["record"].employee_name for item in closed_records]
+                    logger.info(f"Auto-closed {len(closed_records)} expired shift sessions: {', '.join(names)}")
             finally:
                 db.close()
         except asyncio.CancelledError:

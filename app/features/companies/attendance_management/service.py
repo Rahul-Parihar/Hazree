@@ -269,33 +269,48 @@ def record_punch(
         (punch_in.work_hours == "Completed")
     )
 
-    # For Clock-In action: Enforce Strict Shift Window Validation
-    if not is_clock_out_action and (not existing_record or not existing_record.check_in_time):
-        is_allowed, auto_status, rejection_reason = validate_and_calculate_shift_window(
-            punch_time_str=current_time_str,
-            assigned_shift_str=emp_shift,
-            company_shift_timings=company.shift_timings,
-            company_shift_count=company.shift_count or 1,
-        )
+    # For Clock-In action:
+    if not is_clock_out_action:
+        # Prevent duplicate clock-in if shift is already completed today
+        if existing_record and (existing_record.check_in_time and existing_record.check_in_time != "--") and (existing_record.check_out_time and existing_record.check_out_time != "--"):
+            if not punch_in.force_override:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Shift attendance already completed for today ({today_str}). You have already clocked in at {existing_record.check_in_time} and clocked out at {existing_record.check_out_time}. Multiple check-ins on the same date are not permitted.",
+                )
 
-        if not is_allowed and not punch_in.force_override:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=rejection_reason,
+        # Enforce Strict Shift Window Validation for new check-in
+        if not existing_record or not existing_record.check_in_time:
+            is_allowed, auto_status, rejection_reason = validate_and_calculate_shift_window(
+                punch_time_str=current_time_str,
+                assigned_shift_str=emp_shift,
+                company_shift_timings=company.shift_timings,
+                company_shift_count=company.shift_count or 1,
             )
 
-        computed_status = punch_in.status if punch_in.status in ["Absent", "Half Day"] else auto_status
+            if not is_allowed and not punch_in.force_override:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=rejection_reason,
+                )
+
+            computed_status = punch_in.status if punch_in.status in ["Absent", "Half Day"] else auto_status
+        else:
+            computed_status = punch_in.status or "Present"
     else:
         computed_status = punch_in.status or "Present"
 
     if existing_record:
-        if punch_in.check_out_time and punch_in.check_out_time != "--":
-            existing_record.check_out_time = punch_in.check_out_time
-        elif is_clock_out_action and existing_record.check_in_time and (not existing_record.check_out_time or existing_record.check_out_time == "--"):
-            # Clocking out existing check-in session
+        if is_clock_out_action:
             existing_record.check_out_time = punch_in.check_out_time if (punch_in.check_out_time and punch_in.check_out_time != "--") else current_time_str
-        elif punch_in.check_in_time and punch_in.check_in_time != "--" and (not existing_record.check_in_time or existing_record.check_in_time == "--"):
-            existing_record.check_in_time = punch_in.check_in_time
+            existing_record.work_hours = "Completed"
+        else:
+            # Clock-in / Re-clock in action
+            if not existing_record.check_in_time or existing_record.check_in_time == "--":
+                existing_record.check_in_time = punch_in.check_in_time or current_time_str
+            existing_record.check_out_time = "--"
+            existing_record.work_hours = "Active"
+            is_clock_out_action = False
 
         if punch_in.status:
             existing_record.status = punch_in.status
@@ -306,11 +321,9 @@ def record_punch(
         if emp_id and not existing_record.employee_id:
             existing_record.employee_id = emp_id
 
-        if existing_record.check_in_time and existing_record.check_out_time and existing_record.check_out_time != "--":
-            existing_record.work_hours = "Completed"
-
         db.commit()
         db.refresh(existing_record)
+        delete_cache_pattern("attendance:*")
         resp = _to_response(existing_record, company_name=company.name)
         try:
             from app.websocket import broadcast_punch_event
@@ -359,12 +372,16 @@ def record_punch(
     return resp
 
 
-def auto_close_expired_shifts(db: Session, company_id: Optional[int] = None) -> int:
+def auto_close_expired_shifts(db: Session, company_id: Optional[int] = None) -> list:
     """
     Automatically closes open attendance sessions (check_out_time == '--' or None)
     when an employee's scheduled shift has ended or when the next shift has commenced.
+    Returns a list of dicts with info about each closed record for WebSocket broadcast.
     """
-    now = datetime.now()
+    import pytz
+
+    IST = pytz.timezone("Asia/Kolkata")
+    now = datetime.now(IST)
     today_str = now.strftime("%Y-%m-%d")
     current_minutes = now.hour * 60 + now.minute
 
@@ -377,9 +394,9 @@ def auto_close_expired_shifts(db: Session, company_id: Optional[int] = None) -> 
 
     open_records = open_query.all()
     if not open_records:
-        return 0
+        return []
 
-    closed_count = 0
+    closed_records = []
     for rec in open_records:
         emp = db.query(Employee).filter(Employee.id == rec.employee_id).first() if rec.employee_id else None
         co = db.query(Company).filter(Company.id == rec.company_id).first()
@@ -412,14 +429,38 @@ def auto_close_expired_shifts(db: Session, company_id: Optional[int] = None) -> 
                     should_auto_close = True
 
         if should_auto_close:
-            rec.check_out_time = end_str or "06:00 PM"
+            auto_clock_out_time = end_str or "06:00 PM"
+            rec.check_out_time = auto_clock_out_time
             rec.work_hours = "Completed"
-            closed_count += 1
 
-    if closed_count > 0:
+            company_name = co.name if co else None
+            closed_records.append({
+                "record": rec,
+                "company_name": company_name,
+            })
+
+    if closed_records:
         db.commit()
+        delete_cache_pattern("attendance:*")
 
-    return closed_count
+        # Broadcast WebSocket CLOCK_OUT event for each auto-closed record
+        try:
+            from app.websocket import broadcast_punch_event
+            for item in closed_records:
+                rec = item["record"]
+                db.refresh(rec)
+                resp = _to_response(rec, company_name=item["company_name"])
+                broadcast_punch_event(
+                    action="CLOCK_OUT",
+                    record_data=resp.model_dump(mode="json"),
+                    employee_id=rec.employee_id,
+                    employee_name=rec.employee_name,
+                    company_id=rec.company_id,
+                )
+        except Exception:
+            pass
+
+    return closed_records
 
 
 def get_attendance_records(
