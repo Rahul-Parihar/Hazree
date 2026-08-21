@@ -77,7 +77,8 @@ export default function EmployeesPage() {
     dispatch(fetchEmployeesAsync());
     dispatch(fetchAttendanceAsync());
     dispatch(fetchDepartmentsAsync(currentUser?.companyId));
-  }, [dispatch, currentUser?.companyId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
 
   const handleRefresh = () => {
     dispatch(fetchEmployeesAsync());
