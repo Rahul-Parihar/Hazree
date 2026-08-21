@@ -1,4 +1,7 @@
+import json
 import logging
+from datetime import datetime
+from typing import Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.exceptions import RequestValidationError
@@ -161,6 +164,47 @@ app.include_router(leaves_router)
 app.include_router(super_admin_router)
 app.include_router(customer_router)
 app.include_router(subscriptions_router)
+
+# ---------------------------------------------------------------------------
+# Real-Time WebSocket Endpoint
+# ---------------------------------------------------------------------------
+from fastapi import WebSocket, WebSocketDisconnect
+from app.core.websocket_manager import ws_manager
+
+
+@app.websocket("/ws/attendance")
+@app.websocket("/ws")
+async def websocket_attendance_endpoint(
+    websocket: WebSocket,
+    company_id: Optional[int] = None,
+    employee_id: Optional[int] = None,
+):
+    metadata = {
+        "company_id": company_id,
+        "employee_id": employee_id,
+    }
+    await ws_manager.connect(websocket, metadata=metadata)
+    try:
+        # Send initial connected ack
+        await websocket.send_json({
+            "event": "CONNECTED",
+            "message": "Connected to Hazree Real-Time Attendance Stream",
+            "active_connections": len(ws_manager.active_connections),
+        })
+        while True:
+            # Keep connection open and handle incoming ping / messages
+            data = await websocket.receive_text()
+            try:
+                msg = json.loads(data)
+                if msg.get("type") == "PING":
+                    await websocket.send_json({"type": "PONG", "timestamp": str(datetime.now())})
+            except Exception:
+                pass
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
+    except Exception as e:
+        logger.warning(f"WebSocket session closed: {e}")
+        ws_manager.disconnect(websocket)
 
 
 @app.get("/")

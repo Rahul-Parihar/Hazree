@@ -310,7 +310,20 @@ def record_punch(
 
         db.commit()
         db.refresh(existing_record)
-        return _to_response(existing_record, company_name=company.name)
+        resp = _to_response(existing_record, company_name=company.name)
+        try:
+            from app.core.websocket_manager import ws_manager
+            ws_manager.broadcast_sync({
+                "event": "ATTENDANCE_PUNCH",
+                "action": "CLOCK_OUT" if is_clock_out_action else "CLOCK_IN",
+                "employee_id": existing_record.employee_id,
+                "employee_name": existing_record.employee_name,
+                "company_id": existing_record.company_id,
+                "data": resp.model_dump(mode="json"),
+            })
+        except Exception:
+            pass
+        return resp
 
     new_record = Attendance(
         company_id=company_id,
@@ -330,8 +343,21 @@ def record_punch(
     db.add(new_record)
     db.commit()
     db.refresh(new_record)
+    resp = _to_response(new_record, company_name=company.name)
+    try:
+        from app.core.websocket_manager import ws_manager
+        ws_manager.broadcast_sync({
+            "event": "ATTENDANCE_PUNCH",
+            "action": "CLOCK_IN",
+            "employee_id": new_record.employee_id,
+            "employee_name": new_record.employee_name,
+            "company_id": new_record.company_id,
+            "data": resp.model_dump(mode="json"),
+        })
+    except Exception:
+        pass
 
-    return _to_response(new_record, company_name=company.name)
+    return resp
 
 
 def auto_close_expired_shifts(db: Session, company_id: Optional[int] = None) -> int:
@@ -512,7 +538,20 @@ def update_attendance(
     db.refresh(record)
 
     company = db.query(Company).filter(Company.id == record.company_id).first()
-    return _to_response(record, company_name=company.name if company else None)
+    resp = _to_response(record, company_name=company.name if company else None)
+    try:
+        from app.core.websocket_manager import ws_manager
+        ws_manager.broadcast_sync({
+            "event": "ATTENDANCE_UPDATE",
+            "action": "UPDATE",
+            "employee_id": record.employee_id,
+            "employee_name": record.employee_name,
+            "company_id": record.company_id,
+            "data": resp.model_dump(mode="json"),
+        })
+    except Exception:
+        pass
+    return resp
 
 
 def delete_attendance(
@@ -532,8 +571,24 @@ def delete_attendance(
             detail=f"Attendance record with ID {record_id} not found.",
         )
 
+    emp_id = record.employee_id
+    comp_id = record.company_id
+
     db.delete(record)
     db.commit()
+
+    try:
+        from app.core.websocket_manager import ws_manager
+        ws_manager.broadcast_sync({
+            "event": "ATTENDANCE_DELETE",
+            "action": "DELETE",
+            "record_id": record_id,
+            "employee_id": emp_id,
+            "company_id": comp_id,
+        })
+    except Exception:
+        pass
+
     return {"status": "success", "message": f"Attendance record {record_id} deleted successfully."}
 
 
