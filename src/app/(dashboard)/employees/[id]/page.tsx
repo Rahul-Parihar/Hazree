@@ -182,8 +182,13 @@ export default function EmployeeDetailPage() {
     );
   }, [attendanceRecords, todayStr, employeeId]);
 
-  const isClockedIn = Boolean(todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--');
-  const isClockedOut = Boolean(isClockedIn && todayPunch && todayPunch.checkOut && todayPunch.checkOut !== '--');
+  const isClockedIn = Boolean(
+    todayPunch &&
+    todayPunch.checkIn &&
+    todayPunch.checkIn !== '--' &&
+    (!todayPunch.checkOut || todayPunch.checkOut === '--')
+  );
+  const isClockedOut = Boolean(todayPunch && todayPunch.checkOut && todayPunch.checkOut !== '--');
 
   // Load employee, companies & leaves
   useEffect(() => {
@@ -662,17 +667,7 @@ export default function EmployeeDetailPage() {
         <div className="flex items-center gap-2 flex-wrap">
           {isCompanyAdmin && (
             <div className="relative">
-              {!isClockedIn ? (
-                <button
-                  type="button"
-                  onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
-                  title="Clock in staff for today"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>Clock In</span>
-                </button>
-              ) : !isClockedOut ? (
+              {isClockedIn ? (
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold shadow-xs">
                     <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -688,22 +683,32 @@ export default function EmployeeDetailPage() {
                     <span>Clock Out</span>
                   </button>
                 </div>
-              ) : (
+              ) : isClockedOut ? (
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1.5 rounded-xl text-xs font-semibold">
+                  <div className="flex items-center gap-1.5 bg-slate-50 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xs">
                     <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     <span>In: <strong className="font-mono text-slate-900">{todayPunch?.checkIn || todayPunch?.checkInTime}</strong></span>
+                    <span className="text-slate-300">•</span>
+                    <span>Out: <strong className="font-mono text-slate-900">{todayPunch?.checkOut}</strong></span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
-                    title="Attendance session complete. Click to adjust punch details."
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
+                  <div
+                    title="Today's shift attendance is completed. Clock-in closed for today."
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold shadow-xs select-none"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Clocked Out</span>
-                  </button>
+                    <span>Shift Completed</span>
+                  </div>
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleOpenDayPunch(todayStr, todayPunch)}
+                  title="Clock in staff for today"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Clock In</span>
+                </button>
               )}
 
               {/* Anchored Popover directly below/next to the Clock In/Out button */}
@@ -724,26 +729,20 @@ export default function EmployeeDetailPage() {
                           className={`p-1.5 rounded-xl ${
                             !isClockedIn
                               ? 'bg-emerald-100 text-emerald-700'
-                              : !isClockedOut
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-slate-100 text-slate-700'
+                              : 'bg-amber-100 text-amber-700'
                           }`}
                         >
                           {!isClockedIn ? (
                             <LogIn className="w-4 h-4" />
-                          ) : !isClockedOut ? (
-                            <LogOut className="w-4 h-4" />
                           ) : (
-                            <Clock className="w-4 h-4" />
+                            <LogOut className="w-4 h-4" />
                           )}
                         </div>
                         <div>
                           <h4 className="text-xs font-extrabold text-slate-900">
                             {!isClockedIn
                               ? 'Clock In Attendance'
-                              : !isClockedOut
-                              ? 'Clock Out Attendance'
-                              : 'Adjust Attendance'}
+                              : 'Clock Out Attendance'}
                           </h4>
                           <p className="text-[10px] text-slate-500 font-medium">
                             {employee.name} • {selectedDateForPunch}
@@ -759,7 +758,7 @@ export default function EmployeeDetailPage() {
                       </button>
                     </div>
 
-                    {/* Live Timestamp Card (Replaces manual 09:00 AM / 06:00 PM inputs) */}
+                    {/* Live Timestamp Card */}
                     {(() => {
                       const currentLiveTime = getCurrentFormattedTime();
                       const empShiftStr = employee?.assignedShift || employeeCompany?.shiftTimings;
@@ -782,7 +781,7 @@ export default function EmployeeDetailPage() {
                                   <span>{shiftVal.shiftName} ({shiftVal.shiftStart} - {shiftVal.shiftEnd})</span>
                                 </div>
                               </div>
-                            ) : !isClockedOut ? (
+                            ) : (
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
                                   <p className="text-[10px] font-bold text-slate-500 uppercase">Clock In Time</p>
@@ -797,21 +796,6 @@ export default function EmployeeDetailPage() {
                                   </p>
                                   <p className="text-sm font-extrabold text-amber-950 font-mono mt-0.5">
                                     {currentLiveTime}
-                                  </p>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
-                                  <p className="text-[10px] font-bold text-slate-500 uppercase">Clock In</p>
-                                  <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
-                                    {todayPunch?.checkIn || '--'}
-                                  </p>
-                                </div>
-                                <div className="bg-white border border-slate-200 p-2.5 rounded-xl text-center">
-                                  <p className="text-[10px] font-bold text-slate-500 uppercase">Clock Out</p>
-                                  <p className="text-sm font-extrabold text-slate-900 font-mono mt-0.5">
-                                    {todayPunch?.checkOut || '--'}
                                   </p>
                                 </div>
                               </div>
@@ -864,18 +848,14 @@ export default function EmployeeDetailPage() {
                                   ? !shiftVal.isValid && !dayPunchForceOverride
                                     ? '!bg-slate-300 !text-slate-500 !border-slate-300 !cursor-not-allowed'
                                     : '!bg-emerald-600 hover:!bg-emerald-500'
-                                  : !isClockedOut
-                                  ? '!bg-amber-500 hover:!bg-amber-600'
-                                  : '!bg-slate-800 hover:!bg-slate-700'
+                                  : '!bg-amber-500 hover:!bg-amber-600'
                               }
                             >
                               {!isClockedIn
                                 ? !shiftVal.isValid && !dayPunchForceOverride
                                   ? 'Clock In Locked (Outside Shift)'
                                   : `Clock In Now (${currentLiveTime})`
-                                : !isClockedOut
-                                ? `Clock Out Now (${currentLiveTime})`
-                                : 'Save Record'}
+                                : `Clock Out Now (${currentLiveTime})`}
                             </Button>
                           </div>
                         </>

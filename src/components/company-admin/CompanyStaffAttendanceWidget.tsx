@@ -331,8 +331,13 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
                     (r.date === todayStr || !r.date)
                 );
 
-                const isClockedIn = todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--';
-                const isClockedOut = isClockedIn && todayPunch.checkOut && todayPunch.checkOut !== '--';
+                const isClockedIn = Boolean(
+                  todayPunch &&
+                  todayPunch.checkIn &&
+                  todayPunch.checkIn !== '--' &&
+                  (!todayPunch.checkOut || todayPunch.checkOut === '--')
+                );
+                const isClockedOut = Boolean(todayPunch && todayPunch.checkOut && todayPunch.checkOut !== '--');
 
                 return (
                   <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
@@ -345,8 +350,8 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
                           className="w-9 h-9 rounded-xl object-cover border border-slate-200 shadow-xs shrink-0"
                         />
                         <div className="min-w-0">
-                          <p className="font-bold text-slate-900 text-xs truncate">{emp.name}</p>
-                          <p className="text-[11px] text-slate-400 truncate">{emp.email}</p>
+                          <p className="font-bold text-xs text-slate-900 truncate">{emp.name}</p>
+                          <p className="text-[11px] text-slate-500 truncate">{emp.department}</p>
                         </div>
                       </div>
                     </td>
@@ -363,7 +368,7 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
 
                     {/* Check In */}
                     <td className="py-3 px-3.5">
-                      {isClockedIn ? (
+                      {todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--' ? (
                         <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md text-xs border border-emerald-200">
                           <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
                           {todayPunch.checkIn}
@@ -378,7 +383,7 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
                       {isClockedOut ? (
                         <span className="inline-flex items-center gap-1 font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md text-xs border border-slate-200">
                           <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                          {todayPunch.checkOut}
+                          {todayPunch?.checkOut}
                         </span>
                       ) : isClockedIn ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
@@ -391,19 +396,7 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
 
                     {/* Action Button */}
                     <td className="py-3 px-3.5 text-right">
-                      {!isClockedIn ? (
-                        <button
-                          onClick={() => {
-                            setSelectedEmpForPunch(emp);
-                            setPunchType('CLOCK_IN');
-                            setIsModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
-                        >
-                          <LogIn className="w-3.5 h-3.5" />
-                          <span>Clock In</span>
-                        </button>
-                      ) : !isClockedOut ? (
+                      {isClockedIn ? (
                         <button
                           onClick={() => {
                             setSelectedEmpForPunch(emp);
@@ -415,17 +408,25 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
                           <LogOut className="w-3.5 h-3.5" />
                           <span>Clock Out</span>
                         </button>
+                      ) : isClockedOut ? (
+                        <span
+                          title="Today's shift attendance is completed. Clock-in closed for today."
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-300 select-none shadow-xs"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Shift Completed</span>
+                        </span>
                       ) : (
                         <button
                           onClick={() => {
                             setSelectedEmpForPunch(emp);
-                            setPunchType('CLOCK_OUT');
+                            setPunchType('CLOCK_IN');
                             setIsModalOpen(true);
                           }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Completed</span>
+                          <LogIn className="w-3.5 h-3.5" />
+                          <span>Clock In</span>
                         </button>
                       )}
                     </td>
