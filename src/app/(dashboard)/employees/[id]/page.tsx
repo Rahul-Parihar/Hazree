@@ -608,6 +608,36 @@ export default function EmployeeDetailPage() {
     );
   };
 
+  // Restrict Super Admin access
+  useEffect(() => {
+    if (userRole === 'SUPER_ADMIN') {
+      router.replace('/employees');
+    }
+  }, [userRole, router]);
+
+  if (userRole === 'SUPER_ADMIN') {
+    return (
+      <div className="max-w-md mx-auto my-16 p-8 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs space-y-4 animate-fade-in">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-lg font-black text-slate-900">Access Restricted</h3>
+          <p className="text-xs text-slate-500 leading-relaxed font-medium">
+            Super Admins do not have permission to view individual staff profile details and attendance calendars.
+          </p>
+        </div>
+        <Link
+          href="/employees"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Return to Staff Directory</span>
+        </Link>
+      </div>
+    );
+  }
+
   if (!employee) {
     return (
       <div className="max-w-6xl mx-auto space-y-6 animate-fade-in p-4 sm:p-6">

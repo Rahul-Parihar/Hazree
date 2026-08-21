@@ -64,10 +64,18 @@ export default function EditEmployeePage() {
   const employeeId = rawParamId ? String(rawParamId).replace('emp_', '') : '';
 
   const currentUser = useAppSelector((state) => state.auth.currentUser);
+  const userRole = useAppSelector((state) => state.auth.userRole);
   const employees = useAppSelector((state) => state.employees.employees);
   const companies = useAppSelector((state) => state.companies.companies);
   const dbDepartments = useAppSelector((state) => state.departments.departments);
   const isUpdating = useAppSelector((state) => state.employees.isUpdating);
+
+  // Restrict Super Admin from edit page
+  useEffect(() => {
+    if (userRole === 'SUPER_ADMIN') {
+      router.replace('/employees');
+    }
+  }, [userRole, router]);
 
   // Find target employee
   const targetEmployee = useMemo(() => {
