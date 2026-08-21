@@ -19,7 +19,7 @@ router = APIRouter(
 
 
 @router.get("/", response_model=List[EmployeeResponse], summary="List Employees")
-async def read_employees(
+def read_employees(
     company_id: Optional[int] = Query(None, description="Optional filter by company ID (Super Admin only)"),
     skip: int = 0,
     limit: int = 200,
@@ -41,7 +41,7 @@ async def read_employees(
     status_code=status.HTTP_201_CREATED,
     summary="Add New Employee (Company Admin / Super Admin)",
 )
-async def create_employee(
+def create_employee(
     employee_in: EmployeeCreate,
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
@@ -73,7 +73,7 @@ async def create_employee(
 
 
 @router.get("/{employee_id}", response_model=EmployeeResponse, summary="Get Employee by ID")
-async def get_employee(
+def get_employee(
     employee_id: int,
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
@@ -84,7 +84,7 @@ async def get_employee(
 
 
 @router.put("/{employee_id}", response_model=EmployeeResponse, summary="Update Employee Details")
-async def update_employee(
+def update_employee(
     employee_id: int,
     employee_in: EmployeeUpdate,
     db: Session = Depends(get_db),
@@ -96,7 +96,7 @@ async def update_employee(
 
 
 @router.delete("/{employee_id}", summary="Delete Employee")
-async def delete_employee(
+def delete_employee(
     employee_id: int,
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),

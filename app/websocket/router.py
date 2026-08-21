@@ -17,8 +17,8 @@ router = APIRouter(
 @router.websocket("/ws")
 async def websocket_attendance_endpoint(
     websocket: WebSocket,
-    company_id: Optional[int] = None,
-    employee_id: Optional[int] = None,
+    company_id: Optional[str] = None,
+    employee_id: Optional[str] = None,
 ):
     """
     Global WebSocket endpoint for real-time bidirectional events across portals.

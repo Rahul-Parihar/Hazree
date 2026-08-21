@@ -19,7 +19,7 @@ router = APIRouter(
 
 
 @router.get("/", response_model=List[LeaveRequestResponse], summary="List Leave Requests")
-async def read_leave_requests(
+def read_leave_requests(
     status: Optional[str] = Query(None, description="Filter requests by status (Pending, Approved, Rejected)"),
     company_id: Optional[int] = Query(None, description="Optional company ID filter for Super Admin"),
     skip: int = 0,
@@ -48,7 +48,7 @@ async def read_leave_requests(
     status_code=status.HTTP_201_CREATED,
     summary="Submit Leave Request",
 )
-async def submit_leave_request(
+def submit_leave_request(
     leave_in: LeaveRequestCreate,
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
@@ -73,7 +73,7 @@ async def submit_leave_request(
 
 
 @router.patch("/{leave_id}/status", response_model=LeaveRequestResponse, summary="Approve or Reject Leave")
-async def update_leave_status(
+def update_leave_status(
     leave_id: int,
     status_in: LeaveStatusUpdate,
     db: Session = Depends(get_db),
@@ -85,7 +85,7 @@ async def update_leave_status(
 
 
 @router.delete("/{leave_id}", summary="Delete Leave Request")
-async def delete_leave_request(
+def delete_leave_request(
     leave_id: int,
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),

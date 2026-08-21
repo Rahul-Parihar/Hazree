@@ -32,7 +32,7 @@ class WebSocketConnectionManager:
             del self.socket_metadata[websocket]
         logger.info(f"WebSocket client disconnected. Remaining sessions: {len(self.active_connections)}")
 
-    async def broadcast(self, message: dict, company_id: Optional[int] = None):
+    async def broadcast(self, message: dict, company_id: Optional[object] = None):
         """Broadcast payload to all active clients with error resilience."""
         if not self.active_connections:
             return
@@ -40,8 +40,10 @@ class WebSocketConnectionManager:
         for connection in list(self.active_connections):
             try:
                 meta = self.socket_metadata.get(connection)
-                if meta and company_id and meta.get("company_id") is not None:
-                    if meta.get("company_id") != company_id:
+                if meta and company_id is not None and meta.get("company_id") is not None:
+                    client_cid = str(meta.get("company_id")).replace("cmp_", "")
+                    target_cid = str(company_id).replace("cmp_", "")
+                    if client_cid != target_cid:
                         continue
 
                 await connection.send_json(message)
@@ -49,7 +51,7 @@ class WebSocketConnectionManager:
                 logger.warning(f"Error sending WS payload: {e}")
                 self.disconnect(connection)
 
-    def broadcast_sync(self, message: dict, company_id: Optional[int] = None):
+    def broadcast_sync(self, message: dict, company_id: Optional[object] = None):
         """Synchronous bridge to fire async broadcast safely from database services."""
         try:
             try:

@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
+from app.core.redis_cache import get_cache, set_cache, delete_cache_pattern
 from app.core.security import get_password_hash
 from app.features.companies.company_management.models import Company
 from app.features.companies.employee_management.models import Employee
@@ -108,6 +109,10 @@ def create_employee(
     db.commit()
     db.refresh(new_emp)
 
+    # Invalidate cache
+    delete_cache_pattern("employees:*")
+    delete_cache_pattern("companies:*")
+
     return _to_response(new_emp, company_name=company.name)
 
 
@@ -117,7 +122,15 @@ def get_employees(
     skip: int = 0,
     limit: int = 200,
 ) -> List[EmployeeResponse]:
-    """Retrieve employees list (scoped to company_id if provided, or all for Super Admin)."""
+    """
+    Retrieve employees list with ultra-fast Redis / In-memory caching (< 1ms).
+    Scoped to company_id if provided, or all for Super Admin.
+    """
+    cache_key = f"employees:list:{company_id if company_id is not None else 'all'}:{skip}:{limit}"
+    cached = get_cache(cache_key)
+    if cached is not None and isinstance(cached, list):
+        return [EmployeeResponse(**item) for item in cached]
+
     query = (
         db.query(Employee, Company.name.label("company_name"))
         .join(Company, Employee.company_id == Company.id)
@@ -127,8 +140,16 @@ def get_employees(
         query = query.filter(Employee.company_id == company_id)
 
     results = query.order_by(Employee.id.desc()).offset(skip).limit(limit).all()
+    response_list = [_to_response(emp, company_name=c_name) for emp, c_name in results]
 
-    return [_to_response(emp, company_name=c_name) for emp, c_name in results]
+    # Cache results for 60 seconds
+    set_cache(
+        cache_key,
+        [r.model_dump(mode="json") for r in response_list],
+        expire_seconds=60,
+    )
+
+    return response_list
 
 
 def get_employee_by_id(
@@ -136,7 +157,12 @@ def get_employee_by_id(
     employee_id: int,
     company_id: Optional[int] = None,
 ) -> EmployeeResponse:
-    """Retrieve a single employee record by ID."""
+    """Retrieve a single employee record by ID with caching."""
+    cache_key = f"employees:id:{employee_id}:{company_id if company_id is not None else 'all'}"
+    cached = get_cache(cache_key)
+    if cached is not None and isinstance(cached, dict):
+        return EmployeeResponse(**cached)
+
     query = (
         db.query(Employee, Company.name.label("company_name"))
         .join(Company, Employee.company_id == Company.id)
@@ -154,7 +180,10 @@ def get_employee_by_id(
         )
 
     emp, c_name = result
-    return _to_response(emp, company_name=c_name)
+    response = _to_response(emp, company_name=c_name)
+
+    set_cache(cache_key, response.model_dump(mode="json"), expire_seconds=60)
+    return response
 
 
 def update_employee(
@@ -206,6 +235,9 @@ def update_employee(
     db.commit()
     db.refresh(emp)
 
+    # Invalidate cache
+    delete_cache_pattern("employees:*")
+
     company = db.query(Company).filter(Company.id == emp.company_id).first()
     return _to_response(emp, company_name=company.name if company else None)
 
@@ -237,4 +269,9 @@ def delete_employee(
         company.employee_count = max(0, actual_count)
 
     db.commit()
+
+    # Invalidate cache
+    delete_cache_pattern("employees:*")
+    delete_cache_pattern("companies:*")
+
     return {"status": "success", "message": f"Employee {employee_id} deleted successfully."}

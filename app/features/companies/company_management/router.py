@@ -21,7 +21,7 @@ router = APIRouter(
 
 
 @router.get("/", response_model=List[CompanyResponse], summary="List All Companies")
-async def read_companies(
+def read_companies(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -37,7 +37,7 @@ async def read_companies(
     status_code=status.HTTP_201_CREATED,
     summary="Register New Company",
 )
-async def create_company(
+def create_company(
     company: CompanyCreate,
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_super_admin),
@@ -47,7 +47,7 @@ async def create_company(
 
 
 @router.get("/{company_id}", response_model=CompanyResponse, summary="Get Company by ID")
-async def get_company(
+def get_company(
     company_id: int,
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
@@ -66,7 +66,7 @@ async def get_company(
     response_model=SubscriptionStatusResponse,
     summary="Get Company Subscription Status & 5-Day Expiry Alert",
 )
-async def get_company_subscription_status(
+def get_company_subscription_status(
     company_id: int,
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
@@ -80,7 +80,7 @@ async def get_company_subscription_status(
 
 @router.put("/{company_id}", response_model=CompanyResponse, summary="Update Company Details")
 @router.patch("/{company_id}", response_model=CompanyResponse, summary="Partial Update Company Details")
-async def update_company(
+def update_company(
     company_id: int,
     company_in: CompanyUpdate,
     db: Session = Depends(get_db),
@@ -96,7 +96,7 @@ async def update_company(
 
 
 @router.delete("/{company_id}", summary="Delete Company")
-async def delete_company(
+def delete_company(
     company_id: int,
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_super_admin),

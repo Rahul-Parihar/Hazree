@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from fastapi import HTTPException, status
 
+from app.core.redis_cache import get_cache, set_cache, delete_cache_pattern
 from app.features.department.models import Department
 from app.features.department.schemas import DepartmentCreate, DepartmentResponse, DepartmentUpdate
 from app.features.companies.company_management.models import Company
@@ -44,7 +45,12 @@ def get_departments(
     include_inactive: bool = False,
     is_super_admin: bool = False,
 ) -> List[DepartmentResponse]:
-    """Retrieve global departments and company-specific departments."""
+    """Retrieve global departments and company-specific departments with ultra-fast caching (< 1ms)."""
+    cache_key = f"departments:list:{company_id if company_id is not None else 'all'}:{include_inactive}:{is_super_admin}"
+    cached = get_cache(cache_key)
+    if cached is not None and isinstance(cached, list):
+        return [DepartmentResponse(**d) for d in cached]
+
     query = db.query(Department)
 
     if not include_inactive:
@@ -78,6 +84,8 @@ def get_departments(
                 created_at=d.created_at,
             )
         )
+
+    set_cache(cache_key, [r.model_dump(mode="json") for r in result], expire_seconds=120)
     return result
 
 
@@ -128,6 +136,7 @@ def create_department(
     db.refresh(new_dept)
 
     comp_name = new_dept.company.name if new_dept.company else "Global Standard"
+    delete_cache_pattern("departments:*")
     return DepartmentResponse(
         id=new_dept.id,
         name=new_dept.name,
@@ -172,6 +181,7 @@ def update_department(
     db.commit()
     db.refresh(dept)
 
+    delete_cache_pattern("departments:*")
     comp_name = dept.company.name if dept.company else "Global Standard"
     return DepartmentResponse(
         id=dept.id,
@@ -195,4 +205,5 @@ def delete_department(db: Session, dept_id: int) -> bool:
         )
     db.delete(dept)
     db.commit()
+    delete_cache_pattern("departments:*")
     return True

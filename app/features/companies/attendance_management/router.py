@@ -21,7 +21,7 @@ router = APIRouter(
 
 
 @router.get("/", response_model=List[AttendanceRecordResponse], summary="List Attendance Logs")
-async def read_attendance_logs(
+def read_attendance_logs(
     employee_id: Optional[int] = Query(None, description="Optional filter by employee ID"),
     date: Optional[str] = Query(None, description="Filter logs by date (YYYY-MM-DD)"),
     month: Optional[str] = Query(None, description="Filter logs by month (YYYY-MM)"),
@@ -63,7 +63,7 @@ async def read_attendance_logs(
     status_code=status.HTTP_201_CREATED,
     summary="Record Attendance Punch",
 )
-async def punch_attendance(
+def punch_attendance(
     punch_in: AttendancePunchCreate,
     db: Session = Depends(get_db),
     current_user: Optional[UserAuthResponse] = Depends(get_current_user_optional),
@@ -100,7 +100,7 @@ async def punch_attendance(
 
 
 @router.post("/auto-close-shifts", summary="Trigger Auto Clock-Out for Expired Shifts")
-async def trigger_auto_close_shifts(
+def trigger_auto_close_shifts(
     company_id: Optional[int] = Query(None, description="Optional company ID to scope auto-close"),
     db: Session = Depends(get_db),
     current_user: Optional[UserAuthResponse] = Depends(get_current_user_optional),
@@ -118,7 +118,7 @@ async def trigger_auto_close_shifts(
 
 
 @router.get("/stats", response_model=AttendanceStatsResponse, summary="Get Attendance Statistics")
-async def get_attendance_stats(
+def get_attendance_stats(
     company_id: Optional[int] = Query(None, description="Optional company filter for Super Admin"),
     date: Optional[str] = Query(None, description="Target date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
@@ -130,7 +130,7 @@ async def get_attendance_stats(
 
 
 @router.patch("/{record_id}", response_model=AttendanceRecordResponse, summary="Update Attendance Record")
-async def update_attendance_record(
+def update_attendance_record(
     record_id: int,
     updates: AttendanceUpdate,
     db: Session = Depends(get_db),
@@ -142,7 +142,7 @@ async def update_attendance_record(
 
 
 @router.delete("/{record_id}", summary="Delete Attendance Record")
-async def delete_attendance_record(
+def delete_attendance_record(
     record_id: int,
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
