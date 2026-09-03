@@ -26,9 +26,11 @@ import {
 } from '../../../redux/slices/leavesSlice';
 import { LeaveRequest, LeaveStatus, LeaveType } from '../../../types';
 import { HazreeDataLoader } from '../../../components/ui/HazreeDataLoader';
+import { canApproveLeaves, canManageStaff } from '../../../lib/permissionUtils';
 
 export default function LeavesPage() {
   const dispatch = useAppDispatch();
+  const userRole = useAppSelector((state) => state.auth.userRole);
   const leaves = useAppSelector((state) => state.leaves.leaves);
   const isLoading = useAppSelector((state) => state.leaves.isLoading);
   const isUpdating = useAppSelector((state) => state.leaves.isUpdating);
@@ -36,6 +38,9 @@ export default function LeavesPage() {
   const error = useAppSelector((state) => state.leaves.error);
   const successMessage = useAppSelector((state) => state.leaves.successMessage);
   const currentUser = useAppSelector((state) => state.auth.currentUser);
+
+  const showApproveActions = canApproveLeaves(userRole);
+  const showApplyAction = canManageStaff(userRole);
 
   const [activeTab, setActiveTab] = useState<string>('ALL');
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -128,14 +133,16 @@ export default function LeavesPage() {
           >
             Refresh
           </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsApplyModalOpen(true)}
-            icon={<Plus className="w-4 h-4" />}
-          >
-            Apply Leave Request
-          </Button>
+          {showApplyAction && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsApplyModalOpen(true)}
+              icon={<Plus className="w-4 h-4" />}
+            >
+              Apply Leave Request
+            </Button>
+          )}
         </div>
       </div>
 
@@ -258,7 +265,7 @@ export default function LeavesPage() {
                     {leave.status}
                   </Badge>
 
-                  {leave.status === 'Pending' && (
+                  {showApproveActions && leave.status === 'Pending' && (
                     <div className="flex items-center gap-2">
                       <Button
                         variant="primary"

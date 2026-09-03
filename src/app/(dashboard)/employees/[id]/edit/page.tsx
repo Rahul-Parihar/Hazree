@@ -30,7 +30,9 @@ import {
 } from '../../../../../redux/slices/departmentsSlice';
 import { BackendEmployeeCreate } from '../../../../../services/employeesService';
 import { getCompanyShiftOptions } from '../../../../../lib/shiftUtils';
-import { EmployeeStatus } from '../../../../../types';
+import { RolePermissionManager } from '../../../../../components/company-admin/RolePermissionManager';
+import { EmployeeStatus, PortalAccessRole, EmployeePermissions } from '../../../../../types';
+import { STAFF_PRESET_PERMISSIONS } from '../../../../../lib/permissionUtils';
 
 const AVATAR_PRESETS = [
   { name: 'Avatar 1', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80' },
@@ -43,18 +45,6 @@ const AVATAR_PRESETS = [
   { name: 'Avatar 8', url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=120&auto=format&fit=crop&q=80' },
 ];
 
-const FALLBACK_DEPARTMENTS = [
-  'Engineering & Development',
-  'Operations & Logistics',
-  'Sales & Marketing',
-  'Human Resources (HR)',
-  'Finance & Accounts',
-  'Product & Design',
-  'Customer Support',
-  'Quality Assurance (QA)',
-  'Executive Management',
-];
-
 export default function EditEmployeePage() {
   const params = useParams();
   const router = useRouter();
@@ -65,6 +55,8 @@ export default function EditEmployeePage() {
 
   const currentUser = useAppSelector((state) => state.auth.currentUser);
   const userRole = useAppSelector((state) => state.auth.userRole);
+  const canAssignPortalRole =
+    userRole === 'SUPER_ADMIN' || userRole === 'COMPANY_ADMIN' || userRole === 'MANAGER';
   const employees = useAppSelector((state) => state.employees.employees);
   const companies = useAppSelector((state) => state.companies.companies);
   const dbDepartments = useAppSelector((state) => state.departments.departments);
@@ -106,12 +98,12 @@ export default function EditEmployeePage() {
     return getCompanyShiftOptions(targetCompany);
   }, [targetCompany]);
 
-  // Combine dynamic backend departments with fallbacks
+  // Dynamic departments from database
   const departmentList = useMemo(() => {
     if (dbDepartments && dbDepartments.length > 0) {
       return dbDepartments.map((d) => d.name);
     }
-    return FALLBACK_DEPARTMENTS;
+    return [];
   }, [dbDepartments]);
 
   const [formData, setFormData] = useState({
@@ -119,13 +111,15 @@ export default function EditEmployeePage() {
     email: '',
     phone: '',
     role: '',
-    department: 'Engineering & Development',
+    department: '',
     password: '',
     joinDate: new Date().toISOString().split('T')[0],
     dob: '',
     assignedShift: 'Shift 1: 09:00 AM - 06:00 PM (9h)',
     status: 'Active' as EmployeeStatus,
     avatar: AVATAR_PRESETS[0].url,
+    portalAccess: 'NONE' as PortalAccessRole,
+    permissions: STAFF_PRESET_PERMISSIONS as EmployeePermissions,
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -144,6 +138,7 @@ export default function EditEmployeePage() {
   // Pre-fill form when targetEmployee is loaded
   useEffect(() => {
     if (targetEmployee) {
+      const pRole = (targetEmployee.portalAccess || targetEmployee.portal_access || 'NONE') as PortalAccessRole;
       setFormData({
         name: targetEmployee.name || '',
         email: targetEmployee.email || '',
@@ -156,6 +151,8 @@ export default function EditEmployeePage() {
         assignedShift: targetEmployee.assignedShift || (shiftOptions[0] || 'Shift 1'),
         status: targetEmployee.status || 'Active',
         avatar: targetEmployee.avatar || AVATAR_PRESETS[0].url,
+        portalAccess: pRole,
+        permissions: targetEmployee.permissions || STAFF_PRESET_PERMISSIONS,
       });
     }
   }, [targetEmployee, shiftOptions]);
@@ -229,6 +226,8 @@ export default function EditEmployeePage() {
       assigned_shift: formData.assignedShift || shiftOptions[0] || 'Shift 1',
       status: formData.status,
       avatar: formData.avatar,
+      portal_access: canAssignPortalRole ? formData.portalAccess : targetEmployee?.portalAccess,
+      permissions: canAssignPortalRole ? formData.permissions : targetEmployee?.permissions,
     };
 
     if (formData.password.trim()) {
@@ -529,7 +528,33 @@ export default function EditEmployeePage() {
             </div>
           </div>
 
-          {/* Row 6: Profile Photo / Avatar Picker (Placed at Bottom) */}
+          {/* Row 6: Admin Portal Access & Permissions (Only Company Owner & Manager) */}
+          {canAssignPortalRole && (
+            <div className="pt-5 border-t border-slate-100 space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-900">
+                  Admin Portal Access & Permissions
+                </label>
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  Configure whether this employee can access the Hazree Admin dashboard and what administrative permissions they hold.
+                </p>
+              </div>
+
+              <RolePermissionManager
+                portalAccess={formData.portalAccess}
+                permissions={formData.permissions}
+                onChange={(role, perms) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    portalAccess: role,
+                    permissions: perms,
+                  }));
+                }}
+              />
+            </div>
+          )}
+
+          {/* Row 7: Profile Photo / Avatar Picker (Placed at Bottom) */}
           <div className="pt-5 border-t border-slate-100">
             <div className="flex items-center justify-between mb-3.5">
               <div>

@@ -39,6 +39,9 @@ const mapBackendToEmployee = (be: BackendEmployeeResponse): Employee => ({
   dob: be.dob || undefined,
   assignedShift: be.assigned_shift && !be.assigned_shift.toLowerCase().includes('general') ? be.assigned_shift : (be.assigned_shift ? be.assigned_shift.replace(/General Shift/i, 'Shift 1') : 'Shift 1'),
   status: (be.status as EmployeeStatus) || 'Active',
+  portalAccess: (be.portal_access as any) || 'NONE',
+  portal_access: (be.portal_access as any) || 'NONE',
+  permissions: be.permissions || undefined,
 });
 
 /**

@@ -53,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: 'Dashboard',
       href: '/',
       icon: LayoutDashboard,
-      roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'],
+      roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR_ADMIN', 'MANAGER'],
     },
     {
       name: 'Companies',
@@ -73,19 +73,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: 'Attendance Logs',
       href: '/attendance',
       icon: CalendarCheck,
-      roles: ['COMPANY_ADMIN'],
+      roles: ['COMPANY_ADMIN', 'HR_ADMIN', 'MANAGER'],
     },
     {
       name: 'Employees',
       href: '/employees',
       icon: Users,
-      roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'],
+      roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR_ADMIN', 'MANAGER'],
     },
     {
       name: 'Leave Requests',
       href: '/leaves',
       icon: FileText,
-      roles: ['COMPANY_ADMIN'],
+      roles: ['COMPANY_ADMIN', 'HR_ADMIN', 'MANAGER'],
       badgeCount: pendingLeavesCount > 0 ? pendingLeavesCount : undefined,
     },
     {
@@ -265,10 +265,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div className={cn('min-w-0', isCollapsed && 'lg:hidden')}>
               <p className="text-xs font-bold text-white truncate">
-                {currentUser?.name || (userRole === 'SUPER_ADMIN' ? 'Anand Patel' : 'Rajesh Sharma')}
+                {currentUser?.name || (userRole === 'SUPER_ADMIN' ? 'Anand Patel' : userRole === 'MANAGER' ? 'Vikram Malhotra' : userRole === 'HR_ADMIN' ? 'Pooja Sharma' : 'Company Admin')}
               </p>
-              <p className="text-[11px] text-slate-400 truncate">
-                {currentUser?.companyName || (userRole === 'SUPER_ADMIN' ? 'Platform HQ' : 'Tata Tech HR')}
+              <p className="text-[11px] text-emerald-400 font-semibold truncate">
+                {userRole === 'SUPER_ADMIN'
+                  ? 'Super Admin'
+                  : userRole === 'MANAGER'
+                  ? 'Manager'
+                  : userRole === 'HR_ADMIN'
+                  ? 'HR Admin'
+                  : 'Company Owner'}
               </p>
             </div>
           </div>

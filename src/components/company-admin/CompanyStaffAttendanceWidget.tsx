@@ -42,8 +42,8 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
   const myCompanyId = currentUser?.companyId
     ? String(currentUser.companyId).replace('cmp_', '')
     : currentCompany?.id
-    ? String(currentCompany.id).replace('cmp_', '')
-    : undefined;
+      ? String(currentCompany.id).replace('cmp_', '')
+      : undefined;
   const myCompanyName = (currentUser?.companyName || currentCompany?.name || '').trim().toLowerCase();
 
   // Filter employees strictly for this company
@@ -210,11 +210,10 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
         {/* Total Roster Card */}
         <button
           onClick={() => setStatusFilter('ALL')}
-          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
-            statusFilter === 'ALL'
+          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${statusFilter === 'ALL'
               ? 'bg-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
               : 'bg-white/60 border-slate-200 hover:bg-white'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-600">All Staff</span>
@@ -229,11 +228,10 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
         {/* Active Sessions Card */}
         <button
           onClick={() => setStatusFilter('ACTIVE')}
-          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
-            statusFilter === 'ACTIVE'
+          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${statusFilter === 'ACTIVE'
               ? 'bg-white border-amber-500 shadow-sm ring-2 ring-amber-500/20'
               : 'bg-white/60 border-slate-200 hover:bg-white'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-amber-800 flex items-center gap-1">
@@ -255,11 +253,10 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
         {/* Completed Shifts Card */}
         <button
           onClick={() => setStatusFilter('COMPLETED')}
-          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
-            statusFilter === 'COMPLETED'
+          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${statusFilter === 'COMPLETED'
               ? 'bg-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
               : 'bg-white/60 border-slate-200 hover:bg-white'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-emerald-800">Completed Shift</span>
@@ -279,11 +276,10 @@ export const CompanyStaffAttendanceWidget: React.FC = () => {
         {/* Pending Punch Card */}
         <button
           onClick={() => setStatusFilter('NOT_PUNCHED')}
-          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
-            statusFilter === 'NOT_PUNCHED'
+          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${statusFilter === 'NOT_PUNCHED'
               ? 'bg-white border-rose-500 shadow-sm ring-2 ring-rose-500/20'
               : 'bg-white/60 border-slate-200 hover:bg-white'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-600">Pending Punch</span>

@@ -14,7 +14,13 @@ interface AuthState {
 const getInitialRole = (): UserRole => {
   if (typeof window !== 'undefined') {
     const saved = localStorage.getItem('hazree_user_role') as UserRole;
-    if (saved === 'SUPER_ADMIN' || saved === 'COMPANY_ADMIN' || saved === 'EMPLOYEE') {
+    if (
+      saved === 'SUPER_ADMIN' ||
+      saved === 'COMPANY_ADMIN' ||
+      saved === 'HR_ADMIN' ||
+      saved === 'MANAGER' ||
+      saved === 'EMPLOYEE'
+    ) {
       return saved;
     }
   }
@@ -182,6 +188,9 @@ export const authSlice = createSlice({
           avatar: role === 'SUPER_ADMIN'
             ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
             : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80',
+          portalAccess: rawUser?.portal_access,
+          portal_access: rawUser?.portal_access,
+          permissions: rawUser?.permissions,
         };
         if (typeof window !== 'undefined') {
           localStorage.setItem('hazree_user_role', role);

@@ -151,11 +151,10 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
             setFilterMode('TODAY');
             setActiveTab('ALL');
           }}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-            filterMode === 'TODAY' && activeTab === 'ALL'
+          className={`p-4 rounded-2xl border transition-all cursor-pointer ${filterMode === 'TODAY' && activeTab === 'ALL'
               ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
               : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Today Clock-Ins</span>
@@ -175,11 +174,10 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
             setFilterMode('TODAY');
             setActiveTab('ACTIVE_IN');
           }}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-            activeTab === 'ACTIVE_IN'
+          className={`p-4 rounded-2xl border transition-all cursor-pointer ${activeTab === 'ACTIVE_IN'
               ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-500/20 shadow-xs'
               : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active In Session</span>
@@ -199,11 +197,10 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
             setFilterMode('TODAY');
             setActiveTab('CLOCKED_OUT');
           }}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-            activeTab === 'CLOCKED_OUT'
+          className={`p-4 rounded-2xl border transition-all cursor-pointer ${activeTab === 'CLOCKED_OUT'
               ? 'bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-500/20 shadow-xs'
               : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Clocked Out</span>
@@ -223,11 +220,10 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
             setFilterMode('TODAY');
             setActiveTab('LATE');
           }}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-            activeTab === 'LATE'
+          className={`p-4 rounded-2xl border transition-all cursor-pointer ${activeTab === 'LATE'
               ? 'bg-rose-50/80 border-rose-300 ring-2 ring-rose-500/20 shadow-xs'
               : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Late Clock-Ins</span>
@@ -253,21 +249,19 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
                 setFilterMode('TODAY');
                 setSelectedDate(todayStr);
               }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                filterMode === 'TODAY'
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${filterMode === 'TODAY'
                   ? 'bg-white text-emerald-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Today
             </button>
             <button
               onClick={() => setFilterMode('ALL')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                filterMode === 'ALL'
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${filterMode === 'ALL'
                   ? 'bg-white text-emerald-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               All Dates
             </button>
@@ -297,11 +291,10 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                  activeTab === tab.key
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${activeTab === tab.key
                     ? 'bg-white text-emerald-600 shadow-xs'
                     : 'text-slate-500 hover:text-slate-800'
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
@@ -364,11 +357,10 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
                     <tr
                       key={r.id}
                       onClick={() => setSelectedRecordForDrawer(r)}
-                      className={`transition-colors cursor-pointer group ${
-                        isSelectedForDrawer
+                      className={`transition-colors cursor-pointer group ${isSelectedForDrawer
                           ? 'bg-emerald-50/80'
                           : 'hover:bg-slate-50/70'
-                      }`}
+                        }`}
                     >
                       {/* Employee Profile */}
                       <td className="py-3.5 px-5 whitespace-nowrap">
@@ -383,9 +375,8 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
                               className="w-9 h-9 rounded-xl object-cover border border-slate-200 group-hover:ring-2 group-hover:ring-emerald-500 transition-all shadow-2xs"
                             />
                             <span
-                              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                                isClockedOut ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'
-                              }`}
+                              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${isClockedOut ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'
+                                }`}
                               title={isClockedOut ? 'Shift Completed' : 'Session Active'}
                             />
                           </div>
@@ -455,10 +446,10 @@ export const RecentAttendanceTable: React.FC<RecentAttendanceTableProps> = ({
                             r.status === 'Present'
                               ? 'present'
                               : r.status === 'Late'
-                              ? 'late'
-                              : r.status === 'Absent'
-                              ? 'absent'
-                              : 'halfday'
+                                ? 'late'
+                                : r.status === 'Absent'
+                                  ? 'absent'
+                                  : 'halfday'
                           }
                         >
                           {r.status}

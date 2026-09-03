@@ -41,11 +41,16 @@ import {
 } from '../../../redux/slices/employeesSlice';
 import { fetchAttendanceAsync } from '../../../redux/slices/attendanceSlice';
 import { fetchDepartmentsAsync } from '../../../redux/slices/departmentsSlice';
-import { AddEmployeeModal } from '../../../components/company-admin/AddEmployeeModal';
 import { EditEmployeeModal } from '../../../components/company-admin/EditEmployeeModal';
 import { MarkAttendanceModal } from '../../../components/company-admin/MarkAttendanceModal';
 import { HazreeDataLoader } from '../../../components/ui/HazreeDataLoader';
 import { getCompanyShiftOptions, formatShiftBadge } from '../../../lib/shiftUtils';
+import {
+  isCompanyPortalRole,
+  canManualPunch,
+  canManageStaff,
+  canViewEmployeePhone,
+} from '../../../lib/permissionUtils';
 import { Employee } from '../../../types';
 
 export default function EmployeesPage() {
@@ -59,7 +64,6 @@ export default function EmployeesPage() {
   const companies = useAppSelector((state) => state.companies.companies);
   const attendanceRecords = useAppSelector((state) => state.attendance.records);
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [selectedEmpForPunch, setSelectedEmpForPunch] = useState<Employee | null>(null);
   const [punchType, setPunchType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>('CLOCK_IN');
@@ -71,7 +75,7 @@ export default function EmployeesPage() {
   const [empToDelete, setEmpToDelete] = useState<Employee | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Multi-select & Bulk Actions (Company Admin ONLY)
+  // Multi-select & Bulk Actions (Company Owner & HR Admin ONLY)
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -98,8 +102,12 @@ export default function EmployeesPage() {
     dispatch(fetchDepartmentsAsync(currentUser?.companyId));
   };
 
-  // Scoped employees: Company Admin sees only their organization's employees, Super Admin sees all
-  const isCompanyAdmin = userRole === 'COMPANY_ADMIN';
+  // Role Permissions
+  const isCompanySide = isCompanyPortalRole(userRole);
+  const showManualPunch = canManualPunch(userRole);
+  const showManageStaff = canManageStaff(userRole);
+  const showPhone = canViewEmployeePhone(userRole);
+
   const myCompanyId = currentUser?.companyId ? String(currentUser.companyId).replace('cmp_', '') : undefined;
   const myCompanyName = currentUser?.companyName?.trim().toLowerCase();
 
@@ -113,7 +121,7 @@ export default function EmployeesPage() {
     return getCompanyShiftOptions(currentCompany);
   }, [currentCompany]);
 
-  const scopedEmployees = isCompanyAdmin
+  const scopedEmployees = isCompanySide
     ? employees.filter((e) => {
       const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
       if (myCompanyId && empCompId) return empCompId === myCompanyId;
@@ -145,7 +153,7 @@ export default function EmployeesPage() {
         (e.phone && e.phone.includes(query));
 
       const matchesCompany =
-        isCompanyAdmin ||
+        isCompanySide ||
         selectedCompany === 'ALL' ||
         (e.companyName && e.companyName.toLowerCase() === selectedCompany.toLowerCase());
 
@@ -172,20 +180,20 @@ export default function EmployeesPage() {
 
       return matchesSearch && matchesCompany && matchesShift;
     });
-  }, [scopedEmployees, searchQuery, selectedCompany, selectedShift, isCompanyAdmin]);
+  }, [scopedEmployees, searchQuery, selectedCompany, selectedShift, isCompanySide]);
 
-  // Selection helpers (Company Admin only)
+  // Selection helpers (Company Owner & HR Admin only)
   const isAllSelected =
-    isCompanyAdmin &&
+    showManageStaff &&
     filteredEmployees.length > 0 &&
     filteredEmployees.every((e) => selectedEmployeeIds.includes(e.id));
   const isSomeSelected =
-    isCompanyAdmin &&
+    showManageStaff &&
     selectedEmployeeIds.length > 0 &&
     !isAllSelected;
 
   const handleToggleSelectAll = () => {
-    if (!isCompanyAdmin) return;
+    if (!showManageStaff) return;
     if (isAllSelected) {
       setSelectedEmployeeIds([]);
     } else {
@@ -194,7 +202,7 @@ export default function EmployeesPage() {
   };
 
   const handleToggleSelectEmp = (empId: string) => {
-    if (!isCompanyAdmin) return;
+    if (!showManageStaff) return;
     setSelectedEmployeeIds((prev) =>
       prev.includes(empId) ? prev.filter((id) => id !== empId) : [...prev, empId]
     );
@@ -279,7 +287,7 @@ export default function EmployeesPage() {
 
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
-    (!isCompanyAdmin && selectedCompany !== 'ALL') ||
+    (!isCompanySide && selectedCompany !== 'ALL') ||
     selectedShift !== 'ALL';
 
   const handleResetFilters = () => {
@@ -352,7 +360,7 @@ export default function EmployeesPage() {
             Refresh
           </Button>
 
-          {isCompanyAdmin && (
+          {showManualPunch && (
             <Button
               variant="outline"
               size="sm"
@@ -366,14 +374,14 @@ export default function EmployeesPage() {
             </Button>
           )}
 
-          {isCompanyAdmin && (
-            <button
-              onClick={() => setIsAddModalOpen(true)}
+          {showManageStaff && (
+            <Link
+              href="/employees/new"
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold rounded-xl shadow-md shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Add New Staff</span>
-            </button>
+            </Link>
           )}
         </div>
       </div>
@@ -450,8 +458,8 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* Top Bulk Selection Action Bar (Company Admin Only - Rendered at Top above Employee List) */}
-      {isCompanyAdmin && selectedEmployeeIds.length > 0 && (
+      {/* Top Bulk Selection Action Bar (Company Owner & HR Admin Only - Rendered at Top above Employee List) */}
+      {showManageStaff && selectedEmployeeIds.length > 0 && (
         <div className="bg-slate-900 text-white p-3.5 sm:p-4 rounded-3xl border border-slate-800 shadow-xl flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3.5 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs shadow-xs">
@@ -552,7 +560,7 @@ export default function EmployeesPage() {
       {isLoading && employees.length === 0 ? (
         <HazreeDataLoader type="table-skeleton" rows={6} />
       ) : filteredEmployees.length === 0 ? (
-        <div className="p-10 sm:p-14 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs space-y-4 animate-fade-in">
+        <div className="p-8 sm:p-12 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto shadow-inner">
             <Clock className="w-8 h-8" />
           </div>
@@ -597,14 +605,14 @@ export default function EmployeesPage() {
               </button>
             )}
 
-            {isCompanyAdmin && (
-              <button
-                onClick={() => setIsAddModalOpen(true)}
+            {showManageStaff && (
+              <Link
+                href="/employees/new"
                 className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-emerald-400" />
                 <span>Add New Staff</span>
-              </button>
+              </Link>
             )}
           </div>
         </div>
@@ -614,8 +622,8 @@ export default function EmployeesPage() {
             <table className="w-full text-left border-collapse min-w-[1350px]">
               <thead>
                 <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                  {/* Select All Checkbox (Company Admin Only) */}
-                  {isCompanyAdmin && (
+                  {/* Select All Checkbox (Company Owner & HR Admin Only) */}
+                  {showManageStaff && (
                     <th className="py-4 px-4 w-12 text-center">
                       <input
                         type="checkbox"
@@ -634,19 +642,19 @@ export default function EmployeesPage() {
                   <th className="py-4 px-6 min-w-[140px]">Job Role</th>
                   <th className="py-4 px-6 min-w-[180px]">Department</th>
                   <th className="py-4 px-6 min-w-[160px]">Assigned Shift</th>
-                  {isCompanyAdmin && (
+                  {showPhone && (
                     <th className="py-4 px-6 min-w-[160px]">Contact Phone</th>
                   )}
                   <th className="py-4 px-6 min-w-[160px]">Status</th>
                   <th className="py-4 px-6 min-w-[140px]">Enrolled Date</th>
-                  {isCompanyAdmin && (
+                  {showManageStaff && (
                     <th className="py-4 px-6 min-w-[100px] text-right">Actions</th>
                   )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                 {filteredEmployees.map((emp) => {
-                  const isSelected = isCompanyAdmin && selectedEmployeeIds.includes(emp.id);
+                  const isSelected = showManageStaff && selectedEmployeeIds.includes(emp.id);
                   const shiftBadgeInfo = formatShiftBadge(emp.assignedShift);
                   return (
                     <tr
@@ -654,8 +662,8 @@ export default function EmployeesPage() {
                       className={`transition-colors group whitespace-nowrap ${isSelected ? 'bg-emerald-50/70 hover:bg-emerald-50/90' : 'hover:bg-slate-50/80'
                         }`}
                     >
-                      {/* Selection Checkbox (Company Admin Only) */}
-                      {isCompanyAdmin && (
+                      {/* Selection Checkbox (Company Owner & HR Admin Only) */}
+                      {showManageStaff && (
                         <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
@@ -668,7 +676,7 @@ export default function EmployeesPage() {
 
                       {/* Employee Profile: Name & Avatar */}
                       <td className="py-4 px-6">
-                        {isCompanyAdmin ? (
+                        {isCompanySide ? (
                           <Link
                             href={`/employees/${emp.id.replace('emp_', '')}`}
                             className="flex items-center gap-3 group/link cursor-pointer"
@@ -721,7 +729,34 @@ export default function EmployeesPage() {
 
                       {/* Role Column */}
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <span className="font-extrabold text-slate-900 text-xs sm:text-sm">{emp.role}</span>
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="font-extrabold text-slate-900 text-xs sm:text-sm">{emp.role}</span>
+                          {(() => {
+                            const pRole = emp.portalAccess || emp.portal_access || 'NONE';
+                            if (pRole === 'HR_ADMIN') {
+                              return (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">
+                                  <span>🛡️ HR Admin</span>
+                                </span>
+                              );
+                            }
+                            if (pRole === 'MANAGER') {
+                              return (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md">
+                                  <span>👔 Manager</span>
+                                </span>
+                              );
+                            }
+                            if (pRole === 'CUSTOM') {
+                              return (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-md">
+                                  <span>⚙️ Custom</span>
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                       </td>
 
                       {/* Department Column */}
@@ -753,6 +788,20 @@ export default function EmployeesPage() {
                             );
                             if (todayPunch && todayPunch.checkIn && todayPunch.checkIn !== '--') {
                               const isLate = todayPunch.status === 'Late';
+                              const isClockedOut = todayPunch.checkOut && todayPunch.checkOut !== '--';
+
+                              if (isClockedOut) {
+                                return (
+                                  <div
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg border whitespace-nowrap text-slate-700 bg-slate-50 border-slate-200"
+                                    title={`In: ${todayPunch.checkIn} • Out: ${todayPunch.checkOut}`}
+                                  >
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                                    <span>Shift Completed</span>
+                                  </div>
+                                );
+                              }
+
                               return (
                                 <div
                                   className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg border whitespace-nowrap ${
@@ -760,7 +809,7 @@ export default function EmployeesPage() {
                                       ? 'text-amber-900 bg-amber-50 border-amber-200'
                                       : 'text-emerald-800 bg-emerald-50 border-emerald-200'
                                   }`}
-                                  title={`Clocked In: ${todayPunch.checkIn}${todayPunch.checkOut && todayPunch.checkOut !== '--' ? ` • Clocked Out: ${todayPunch.checkOut}` : ''}`}
+                                  title={`Clocked In: ${todayPunch.checkIn}`}
                                 >
                                   {isLate ? (
                                     <>
@@ -773,9 +822,6 @@ export default function EmployeesPage() {
                                       <span>In: {todayPunch.checkIn}</span>
                                     </>
                                   )}
-                                  {todayPunch.checkOut && todayPunch.checkOut !== '--' && (
-                                    <span className="text-slate-500 font-normal ml-0.5">• Out: {todayPunch.checkOut}</span>
-                                  )}
                                 </div>
                               );
                             }
@@ -784,8 +830,8 @@ export default function EmployeesPage() {
                         </div>
                       </td>
 
-                      {/* Contact Phone (Company Admin Only) */}
-                      {isCompanyAdmin && (
+                      {/* Contact Phone (Company Side Only) */}
+                      {showPhone && (
                         <td className="py-4 px-6 whitespace-nowrap">
                           <div className="flex items-center gap-1.5 text-slate-600 font-medium">
                             <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -817,8 +863,8 @@ export default function EmployeesPage() {
                         </div>
                       </td>
 
-                      {/* Company Admin Only Columns: Actions (Edit & Delete) */}
-                      {isCompanyAdmin && (
+                      {/* Action Column: Edit & Delete (Company Owner & HR Admin Only) */}
+                      {showManageStaff && (
                         <td className="py-4 px-6 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             <Link
@@ -850,17 +896,6 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* Add Employee Modal */}
-      {isAddModalOpen && (
-        <AddEmployeeModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onSuccess={() => {
-            dispatch(fetchEmployeesAsync());
-            dispatch(fetchCompaniesAsync());
-          }}
-        />
-      )}
 
       {/* Single Delete Confirmation Modal */}
       <Modal
@@ -1066,8 +1101,8 @@ export default function EmployeesPage() {
         </div>
       </Modal>
 
-      {/* Mark Attendance Modal (Company Admin Only) */}
-      {isCompanyAdmin && (
+      {/* Mark Attendance Modal (Company Owner & HR Admin Only) */}
+      {showManualPunch && (
         <MarkAttendanceModal
           isOpen={isAttendanceModalOpen}
           onClose={() => setIsAttendanceModalOpen(false)}

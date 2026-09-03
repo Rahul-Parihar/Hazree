@@ -165,17 +165,18 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-base rounded-lg transition-all duration-200 shadow-lg shadow-amber-500/30 hover:shadow-amber-400/40 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-base rounded-lg transition-all duration-200 shadow-lg shadow-amber-500/30 hover:shadow-amber-400/40 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
             >
               {isLoading ? (
                 <span className="inline-block w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>Sign In to Super Admin</span>
+                  <span>Sign In to Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
+
           </form>
         </div>
       </div>

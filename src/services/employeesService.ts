@@ -13,6 +13,8 @@ export interface BackendEmployeeCreate {
   join_date?: string;
   dob?: string;
   assigned_shift?: string;
+  portal_access?: string;
+  permissions?: any;
   company_id?: number;
 }
 
@@ -30,6 +32,8 @@ export interface BackendEmployeeResponse {
   join_date?: string;
   dob?: string;
   assigned_shift?: string;
+  portal_access?: string;
+  permissions?: any;
   created_at?: string;
 }
 

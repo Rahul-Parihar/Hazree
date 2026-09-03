@@ -9,7 +9,6 @@ import { CompanyDepartmentHealth } from './CompanyDepartmentHealth';
 import { CompanyQuickActions } from './CompanyQuickActions';
 import { CompanyKioskGeofenceStatus } from './CompanyKioskGeofenceStatus';
 import { CompanyMonthlyShiftAnalytics } from './CompanyMonthlyShiftAnalytics';
-import { AddEmployeeModal } from './AddEmployeeModal';
 import { MarkAttendanceModal } from './MarkAttendanceModal';
 import { Building2, Plus, Calendar, Clock, MapPin, RefreshCw, Shield, UserPlus, Pencil } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -19,6 +18,7 @@ import { fetchEmployeesAsync } from '../../redux/slices/employeesSlice';
 import { fetchLeavesAsync } from '../../redux/slices/leavesSlice';
 import { fetchCompaniesAsync } from '../../redux/slices/companiesSlice';
 import { fetchDepartmentsAsync } from '../../redux/slices/departmentsSlice';
+import { canManualPunch, canManageStaff, canAccessBilling } from '../../lib/permissionUtils';
 
 interface CompanyDashboardProps {
   onRoleSwitch?: () => void;
@@ -26,12 +26,12 @@ interface CompanyDashboardProps {
 
 export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
   const dispatch = useAppDispatch();
+  const userRole = useAppSelector((state) => state.auth.userRole);
   const currentUser = useAppSelector((state) => state.auth.currentUser);
   const companies = useAppSelector((state) => state.companies.companies);
   const employees = useAppSelector((state) => state.employees.employees);
-  
+
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
 
   useEffect(() => {
@@ -89,10 +89,29 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 shrink-0">
                 Active Organization
               </span>
+              {userRole === 'MANAGER' && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0 shadow-xs">
+                  Designation: Manager
+                </span>
+              )}
+              {userRole === 'HR_ADMIN' && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-400/20 text-indigo-300 border border-indigo-400/30 shrink-0 shadow-xs">
+                  Designation: HR Admin
+                </span>
+              )}
+              {userRole === 'COMPANY_ADMIN' && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 shrink-0 shadow-xs">
+                  Company Owner
+                </span>
+              )}
             </div>
             <div className="text-xs text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-              <span className="flex items-center gap-1 truncate">
-                <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Admin: {currentUser?.name || 'Administrator'}
+              <span className="flex items-center gap-1.5 truncate">
+                <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="font-semibold text-emerald-300">
+                  {userRole === 'MANAGER' ? 'Manager' : userRole === 'HR_ADMIN' ? 'HR Admin' : 'Admin'}:
+                </span>
+                <span className="text-white font-medium">{currentUser?.name || (userRole === 'MANAGER' ? 'Operations Manager' : userRole === 'HR_ADMIN' ? 'HR Executive' : 'Administrator')}</span>
               </span>
               <span>•</span>
               <div className="flex items-center gap-1 text-amber-300 font-medium">
@@ -109,27 +128,35 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <Link
-            href="/companies/edit"
-            className="flex-1 sm:flex-none px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            Edit Info
-          </Link>
-          <Link
-            href="/employees/new"
-            className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            Add Staff
-          </Link>
-          <button
-            onClick={() => setIsManualModalOpen(true)}
-            className="flex-1 sm:flex-none px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
-          >
-            <Clock className="w-3.5 h-3.5" />
-            Clock In
-          </button>
+          {canAccessBilling(userRole) && (
+            <Link
+              href="/companies/edit"
+              className="flex-1 sm:flex-none px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit Info
+            </Link>
+          )}
+
+          {canManageStaff(userRole) && (
+            <Link
+              href="/employees/new"
+              className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Add Staff
+            </Link>
+          )}
+
+          {canManualPunch(userRole) && (
+            <button
+              onClick={() => setIsManualModalOpen(true)}
+              className="flex-1 sm:flex-none px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Clock In
+            </button>
+          )}
         </div>
       </div>
 
@@ -139,7 +166,6 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
       {/* 2. Quick Actions */}
       <CompanyQuickActions
         onOpenManualPunch={() => setIsManualModalOpen(true)}
-        onOpenAddEmployee={() => setIsAddEmployeeModalOpen(true)}
       />
 
       {/* 3. Middle Analytics Grid: Attendance Trend (Left 8) + Department Breakdown (Right 4) */}
@@ -157,15 +183,6 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = () => {
 
       {/* 5. Hardware Kiosk & Geofence Status */}
       <CompanyKioskGeofenceStatus />
-
-      {/* Add Employee Modal */}
-      <AddEmployeeModal
-        isOpen={isAddEmployeeModalOpen}
-        onClose={() => setIsAddEmployeeModalOpen(false)}
-        onSuccess={() => {
-          dispatch(fetchEmployeesAsync());
-        }}
-      />
 
       {/* Mark Attendance Modal */}
       <MarkAttendanceModal

@@ -84,13 +84,72 @@ function SubscriptionsPageInner() {
     }
   }, [queryMode]);
 
+const FALLBACK_PLANS: BackendSubscriptionPlan[] = [
+  {
+    id: 1,
+    name: 'Free Trial',
+    code: 'trial',
+    tagline: '30 Days trial evaluation for small teams',
+    badge_text: 'Free Trial',
+    price_amount: '0',
+    currency: '₹',
+    billing_cycle: '30 Days Trial',
+    max_employees: 25,
+    is_popular: false,
+    is_active: true,
+    theme_color: 'blue',
+    features: ['Basic Attendance Punch', 'Web & Mobile Check-in', 'Standard Email Support', '1 Admin Portal Account'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    name: 'Growth Pro',
+    code: 'growth',
+    tagline: 'Tailored for growing teams with multi-branch shift rosters',
+    badge_text: 'Most Popular',
+    price_amount: '4999',
+    currency: '₹',
+    billing_cycle: 'Billed Yearly',
+    max_employees: 150,
+    is_popular: true,
+    is_active: true,
+    theme_color: 'emerald',
+    features: ['Geo-fenced Mobile GPS Punching', 'Automated Shift Rosters & Overtime Tracking', 'Live Attendance PDF & Excel Automated Export', 'Priority 24/7 SLA Support', '3 Department Admin Roles'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    name: 'Enterprise VIP',
+    code: 'enterprise',
+    tagline: 'Full-suite hardware integration and dedicated account SLA',
+    badge_text: 'Unlimited',
+    price_amount: '14999',
+    currency: '₹',
+    billing_cycle: 'Billed Yearly',
+    max_employees: 1000,
+    is_popular: false,
+    is_active: true,
+    theme_color: 'indigo',
+    features: ['Multi-Branch & Multi-Tenant Setup', 'Biometric Face & Fingerprint Hardware Sync', 'Custom SSO & Role Workflows', 'Dedicated Account Manager', 'Custom Payroll API Integrations'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
   const fetchPlans = async () => {
     setIsLoadingPlans(true);
     try {
       const data = await subscriptionsService.getPlans();
-      setPlans(data);
+      if (Array.isArray(data) && data.length > 0) {
+        setPlans(data);
+      } else {
+        setPlans(FALLBACK_PLANS);
+      }
     } catch (err: any) {
-      console.error('Failed to load subscription plans:', err);
+      console.warn('Failed to load subscription plans from backend, using fallback plans:', err);
+      setPlans(FALLBACK_PLANS);
     } finally {
       setIsLoadingPlans(false);
     }

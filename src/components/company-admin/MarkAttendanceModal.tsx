@@ -49,11 +49,11 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
 
   const companyEmployees = isCompanyAdmin
     ? allEmployees.filter((e) => {
-        const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
-        if (myCompanyId && empCompId && empCompId === myCompanyId) return true;
-        if (myCompanyName && e.companyName && e.companyName.trim().toLowerCase() === myCompanyName) return true;
-        return false;
-      })
+      const empCompId = e.companyId ? String(e.companyId).replace('cmp_', '') : '';
+      if (myCompanyId && empCompId && empCompId === myCompanyId) return true;
+      if (myCompanyName && e.companyName && e.companyName.trim().toLowerCase() === myCompanyName) return true;
+      return false;
+    })
     : allEmployees;
 
   // Form State
@@ -268,11 +268,10 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
           <button
             type="button"
             onClick={() => handleTogglePunchType('CLOCK_IN')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              punchType === 'CLOCK_IN'
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${punchType === 'CLOCK_IN'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             <LogIn className="w-4 h-4" />
             <span>Clock In (Punch In)</span>
@@ -281,11 +280,10 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
           <button
             type="button"
             onClick={() => handleTogglePunchType('CLOCK_OUT')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              punchType === 'CLOCK_OUT'
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${punchType === 'CLOCK_OUT'
                 ? 'bg-amber-600 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             <LogOut className="w-4 h-4" />
             <span>Clock Out (Punch Out)</span>
@@ -495,8 +493,8 @@ export const MarkAttendanceModal: React.FC<MarkAttendanceModalProps> = ({
             {isPunching
               ? 'Saving Punch...'
               : punchType === 'CLOCK_OUT'
-              ? 'Confirm Clock Out'
-              : 'Confirm Clock In'}
+                ? 'Confirm Clock Out'
+                : 'Confirm Clock In'}
           </Button>
         </div>
       </form>

@@ -78,16 +78,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
     if (dbDepartments && dbDepartments.length > 0) {
       return dbDepartments.map((d) => d.name);
     }
-    return [
-      'Engineering & Development',
-      'Operations & Logistics',
-      'Sales & Marketing',
-      'Human Resources (HR)',
-      'Finance & Accounts',
-      'Product & Design',
-      'Customer Support',
-      'Executive Management',
-    ];
+    return [];
   }, [dbDepartments]);
 
   const [formData, setFormData] = useState({
@@ -95,7 +86,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
     email: '',
     phone: '',
     role: '',
-    department: 'Engineering & Development',
+    department: '',
     password: 'Hazree@123',
     joinDate: new Date().toISOString().split('T')[0],
     dob: '',
@@ -460,17 +451,18 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
                 required
               >
                 {dbDepartments && dbDepartments.length > 0 ? (
-                  dbDepartments.map((dept) => (
-                    <option key={dept.id} value={dept.name}>
-                      {dept.name}
-                    </option>
-                  ))
+                  <>
+                    <option value="" disabled>Select Department</option>
+                    {dbDepartments.map((dept) => (
+                      <option key={dept.id} value={dept.name}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </>
                 ) : (
-                  departmentList.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))
+                  <option value="" disabled>
+                    No departments created yet (Add via Departments menu)
+                  </option>
                 )}
               </select>
             </div>

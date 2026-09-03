@@ -1,4 +1,4 @@
-export type UserRole = 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'EMPLOYEE';
+export type UserRole = 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'HR_ADMIN' | 'MANAGER' | 'EMPLOYEE';
 
 export type PlanType = 'Trial' | 'Growth' | 'Enterprise' | string;
 export type CompanyStatus = 'Active' | 'Pending' | 'Suspended';
@@ -31,6 +31,15 @@ export interface Company {
 
 export type EmployeeStatus = 'Active' | 'On Leave' | 'Inactive';
 
+export type PortalAccessRole = 'NONE' | 'HR_ADMIN' | 'MANAGER' | 'CUSTOM';
+
+export interface EmployeePermissions {
+  can_manual_punch: boolean;
+  can_manage_staff: boolean;
+  can_approve_leaves: boolean;
+  can_view_phone: boolean;
+}
+
 export interface Employee {
   id: string;
   companyId: string;
@@ -45,6 +54,9 @@ export interface Employee {
   dob?: string;
   assignedShift?: string;
   status: EmployeeStatus;
+  portalAccess?: PortalAccessRole;
+  portal_access?: PortalAccessRole;
+  permissions?: EmployeePermissions;
 }
 
 export type AttendanceStatus = 'Present' | 'Late' | 'Absent' | 'Half Day';
@@ -103,4 +115,7 @@ export interface UserProfile {
   companyName?: string;
   companyId?: string;
   status?: CompanyStatus;
+  portalAccess?: PortalAccessRole;
+  portal_access?: PortalAccessRole;
+  permissions?: EmployeePermissions;
 }

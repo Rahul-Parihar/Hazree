@@ -1,10 +1,9 @@
-'use client';
-
 import React from 'react';
-import { UserCheck, UserPlus, FileDown, CalendarCheck, MapPin, Shield } from 'lucide-react';
+import { UserCheck, UserPlus, FileDown, CalendarCheck, Users, MapPin, Shield } from 'lucide-react';
 import Link from 'next/link';
 
 import { useAppSelector } from '../../redux/hooks';
+import { canManualPunch, canManageStaff } from '../../lib/permissionUtils';
 
 interface CompanyQuickActionsProps {
   onOpenManualPunch: () => void;
@@ -15,24 +14,43 @@ export const CompanyQuickActions: React.FC<CompanyQuickActionsProps> = ({
   onOpenManualPunch,
   onOpenAddEmployee,
 }) => {
+  const userRole = useAppSelector((state) => state.auth.userRole);
   const leaves = useAppSelector((state) => state.leaves?.leaves || []);
   const pendingLeavesCount = leaves.filter((l) => l.status === 'Pending').length;
 
+  const showManualPunch = canManualPunch(userRole);
+  const showManageStaff = canManageStaff(userRole);
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {/* 1. Mark Manual Punch */}
-      <button
-        onClick={onOpenManualPunch}
-        className="p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-left transition-all group flex flex-col justify-between cursor-pointer"
-      >
-        <div className="p-2.5 w-fit rounded-xl bg-emerald-600 text-white group-hover:scale-110 transition-transform shadow-sm">
-          <UserCheck className="w-4 h-4" />
-        </div>
-        <div className="mt-3">
-          <p className="font-bold text-xs text-slate-900">Staff Clock In</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Punch in / out override</p>
-        </div>
-      </button>
+      {/* 1. Mark Manual Punch (HR & Company Admin) OR View Daily Logs (Manager) */}
+      {showManualPunch ? (
+        <button
+          onClick={onOpenManualPunch}
+          className="p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-left transition-all group flex flex-col justify-between cursor-pointer"
+        >
+          <div className="p-2.5 w-fit rounded-xl bg-emerald-600 text-white group-hover:scale-110 transition-transform shadow-sm">
+            <UserCheck className="w-4 h-4" />
+          </div>
+          <div className="mt-3">
+            <p className="font-bold text-xs text-slate-900">Staff Clock In</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Punch in / out override</p>
+          </div>
+        </button>
+      ) : (
+        <Link
+          href="/attendance"
+          className="p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-left transition-all group flex flex-col justify-between cursor-pointer"
+        >
+          <div className="p-2.5 w-fit rounded-xl bg-emerald-600 text-white group-hover:scale-110 transition-transform shadow-sm">
+            <UserCheck className="w-4 h-4" />
+          </div>
+          <div className="mt-3">
+            <p className="font-bold text-xs text-slate-900">Daily Attendance</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Live check-in stream</p>
+          </div>
+        </Link>
+      )}
 
       {/* 2. Approve Leaves */}
       <Link
@@ -72,33 +90,18 @@ export const CompanyQuickActions: React.FC<CompanyQuickActionsProps> = ({
       </button>
 
       {/* 4. Add Employee */}
-      {onOpenAddEmployee ? (
-        <button
-          onClick={onOpenAddEmployee}
-          className="p-4 rounded-2xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 text-left transition-all group flex flex-col justify-between"
-        >
-          <div className="p-2.5 w-fit rounded-xl bg-amber-500 text-white group-hover:scale-110 transition-transform shadow-sm">
-            <UserPlus className="w-4 h-4" />
-          </div>
-          <div className="mt-3">
-            <p className="font-bold text-xs text-slate-900">Add New Staff</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">Register employee profile</p>
-          </div>
-        </button>
-      ) : (
-        <Link
-          href="/employees"
-          className="p-4 rounded-2xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 text-left transition-all group flex flex-col justify-between"
-        >
-          <div className="p-2.5 w-fit rounded-xl bg-amber-500 text-white group-hover:scale-110 transition-transform shadow-sm">
-            <UserPlus className="w-4 h-4" />
-          </div>
-          <div className="mt-3">
-            <p className="font-bold text-xs text-slate-900">Add New Staff</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">Register employee profile</p>
-          </div>
-        </Link>
-      )}
+      <Link
+        href="/employees/new"
+        className="p-4 rounded-2xl bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 text-left transition-all group flex flex-col justify-between"
+      >
+        <div className="p-2.5 w-fit rounded-xl bg-amber-500 text-white group-hover:scale-110 transition-transform shadow-sm">
+          <UserPlus className="w-4 h-4" />
+        </div>
+        <div className="mt-3">
+          <p className="font-bold text-xs text-slate-900">Add New Staff</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Register employee profile</p>
+        </div>
+      </Link>
     </div>
   );
 };

@@ -1,16 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/Button';
-import { Settings, MapPin, Shield, CheckCircle2, Save } from 'lucide-react';
+import { Settings, MapPin, Shield, CheckCircle2, Save, AlertCircle } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../../redux/hooks';
 import { updateSettings } from '../../../redux/slices/settingsSlice';
+import { canAccessBilling } from '../../../lib/permissionUtils';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const dispatch = useAppDispatch();
+  const userRole = useAppSelector((state) => state.auth.userRole);
   const settings = useAppSelector((state) => state.settings);
+
+  useEffect(() => {
+    if (!canAccessBilling(userRole)) {
+      router.replace('/');
+    }
+  }, [userRole, router]);
+
+  if (!canAccessBilling(userRole)) {
+    return null;
+  }
 
   const [coords, setCoords] = useState(settings.geofenceCoordinates);
   const [radius, setRadius] = useState(settings.geofenceRadius);
