@@ -36,8 +36,35 @@ class LeaveRequestResponse(BaseModel):
     days_count: int
     reason: str
     status: str
+    is_paid: bool = True
     applied_on: str
     admin_notes: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CompanyLeaveTypeCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100, example="Sick")
+    quota: int = Field(10, ge=0, le=365, example=10)
+    is_paid: bool = Field(True, example=True)
+    company_id: Optional[int] = Field(None, example=1)
+
+
+class CompanyLeaveTypeUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100, example="Sick")
+    quota: Optional[int] = Field(None, ge=0, le=365, example=10)
+    is_paid: Optional[bool] = Field(None, example=True)
+
+
+class CompanyLeaveTypeResponse(BaseModel):
+    id: int
+    company_id: int
+    name: str
+    quota: int
+    remaining_quota: Optional[int] = None
+    is_paid: bool
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+

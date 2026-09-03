@@ -13,6 +13,7 @@ PUBLIC_EXACT_PATHS = {
     "/customer/login",
     "/customer/refresh",
     "/subscriptions/plans",
+    "/leaves/types",
     "/openapi.json",
     "/docs",
     "/redoc",
@@ -25,6 +26,7 @@ PUBLIC_PATH_PATTERNS = [
     re.compile(r"^/static(/.*)?$"),
     re.compile(r"^/subscriptions/plans(/.*)?$"),
     re.compile(r"^/attendance(/.*)?$"),
+    re.compile(r"^/leaves(/.*)?$"),
 ]
 
 
