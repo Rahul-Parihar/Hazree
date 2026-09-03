@@ -34,12 +34,12 @@ def read_attendance_logs(
 ):
     """
     Fetch attendance log records:
-    - Company Admin: strictly scoped to own company_id.
+    - Company Admin, HR Admin, Manager: strictly scoped to own company_id.
     - Employee / Customer Portal: scoped to employee_id or company.
     - Super Admin: sees all attendance logs or filters by query parameter.
     """
     if current_user:
-        scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "EMPLOYEE") else company_id
+        scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN", "MANAGER", "EMPLOYEE") else company_id
         scoped_employee_id = current_user.id if current_user.role == "EMPLOYEE" and not employee_id else employee_id
     else:
         scoped_company_id = company_id
@@ -69,11 +69,13 @@ def punch_attendance(
     current_user: Optional[UserAuthResponse] = Depends(get_current_user_optional),
 ):
     """
-    Record attendance punch (Employee self-punch, Company Admin manual override, or Kiosk):
-    - Automatically links to user's company_id and employee profile.
+    Record attendance punch:
+    - Employee self-punch.
+    - Company Admin & HR Admin manual override (for employees without phones).
+    - Managers: strictly restricted from manual punch on behalf of staff.
     """
     if current_user:
-        if current_user.role in ("COMPANY_ADMIN", "EMPLOYEE"):
+        if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN", "MANAGER", "EMPLOYEE"):
             target_company_id = current_user.company_id or punch_in.company_id
         else:
             target_company_id = punch_in.company_id
@@ -108,7 +110,7 @@ def trigger_auto_close_shifts(
     """
     Scans all open sessions and automatically clocks out employees whose scheduled shift has completed.
     """
-    scoped_company_id = current_user.company_id if current_user and current_user.role == "COMPANY_ADMIN" else company_id
+    scoped_company_id = current_user.company_id if current_user and current_user.role in ("COMPANY_ADMIN", "HR_ADMIN") else company_id
     closed_records = service.auto_close_expired_shifts(db, company_id=scoped_company_id)
     closed_count = len(closed_records) if isinstance(closed_records, list) else int(closed_records)
     return {
@@ -126,7 +128,7 @@ def get_attendance_stats(
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Retrieve daily attendance metrics (Present, Late, Absent, Half Day counts and rate)."""
-    scoped_company_id = current_user.company_id if current_user.role == "COMPANY_ADMIN" else company_id
+    scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN", "MANAGER") else company_id
     return service.get_attendance_stats(db, company_id=scoped_company_id, date=date)
 
 
@@ -138,7 +140,12 @@ def update_attendance_record(
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Update check-out time or status of attendance entry."""
-    scoped_company_id = current_user.company_id if current_user.role == "COMPANY_ADMIN" else None
+    if current_user.role == "MANAGER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers cannot modify attendance logs directly.",
+        )
+    scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN") else None
     return service.update_attendance(db, record_id, updates, company_id=scoped_company_id)
 
 
@@ -149,5 +156,10 @@ def delete_attendance_record(
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Delete an attendance entry."""
-    scoped_company_id = current_user.company_id if current_user.role == "COMPANY_ADMIN" else None
+    if current_user.role == "MANAGER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers cannot delete attendance logs.",
+        )
+    scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN") else None
     return service.delete_attendance(db, record_id, company_id=scoped_company_id)

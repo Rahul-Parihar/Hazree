@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
@@ -14,6 +14,8 @@ class EmployeeBase(BaseModel):
     join_date: Optional[str] = Field(None, example="14/08/2026")
     dob: Optional[str] = Field(None, example="15/08/1996", description="Employee date of birth")
     assigned_shift: Optional[str] = Field("Shift 1: 09:00 AM - 06:00 PM", example="Shift 1: 06:00 AM - 02:00 PM (8h)", description="Assigned working shift for the employee")
+    portal_access: Optional[str] = Field("NONE", description="Admin portal role: NONE, HR_ADMIN, MANAGER, CUSTOM")
+    permissions: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Granular permission flags")
 
 
 class EmployeeCreate(EmployeeBase):
@@ -39,12 +41,16 @@ class EmployeeUpdate(BaseModel):
     join_date: Optional[str] = None
     dob: Optional[str] = None
     assigned_shift: Optional[str] = None
+    portal_access: Optional[str] = None
+    permissions: Optional[Dict[str, Any]] = None
 
 
 class EmployeeResponse(EmployeeBase):
     id: int
     company_id: int
     company_name: Optional[str] = None
+    portal_access: Optional[str] = "NONE"
+    permissions: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

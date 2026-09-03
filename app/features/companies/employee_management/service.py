@@ -29,6 +29,8 @@ def _to_response(emp: Employee, company_name: Optional[str] = None) -> EmployeeR
         join_date=emp.join_date,
         dob=emp.dob,
         assigned_shift=getattr(emp, "assigned_shift", "Shift 1: 09:00 AM - 06:00 PM") or "Shift 1: 09:00 AM - 06:00 PM",
+        portal_access=getattr(emp, "portal_access", "NONE") or "NONE",
+        permissions=getattr(emp, "permissions", {}) or {},
         created_at=emp.created_at,
     )
 
@@ -100,6 +102,8 @@ def create_employee(
         join_date=join_date_str,
         dob=employee_in.dob.strip() if employee_in.dob else None,
         assigned_shift=employee_in.assigned_shift.strip() if employee_in.assigned_shift else "Shift 1: 09:00 AM - 06:00 PM",
+        portal_access=employee_in.portal_access or "NONE",
+        permissions=employee_in.permissions or {},
     )
 
     db.add(new_emp)

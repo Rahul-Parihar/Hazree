@@ -99,8 +99,8 @@ async def lifespan(app: FastAPI):
             admin = init_default_super_admin(db)
             logger.info(f"Default Super Admin verified/created: {admin.email}")
             seed_default_subscription_plans(db)
-            seed_default_companies(db)
-            seed_default_departments(db)
+            # seed_default_companies(db) - disabled so database remains clean
+            # seed_default_departments(db) - disabled so deleted departments are not re-created
         finally:
             db.close()
 

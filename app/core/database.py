@@ -44,7 +44,19 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def init_db():
     """Ensure all database tables are created."""
     logger.info("Verifying and creating database tables on PostgreSQL...")
-    Base.metadata.create_all(bind=engine)
+    # Explicitly import all models so SQLAlchemy registers all tables in Base.metadata
+    import app.features.companies.company_management.models
+    import app.features.companies.employee_management.models
+    import app.features.companies.attendance_management.models
+    import app.features.companies.leave_management.models
+    import app.features.department.models
+    import app.features.super_admin.super_admin_auth.models
+    import app.features.subscriptions.subscription_management.models
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        logger.warning(f"Note on Base.metadata.create_all: {e}")
+
     try:
         from sqlalchemy import text
         from app.core.security import get_password_hash
@@ -53,12 +65,18 @@ def init_db():
             conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255);"))
             conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS dob VARCHAR(50);"))
             conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS assigned_shift VARCHAR(150) DEFAULT 'Shift 1: 09:00 AM - 06:00 PM';"))
+            conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS portal_access VARCHAR(50) DEFAULT 'NONE';"))
+            conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'::jsonb;"))
             # Backfill any existing employees that have null hashed_password
             default_hashed = get_password_hash("Hazree@123")
             conn.execute(text(f"UPDATE employees SET hashed_password = '{default_hashed}' WHERE hashed_password IS NULL;"))
             # Backfill default date of birth for existing employees
             conn.execute(text("UPDATE employees SET dob = '1996-08-15' WHERE dob IS NULL;"))
             conn.execute(text("UPDATE employees SET assigned_shift = 'Shift 1: 09:00 AM - 06:00 PM' WHERE assigned_shift IS NULL OR assigned_shift = 'General Shift';"))
+            # Backfill existing HR employees to HR_ADMIN portal_access
+            conn.execute(text("UPDATE employees SET portal_access = 'HR_ADMIN', permissions = '{\"can_manual_punch\": true, \"can_manage_staff\": true, \"can_approve_leaves\": true, \"can_view_phone\": true}'::jsonb WHERE LOWER(role) LIKE '%hr%' AND (portal_access IS NULL OR portal_access = 'NONE');"))
+            # Backfill existing Manager employees to MANAGER portal_access
+            conn.execute(text("UPDATE employees SET portal_access = 'MANAGER', permissions = '{\"can_manual_punch\": true, \"can_manage_staff\": false, \"can_approve_leaves\": true, \"can_view_phone\": true}'::jsonb WHERE LOWER(role) LIKE '%manager%' AND (portal_access IS NULL OR portal_access = 'NONE');"))
             conn.commit()
     except Exception as e:
         logger.warning(f"Note on schema verification: {e}")

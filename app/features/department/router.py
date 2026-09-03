@@ -29,7 +29,7 @@ def list_departments(
     token_company_id = current_user.company_id
 
     effective_company_id = company_id
-    if user_role == "COMPANY_ADMIN" and token_company_id is not None:
+    if user_role in ("COMPANY_ADMIN", "HR_ADMIN", "MANAGER") and token_company_id is not None:
         effective_company_id = int(str(token_company_id).replace("cmp_", ""))
 
     is_super_admin = (user_role == "SUPER_ADMIN")
@@ -47,11 +47,17 @@ def create_department(
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
-    """Create a new department (Super Admin or Company Admin)."""
+    """Create a new department (Super Admin, Company Admin, or HR Admin)."""
     user_role = current_user.role
     token_company_id = current_user.company_id
 
-    if user_role == "COMPANY_ADMIN" and token_company_id is not None:
+    if user_role == "MANAGER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers do not have permission to create departments.",
+        )
+
+    if user_role in ("COMPANY_ADMIN", "HR_ADMIN") and token_company_id is not None:
         dept_in.company_id = int(str(token_company_id).replace("cmp_", ""))
 
     return service.create_department(
@@ -68,9 +74,9 @@ def update_department(
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
-    """Update department details (Super Admin or Company Admin)."""
+    """Update department details (Super Admin, Company Admin, or HR Admin)."""
     user_role = current_user.role
-    if user_role not in ["SUPER_ADMIN", "COMPANY_ADMIN"]:
+    if user_role not in ["SUPER_ADMIN", "COMPANY_ADMIN", "HR_ADMIN"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to update departments.",
@@ -89,9 +95,9 @@ def delete_department(
     db: Session = Depends(get_db),
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
-    """Delete department (Super Admin or authorized admin)."""
+    """Delete department (Super Admin, Company Admin, or HR Admin)."""
     user_role = current_user.role
-    if user_role not in ["SUPER_ADMIN", "COMPANY_ADMIN"]:
+    if user_role not in ["SUPER_ADMIN", "COMPANY_ADMIN", "HR_ADMIN"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to delete departments.",

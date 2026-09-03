@@ -52,6 +52,8 @@ class UserAuthResponse(BaseModel):
     dob: Optional[str] = None
     assigned_shift: Optional[str] = "Shift 1: 09:00 AM - 06:00 PM"
     status: Optional[str] = "Active"
+    portal_access: Optional[str] = "NONE"
+    permissions: Optional[dict] = None
     is_super_admin: bool = False
     is_active: bool = True
     created_at: Optional[datetime] = None

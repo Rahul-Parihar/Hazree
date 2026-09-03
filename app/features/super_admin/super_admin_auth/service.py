@@ -193,18 +193,114 @@ async def login_super_admin_service(
             status="success",
         )
 
-    # 3. Check if user is an Employee (Redirect to Customer Portal)
+    # 3. Check if user is an Employee with Admin Portal Access (HR_ADMIN, MANAGER, or CUSTOM)
     employee = db.query(Employee).filter(Employee.email == email).first()
     if employee:
+        # Check portal_access explicitly (strict check: Standard Staff with portal_access="NONE" is blocked)
+        portal_access = (getattr(employee, "portal_access", "NONE") or "NONE").strip().upper()
+        is_admin_allowed = portal_access in ("HR_ADMIN", "MANAGER", "CUSTOM")
+
+        if is_admin_allowed:
+            if not employee.hashed_password:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Account does not have a password configured. Please contact Company Admin.",
+                )
+            if not verify_password(password, employee.hashed_password):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect password. Please enter the correct password.",
+                )
+
+            emp_status = (employee.status or "Active").strip().lower()
+            if emp_status in ("inactive", "suspended", "terminated"):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Your account is {employee.status}.",
+                )
+
+            emp_company = db.query(Company).filter(Company.id == employee.company_id).first()
+            company_title = emp_company.name if emp_company else "Organization"
+
+            # Derive permissions
+            user_permissions = getattr(employee, "permissions", {}) or {}
+            if not user_permissions or not isinstance(user_permissions, dict):
+                if portal_access == "HR_ADMIN":
+                    user_permissions = {
+                        "can_manual_punch": True,
+                        "can_manage_staff": True,
+                        "can_approve_leaves": True,
+                        "can_view_phone": True,
+                    }
+                elif portal_access == "MANAGER":
+                    user_permissions = {
+                        "can_manual_punch": True,
+                        "can_manage_staff": False,
+                        "can_approve_leaves": True,
+                        "can_view_phone": True,
+                    }
+                else:
+                    user_permissions = {
+                        "can_manual_punch": True,
+                        "can_manage_staff": False,
+                        "can_approve_leaves": True,
+                        "can_view_phone": True,
+                    }
+
+            assigned_role = "HR_ADMIN" if portal_access == "HR_ADMIN" else "MANAGER" if portal_access == "MANAGER" else "CUSTOM"
+
+            user_claims = {
+                "sub": employee.email,
+                "user_id": employee.id,
+                "company_id": employee.company_id,
+                "company_name": company_title,
+                "full_name": employee.name,
+                "role": assigned_role,
+                "portal_access": portal_access,
+                "permissions": user_permissions,
+            }
+            access_token, refresh_token = create_token_pair(user_claims)
+            set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
+
+            user_response = UserAuthResponse(
+                id=employee.id,
+                email=employee.email,
+                full_name=employee.name,
+                role=assigned_role,
+                company_id=employee.company_id,
+                company_name=company_title,
+                department=employee.department,
+                designation=employee.role,
+                phone=employee.phone,
+                avatar=employee.avatar,
+                employee_code=f"EMP-{employee.id:04d}",
+                status=employee.status or "Active",
+                portal_access=portal_access,
+                permissions=user_permissions,
+                is_super_admin=False,
+                is_active=True,
+                created_at=employee.created_at,
+            )
+
+            return Token(
+                data=AuthTokenData(
+                    user=user_response,
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                ),
+                message=f"Welcome {employee.name}! Login successful",
+                status="success",
+            )
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="It looks like this email is registered as an Employee account. Please sign in through the Hazree Employee & Customer Portal.",
+            detail="It looks like this email is registered as a Standard Employee account. Please sign in through the Hazree Employee & Customer Portal.",
         )
 
-    # 4. Neither Super Admin nor Company Admin found
+    # 4. Neither Super Admin, Company Admin, nor Staff found
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail="We couldn't find an Administrator account with this email address. Please check your credentials.",
+        detail="We couldn't find an Administrator or Staff account with this email address. Please check your credentials.",
     )
 
 
@@ -243,6 +339,14 @@ async def login_customer_service(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Employee email '{email}' not found. Please verify your registered email address.",
+        )
+
+    # Prevent Admin Portal users (HR Admins and Managers) from logging into Customer Portal
+    portal_access = (getattr(employee, "portal_access", "NONE") or "NONE").strip().upper()
+    if portal_access in ("HR_ADMIN", "MANAGER"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"This account is registered with administrative privileges ({portal_access}). Please sign in through the Hazree Admin Portal.",
         )
 
     if not employee.hashed_password:
@@ -444,6 +548,63 @@ def get_current_user(
         set_cache(cache_key, user_res.model_dump(mode="json"), expire_seconds=60)
         return user_res
 
+    elif role in ("HR_ADMIN", "MANAGER"):
+        cache_key = f"auth:{role.lower()}:{email}"
+        cached_role_data = get_cache(cache_key)
+        if cached_role_data:
+            return UserAuthResponse(**cached_role_data)
+
+        employee = db.query(Employee).filter(Employee.email == email).first()
+        if employee:
+            emp_status = (employee.status or "Active").strip().lower()
+            if emp_status in ("inactive", "suspended", "terminated"):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Your {role} account is {employee.status}.",
+                )
+            emp_company = db.query(Company).filter(Company.id == employee.company_id).first()
+            company_title = emp_company.name if emp_company else "Organization"
+            user_res = UserAuthResponse(
+                id=employee.id,
+                email=employee.email,
+                full_name=employee.name,
+                role=role,
+                company_id=employee.company_id,
+                company_name=company_title,
+                department=employee.department,
+                designation=employee.role,
+                phone=employee.phone,
+                avatar=employee.avatar,
+                employee_code=f"EMP-{employee.id:04d}",
+                status=employee.status or "Active",
+                portal_access=employee.portal_access or "NONE",
+                permissions=employee.permissions,
+                is_super_admin=False,
+                is_active=True,
+                created_at=employee.created_at,
+            )
+            set_cache(cache_key, user_res.model_dump(mode="json"), expire_seconds=60)
+            return user_res
+
+        company = db.query(Company).filter(Company.email == email).first()
+        if company:
+            user_res = UserAuthResponse(
+                id=company.id,
+                email=company.email,
+                full_name=company.admin_name or f"{company.name} {role}",
+                role=role,
+                company_id=company.id,
+                company_name=company.name,
+                status=company.status,
+                is_super_admin=False,
+                is_active=company.is_active,
+                created_at=company.created_at,
+            )
+            set_cache(cache_key, user_res.model_dump(mode="json"), expire_seconds=60)
+            return user_res
+
+        raise credentials_exception
+
     elif role == "EMPLOYEE":
         cache_key = f"auth:employee:{email}"
         cached_emp_data = get_cache(cache_key)
@@ -555,6 +716,7 @@ def refresh_super_admin_session(
         )
 
     email = payload.get("sub")
+    role = payload.get("role", "SUPER_ADMIN")
     if not email:
         clear_auth_cookies(response)
         raise HTTPException(
@@ -562,20 +724,68 @@ def refresh_super_admin_session(
             detail="Malformed refresh token payload.",
         )
 
-    admin = get_admin_by_email(db, email=email)
-    if not admin or not admin.is_active or not admin.is_super_admin:
-        clear_auth_cookies(response)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin account is inactive or revoked.",
-        )
+    # 1. Super Admin
+    if role == "SUPER_ADMIN":
+        admin = get_admin_by_email(db, email=email)
+        if not admin or not admin.is_active or not admin.is_super_admin:
+            clear_auth_cookies(response)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin account is inactive or revoked.",
+            )
+        user_claims = {
+            "sub": admin.email,
+            "user_id": admin.id,
+            "full_name": admin.full_name,
+            "role": "SUPER_ADMIN",
+        }
 
-    user_claims = {
-        "sub": admin.email,
-        "user_id": admin.id,
-        "full_name": admin.full_name,
-        "role": "SUPER_ADMIN",
-    }
+    # 2. Company Admin
+    elif role == "COMPANY_ADMIN":
+        company = db.query(Company).filter(Company.email == email).first()
+        if not company or not company.is_active:
+            clear_auth_cookies(response)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Company account is inactive or revoked.",
+            )
+        user_claims = {
+            "sub": company.email,
+            "user_id": company.id,
+            "company_id": company.id,
+            "company_name": company.name,
+            "full_name": company.admin_name or company.name,
+            "role": "COMPANY_ADMIN",
+        }
+
+    # 3. Employee with Admin Portal Access (HR_ADMIN, MANAGER, CUSTOM)
+    else:
+        employee = db.query(Employee).filter(Employee.email == email).first()
+        if not employee:
+            clear_auth_cookies(response)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Employee account not found.",
+            )
+        emp_portal_access = (getattr(employee, "portal_access", "NONE") or "NONE").strip().upper()
+        if emp_portal_access not in ("HR_ADMIN", "MANAGER", "CUSTOM"):
+            clear_auth_cookies(response)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin portal access revoked.",
+            )
+        emp_company = db.query(Company).filter(Company.id == employee.company_id).first()
+        user_claims = {
+            "sub": employee.email,
+            "user_id": employee.id,
+            "company_id": employee.company_id,
+            "company_name": emp_company.name if emp_company else "Organization",
+            "full_name": employee.name,
+            "role": role,
+            "portal_access": emp_portal_access,
+            "permissions": employee.permissions,
+        }
+
     new_access_token, new_refresh_token = create_token_pair(user_claims)
     set_auth_cookies(response, access_token=new_access_token, refresh_token=new_refresh_token)
 

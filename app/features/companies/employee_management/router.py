@@ -28,10 +28,10 @@ def read_employees(
 ):
     """
     Fetch employee directory:
-    - Company Admin: strictly scoped to their own company_id.
+    - Company Admin, HR Admin, Manager: strictly scoped to their own company_id.
     - Super Admin: sees all employees or filters by query parameter.
     """
-    scoped_company_id = current_user.company_id if current_user.role == "COMPANY_ADMIN" else company_id
+    scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN", "MANAGER") else company_id
     return service.get_employees(db, company_id=scoped_company_id, skip=skip, limit=limit)
 
 
@@ -39,7 +39,7 @@ def read_employees(
     "/",
     response_model=EmployeeResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Add New Employee (Company Admin / Super Admin)",
+    summary="Add New Employee (Company Admin / HR Admin / Super Admin)",
 )
 def create_employee(
     employee_in: EmployeeCreate,
@@ -48,11 +48,18 @@ def create_employee(
 ):
     """
     Register a new staff employee for the organization:
-    - Company Admin: automatically associates employee to current logged-in company.
+    - Company Admin & HR Admin: automatically associates employee to current logged-in company.
+    - Managers: forbidden from onboarding staff.
     - Super Admin: uses company_id passed in payload.
     - Enforces subscription quota limit & prevents duplicate emails.
     """
-    if current_user.role == "COMPANY_ADMIN":
+    if current_user.role == "MANAGER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers do not have permission to add new employees. Please contact HR or Company Admin.",
+        )
+
+    if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN"):
         target_company_id = current_user.company_id
     else:
         # Super Admin creating an employee
@@ -79,7 +86,7 @@ def get_employee(
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Get single employee profile with tenant access isolation."""
-    scoped_company_id = current_user.company_id if current_user.role == "COMPANY_ADMIN" else None
+    scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN", "MANAGER") else None
     return service.get_employee_by_id(db, employee_id, company_id=scoped_company_id)
 
 
@@ -91,7 +98,12 @@ def update_employee(
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Update employee details with tenant access isolation."""
-    scoped_company_id = current_user.company_id if current_user.role == "COMPANY_ADMIN" else None
+    if current_user.role == "MANAGER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers do not have permission to edit employee records.",
+        )
+    scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN") else None
     return service.update_employee(db, employee_id, employee_in, company_id=scoped_company_id)
 
 
@@ -102,5 +114,10 @@ def delete_employee(
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Delete employee record with tenant access isolation and sync company count."""
-    scoped_company_id = current_user.company_id if current_user.role == "COMPANY_ADMIN" else None
+    if current_user.role == "MANAGER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers do not have permission to delete employees.",
+        )
+    scoped_company_id = current_user.company_id if current_user.role in ("COMPANY_ADMIN", "HR_ADMIN") else None
     return service.delete_employee(db, employee_id, company_id=scoped_company_id)

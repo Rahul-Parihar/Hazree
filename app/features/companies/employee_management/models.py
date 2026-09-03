@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, JSON
 from datetime import datetime, timezone
 from app.core.database import Base
 
@@ -19,4 +19,6 @@ class Employee(Base):
     join_date = Column(String(50), nullable=True)
     dob = Column(String(50), nullable=True)
     assigned_shift = Column(String(150), default="Shift 1: 09:00 AM - 06:00 PM", nullable=True)
+    portal_access = Column(String(50), default="NONE", nullable=False)
+    permissions = Column(JSON, default=dict, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

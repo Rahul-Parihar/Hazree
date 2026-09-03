@@ -87,6 +87,12 @@ def update_company(
     current_user: UserAuthResponse = Depends(get_current_user),
 ):
     """Update existing company details (Super Admin or Company Admin for own company)."""
+    if current_user.role in ("HR_ADMIN", "MANAGER"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="HR Admins and Managers do not have permission to modify company profile, settings, or subscriptions.",
+        )
+
     if current_user.role != "SUPER_ADMIN" and current_user.company_id != company_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
