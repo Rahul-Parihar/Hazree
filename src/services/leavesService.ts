@@ -17,6 +17,7 @@ export interface BackendLeaveRequest {
   reason: string;
   status: string;
   applied_on: string;
+  is_paid?: boolean;
   admin_notes?: string;
   created_at?: string;
 }
@@ -35,6 +36,28 @@ export interface CreateLeavePayload {
   applied_on?: string;
 }
 
+export interface CompanyLeaveType {
+  id: number;
+  company_id: number;
+  name: string;
+  quota: number;
+  is_paid: boolean;
+  created_at?: string;
+}
+
+export interface CreateLeaveTypePayload {
+  name: string;
+  quota: number;
+  is_paid?: boolean;
+  company_id?: number;
+}
+
+export interface UpdateLeaveTypePayload {
+  name?: string;
+  quota?: number;
+  is_paid?: boolean;
+}
+
 export const mapBackendToLeaveRequest = (be: BackendLeaveRequest): LeaveRequest => ({
   id: `lv_${be.id}`,
   employeeId: be.employee_id ? `emp_${be.employee_id}` : `emp_${be.id}`,
@@ -48,6 +71,8 @@ export const mapBackendToLeaveRequest = (be: BackendLeaveRequest): LeaveRequest 
   reason: be.reason,
   status: (be.status as LeaveRequest['status']) || 'Pending',
   appliedOn: be.applied_on,
+  is_paid: be.is_paid !== undefined ? be.is_paid : true,
+  adminNotes: be.admin_notes,
 });
 
 export const leavesService = {
@@ -92,5 +117,38 @@ export const leavesService = {
   async deleteLeaveRequest(id: string | number): Promise<void> {
     const rawId = String(id).replace('lv_', '');
     return apiClient.delete(`/leaves/${rawId}`);
+  },
+
+  /**
+   * Fetch company configured leave types and quotas
+   */
+  async getCompanyLeaveTypes(companyId?: number | string): Promise<CompanyLeaveType[]> {
+    const params: Record<string, any> = {};
+    if (companyId) {
+      params.company_id = Number(String(companyId).replace('cmp_', ''));
+    }
+    const data = await apiClient.get<CompanyLeaveType[]>(ENDPOINTS.LEAVES.TYPES, { params });
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * Create a new company leave type
+   */
+  async createCompanyLeaveType(payload: CreateLeaveTypePayload): Promise<CompanyLeaveType> {
+    return apiClient.post<CompanyLeaveType>(ENDPOINTS.LEAVES.CREATE_TYPE, payload);
+  },
+
+  /**
+   * Update quota or details of a company leave type
+   */
+  async updateCompanyLeaveType(id: number | string, payload: UpdateLeaveTypePayload): Promise<CompanyLeaveType> {
+    return apiClient.put<CompanyLeaveType>(ENDPOINTS.LEAVES.UPDATE_TYPE(id), payload);
+  },
+
+  /**
+   * Delete a company leave type
+   */
+  async deleteCompanyLeaveType(id: number | string): Promise<void> {
+    return apiClient.delete(ENDPOINTS.LEAVES.DELETE_TYPE(id));
   },
 };

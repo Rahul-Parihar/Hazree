@@ -4,10 +4,15 @@ import { mockLeaveRequests } from '../../lib/mockData';
 import {
   leavesService,
   CreateLeavePayload,
+  CompanyLeaveType,
+  CreateLeaveTypePayload,
+  UpdateLeaveTypePayload,
 } from '../../services/leavesService';
 
 interface LeavesState {
   leaves: LeaveRequest[];
+  leaveTypes: CompanyLeaveType[];
+  isLoadingLeaveTypes: boolean;
   statusFilter: string;
   isLoading: boolean;
   isUpdating: boolean;
@@ -18,6 +23,8 @@ interface LeavesState {
 
 const initialState: LeavesState = {
   leaves: [],
+  leaveTypes: [],
+  isLoadingLeaveTypes: false,
   statusFilter: 'ALL',
   isLoading: false,
   isUpdating: false,
@@ -99,6 +106,61 @@ export const deleteLeaveAsync = createAsyncThunk(
       return leaveId;
     } catch (err: any) {
       return rejectWithValue(err?.message || 'Failed to delete leave request');
+    }
+  }
+);
+
+/**
+ * Async Thunks for Company Leave Types & Quotas
+ */
+export const fetchLeaveTypesAsync = createAsyncThunk(
+  'leaves/fetchLeaveTypes',
+  async (companyId: number | string | undefined, { rejectWithValue }) => {
+    try {
+      const data = await leavesService.getCompanyLeaveTypes(companyId);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err?.message || 'Failed to fetch leave types');
+    }
+  }
+);
+
+export const createLeaveTypeAsync = createAsyncThunk(
+  'leaves/createLeaveType',
+  async (payload: CreateLeaveTypePayload, { rejectWithValue }) => {
+    try {
+      const data = await leavesService.createCompanyLeaveType(payload);
+      return data;
+    } catch (err: any) {
+      const msg =
+        (err.details && typeof err.details === 'object' && (err.details.detail || err.details.message)) ||
+        err.message ||
+        'Failed to create leave type';
+      return rejectWithValue(msg);
+    }
+  }
+);
+
+export const updateLeaveTypeAsync = createAsyncThunk(
+  'leaves/updateLeaveType',
+  async ({ id, payload }: { id: number | string; payload: UpdateLeaveTypePayload }, { rejectWithValue }) => {
+    try {
+      const data = await leavesService.updateCompanyLeaveType(id, payload);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err?.message || 'Failed to update leave type');
+    }
+  }
+);
+
+export const deleteLeaveTypeAsync = createAsyncThunk(
+  'leaves/deleteLeaveType',
+  async (id: number | string, { rejectWithValue }) => {
+    try {
+      await leavesService.deleteCompanyLeaveType(id);
+      return id;
+    } catch (err: any) {
+      return rejectWithValue(err?.message || 'Failed to delete leave type');
     }
   }
 );
@@ -189,6 +251,42 @@ export const leavesSlice = createSlice({
       // Delete Leave
       .addCase(deleteLeaveAsync.fulfilled, (state, action) => {
         state.leaves = state.leaves.filter((l) => l.id !== action.payload);
+      })
+
+      // Fetch Leave Types
+      .addCase(fetchLeaveTypesAsync.pending, (state) => {
+        state.isLoadingLeaveTypes = true;
+      })
+      .addCase(fetchLeaveTypesAsync.fulfilled, (state, action) => {
+        state.isLoadingLeaveTypes = false;
+        state.leaveTypes = action.payload;
+      })
+      .addCase(fetchLeaveTypesAsync.rejected, (state) => {
+        state.isLoadingLeaveTypes = false;
+      })
+
+      // Create Leave Type
+      .addCase(createLeaveTypeAsync.fulfilled, (state, action) => {
+        state.leaveTypes.push(action.payload);
+        state.successMessage = `Leave policy "${action.payload.name}" (${action.payload.quota} days) added successfully!`;
+      })
+      .addCase(createLeaveTypeAsync.rejected, (state, action) => {
+        state.error = (action.payload as string) || 'Failed to create leave type';
+      })
+
+      // Update Leave Type
+      .addCase(updateLeaveTypeAsync.fulfilled, (state, action) => {
+        const index = state.leaveTypes.findIndex((lt) => lt.id === action.payload.id);
+        if (index !== -1) {
+          state.leaveTypes[index] = action.payload;
+        }
+        state.successMessage = `Leave policy "${action.payload.name}" quota updated to ${action.payload.quota} days!`;
+      })
+
+      // Delete Leave Type
+      .addCase(deleteLeaveTypeAsync.fulfilled, (state, action) => {
+        state.leaveTypes = state.leaveTypes.filter((lt) => lt.id !== action.payload);
+        state.successMessage = 'Leave policy removed successfully.';
       });
   },
 });

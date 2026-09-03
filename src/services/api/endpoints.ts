@@ -45,6 +45,10 @@ export const ENDPOINTS = {
     CREATE: '/leaves/',
     UPDATE_STATUS: (id: string) => `/leaves/${id}/status`,
     GET_BY_ID: (id: string) => `/leaves/${id}`,
+    TYPES: '/leaves/types',
+    CREATE_TYPE: '/leaves/types',
+    UPDATE_TYPE: (id: string | number) => `/leaves/types/${id}`,
+    DELETE_TYPE: (id: string | number) => `/leaves/types/${id}`,
   },
 
   // Subscription Plans

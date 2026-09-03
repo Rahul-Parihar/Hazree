@@ -95,6 +95,8 @@ export interface LeaveRequest {
   reason: string;
   status: LeaveStatus;
   appliedOn: string;
+  is_paid?: boolean;
+  adminNotes?: string;
 }
 
 export interface StatMetric {
