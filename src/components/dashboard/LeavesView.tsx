@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useCustomerApp } from "../../context/CustomerAppContext";
+import { leaveService, CompanyLeaveType } from "@/features/leaves/services/leaveService";
 
 interface LeaveEntry {
   id: string;
@@ -25,7 +26,7 @@ interface LeaveEntry {
   duration: string;
   durationBadge?: string;
   status: "Pending" | "Approved" | "Rejected";
-  leaveType: "monthly leaves" | "Sick" | "Casual" | "Earned";
+  leaveType: "monthly leaves" | "Sick" | "Casual" | "Earned" | string;
   leaveSubType?: string;
   isPaid: boolean;
 }
@@ -38,122 +39,67 @@ export default function LeavesView() {
   const [viewMode, setViewMode] = useState<"table" | "calendar" | "cards">("table");
 
   // Form state for New Leave modal
-  const [newLeaveType, setNewLeaveType] = useState<"Casual" | "Sick" | "Earned">("Casual");
+  const [newLeaveType, setNewLeaveType] = useState<string>("Casual");
   const [newLeaveDuration, setNewLeaveDuration] = useState<"Full Day" | "Half Day" | "Multiple">("Full Day");
   const [newLeaveDate, setNewLeaveDate] = useState<string>("2026-08-28");
   const [newLeaveReason, setNewLeaveReason] = useState<string>("");
 
-  const [leavesList, setLeavesList] = useState<LeaveEntry[]>([
-    {
-      id: "1",
-      employeeName: "Mr Anand Patel",
-      role: "Tech Lead",
-      isYou: true,
-      leaveDate: "27-08-2026 (Thursday)",
-      duration: "Full Day",
-      status: "Pending",
-      leaveType: "monthly leaves",
-      isPaid: false,
-    },
-    {
-      id: "2",
-      employeeName: "Mr Anand Patel",
-      role: "Tech Lead",
-      isYou: true,
-      leaveDate: "01-08-2026 (Saturday)",
-      duration: "Half Day",
-      status: "Pending",
-      leaveType: "monthly leaves",
-      leaveSubType: "Second Half",
-      isPaid: false,
-    },
-    {
-      id: "3",
-      employeeName: "Mr Anand Patel",
-      role: "Tech Lead",
-      isYou: true,
-      leaveDate: "10-07-2026 (Friday)",
-      duration: "Full Day",
-      status: "Pending",
-      leaveType: "Sick",
-      isPaid: false,
-    },
-    {
-      id: "4",
-      employeeName: "Mr Anand Patel",
-      role: "Tech Lead",
-      isYou: true,
-      leaveDate: "04-07-2026 (Saturday)",
-      duration: "Half Day",
-      status: "Pending",
-      leaveType: "Casual",
-      leaveSubType: "Second Half",
-      isPaid: false,
-    },
-    {
-      id: "5",
-      employeeName: "Mr Anand Patel",
-      role: "Tech Lead",
-      isYou: true,
-      leaveDate: "16-06-2026 (Tuesday)",
-      duration: "Half Day",
-      status: "Approved",
-      leaveType: "Casual",
-      leaveSubType: "Second Half",
-      isPaid: false,
-    },
-    {
-      id: "6",
-      employeeName: "Mr Anand Patel",
-      role: "Tech Lead",
-      isYou: true,
-      leaveDate: "06-06-2026 (Saturday)",
-      duration: "Half Day",
-      status: "Approved",
-      leaveType: "Casual",
-      leaveSubType: "Second Half",
-      isPaid: false,
-    },
-    {
-      id: "7",
-      employeeName: "Mr Anand Patel",
-      role: "Tech Lead",
-      isYou: true,
-      leaveDate: "27-05-2026 (Wednesday)",
-      duration: "Full Day",
-      status: "Pending",
-      leaveType: "Sick",
-      isPaid: false,
-    },
-    {
-      id: "8",
-      employeeName: "Mr Anand Patel",
-      role: "Tech Lead",
-      isYou: true,
-      leaveDate: "04-05-2026 (Monday)",
-      duration: "Multiple",
-      durationBadge: "7 Days",
-      status: "Pending",
-      leaveType: "Casual",
-      isPaid: false,
-    },
-    {
-      id: "9",
-      employeeName: "Mr Anand Patel",
-      role: "Tech Lead",
-      isYou: true,
-      leaveDate: "02-10-2025 (Thursday)",
-      duration: "Full Day",
-      status: "Pending",
-      leaveType: "Casual",
-      isPaid: false,
-    },
-  ]);
+  // Dynamic Company Leave Types & Custom Dropdown State
+  const [companyLeaveTypes, setCompanyLeaveTypes] = useState<CompanyLeaveType[]>([]);
+  const [isLeaveTypeDropdownOpen, setIsLeaveTypeDropdownOpen] = useState(false);
+  const [leaveTypeSearch, setLeaveTypeSearch] = useState("");
+  const [selectedLeaveDisplay, setSelectedLeaveDisplay] = useState<string>("--");
 
-  const handleCreateLeave = (e: React.FormEvent) => {
+  const loadLeaveTypes = React.useCallback(async () => {
+    const types = await leaveService.getCompanyLeaveTypes(
+      activeEmployee?.companyId,
+      activeEmployee?.id
+    );
+    if (types && types.length > 0) {
+      setCompanyLeaveTypes(types);
+    }
+  }, [activeEmployee?.companyId, activeEmployee?.id]);
+
+  React.useEffect(() => {
+    loadLeaveTypes();
+  }, [loadLeaveTypes]);
+
+  // Dynamic Leaves List
+  const [leavesList, setLeavesList] = useState<LeaveEntry[]>([]);
+  const [isLoadingLeaves, setIsLoadingLeaves] = useState<boolean>(true);
+
+  const fetchLiveLeaves = React.useCallback(async () => {
+    setIsLoadingLeaves(true);
+    const data = await leaveService.syncBackendLeaves(
+      activeEmployee?.id,
+      activeEmployee?.companyId
+    );
+    setLeavesList(data);
+    setIsLoadingLeaves(false);
+  }, [activeEmployee?.id, activeEmployee?.companyId]);
+
+  React.useEffect(() => {
+    fetchLiveLeaves();
+  }, [fetchLiveLeaves]);
+
+  const handleCreateLeave = async (e: React.FormEvent) => {
     e.preventDefault();
     const formattedDate = `${newLeaveDate} (${new Date(newLeaveDate).toLocaleDateString("en-US", { weekday: "long" })})`;
-    const newEntry: LeaveEntry = {
+    
+    // Submit to Live Backend API with automatic quota check
+    const liveLeave = await leaveService.submitBackendLeave({
+      employeeId: activeEmployee?.id,
+      employeeName: activeEmployee?.fullName || "Employee",
+      department: activeEmployee?.designation || "Staff",
+      companyId: activeEmployee?.companyId,
+      leaveType: newLeaveType,
+      startDate: newLeaveDate,
+      endDate: newLeaveDate,
+      daysCount: newLeaveDuration === "Multiple" ? 3 : 1,
+      reason: newLeaveReason || "Leave request",
+    });
+
+    const newEntry: LeaveEntry = liveLeave || {
       id: String(Date.now()),
       employeeName: `Mr ${activeEmployee.fullName}`,
       role: activeEmployee.designation,
@@ -165,7 +111,7 @@ export default function LeavesView() {
       isPaid: false,
     };
 
-    setLeavesList([newEntry, ...leavesList]);
+    setLeavesList((prev) => [newEntry, ...prev.filter((item) => item.id !== newEntry.id)]);
     applyLeave({
       leaveType: newLeaveType,
       fromDate: newLeaveDate,
@@ -173,6 +119,11 @@ export default function LeavesView() {
       reason: newLeaveReason,
     });
     setIsApplyModalOpen(false);
+    setNewLeaveReason("");
+
+    // Refresh remaining balances and live list
+    fetchLiveLeaves();
+    loadLeaveTypes();
   };
 
   const handleExport = () => {
@@ -314,8 +265,25 @@ export default function LeavesView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700 bg-white">
-              {filteredLeaves.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+              {isLoadingLeaves ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <div className="inline-block w-6 h-6 border-2 border-[#1a73e8] border-t-transparent rounded-full animate-spin mb-2" />
+                    <p className="text-xs font-medium text-slate-500">Loading leave requests...</p>
+                  </td>
+                </tr>
+              ) : filteredLeaves.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <p className="font-bold text-slate-700 text-sm">No Leave Requests Found</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Aapne abhi tak koi leave apply nahi ki hai. Nayi leave apply karne ke liye "+ New Leave" par click karein.
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filteredLeaves.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                   {/* Employee Info */}
                   <td className="py-3.5 px-4 whitespace-nowrap">
                     <div className="flex items-center gap-2.5">
@@ -431,7 +399,7 @@ export default function LeavesView() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
@@ -482,19 +450,112 @@ export default function LeavesView() {
             </div>
 
             <form onSubmit={handleCreateLeave} className="p-6 space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Leave Type
+              {/* Leave Type Custom Searchable Dropdown matching user reference photo */}
+              <div className="relative">
+                <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                  <span>Leave Type</span>
+                  <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={newLeaveType}
-                  onChange={(e: any) => setNewLeaveType(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+
+                {/* Dropdown Trigger Box */}
+                <button
+                  type="button"
+                  onClick={() => setIsLeaveTypeDropdownOpen(!isLeaveTypeDropdownOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer text-left shadow-2xs"
                 >
-                  <option value="Casual">Casual Leave (CL)</option>
-                  <option value="Sick">Sick Leave (SL)</option>
-                  <option value="Earned">Earned Leave (EL)</option>
-                </select>
+                  <span className={selectedLeaveDisplay === "--" ? "text-slate-500" : "text-slate-900 font-medium"}>
+                    {selectedLeaveDisplay}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                </button>
+
+                {/* Dropdown Popup Menu */}
+                {isLeaveTypeDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-slate-300 rounded-md shadow-xl overflow-hidden animate-fade-in text-xs">
+                    {/* Search Input Box at the top */}
+                    <div className="p-2 border-b border-slate-100 bg-white">
+                      <input
+                        type="text"
+                        value={leaveTypeSearch}
+                        onChange={(e) => setLeaveTypeSearch(e.target.value)}
+                        placeholder=""
+                        autoFocus
+                        className="w-full px-2.5 py-1.5 border border-slate-800 rounded-md text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Options List */}
+                    <div className="max-h-52 overflow-y-auto">
+                      {/* Default '--' Option */}
+                      <div
+                        onClick={() => {
+                          setSelectedLeaveDisplay("--");
+                          setNewLeaveType("Casual");
+                          setIsLeaveTypeDropdownOpen(false);
+                          setLeaveTypeSearch("");
+                        }}
+                        className={`px-3 py-2 cursor-pointer transition-colors ${
+                          selectedLeaveDisplay === "--"
+                            ? "bg-[#1976d2] text-white font-medium"
+                            : "text-slate-800 hover:bg-slate-100"
+                        }`}
+                      >
+                        --
+                      </div>
+
+                      {/* Filtered Dynamic Leave Types with Remaining Quotas */}
+                      {companyLeaveTypes
+                        .filter((lt) => {
+                          const remaining = lt.remaining_quota !== undefined ? lt.remaining_quota : lt.quota;
+                          return `${lt.name} (${remaining})`.toLowerCase().includes(leaveTypeSearch.toLowerCase());
+                        })
+                        .map((lt) => {
+                          const remaining = lt.remaining_quota !== undefined ? lt.remaining_quota : lt.quota;
+                          const label = `${lt.name} (${remaining})`;
+                          const isSelected = selectedLeaveDisplay === label;
+                          const isExhausted = remaining === 0 || !lt.is_paid;
+
+                          return (
+                            <div
+                              key={lt.id}
+                              onClick={() => {
+                                setSelectedLeaveDisplay(label);
+                                setNewLeaveType(lt.name);
+                                setIsLeaveTypeDropdownOpen(false);
+                                setLeaveTypeSearch("");
+                              }}
+                              className={`px-3 py-2 cursor-pointer transition-colors flex items-center justify-between ${
+                                isSelected
+                                  ? "bg-[#1976d2] text-white font-medium"
+                                  : "text-slate-800 hover:bg-slate-100"
+                              }`}
+                            >
+                              <span>{label}</span>
+                              {isExhausted && (
+                                <span
+                                  className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                    isSelected
+                                      ? "bg-white/20 text-white"
+                                      : "bg-rose-50 text-rose-600 border border-rose-200"
+                                  }`}
+                                >
+                                  Unpaid
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                      {companyLeaveTypes.filter((lt) =>
+                        `${lt.name} (${lt.quota})`.toLowerCase().includes(leaveTypeSearch.toLowerCase())
+                      ).length === 0 && (
+                        <div className="px-3 py-2 text-xs text-slate-400 text-center">
+                          No matching leave types
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
