@@ -226,8 +226,8 @@ export default function EditEmployeePage() {
       assigned_shift: formData.assignedShift || shiftOptions[0] || 'Shift 1',
       status: formData.status,
       avatar: formData.avatar,
-      portal_access: canAssignPortalRole ? formData.portalAccess : targetEmployee?.portalAccess,
-      permissions: canAssignPortalRole ? formData.permissions : targetEmployee?.permissions,
+      portal_access: formData.portalAccess,
+      permissions: formData.permissions,
     };
 
     if (formData.password.trim()) {
@@ -528,31 +528,29 @@ export default function EditEmployeePage() {
             </div>
           </div>
 
-          {/* Row 6: Admin Portal Access & Permissions (Only Company Owner & Manager) */}
-          {canAssignPortalRole && (
-            <div className="pt-5 border-t border-slate-100 space-y-4">
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-900">
-                  Admin Portal Access & Permissions
-                </label>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Configure whether this employee can access the Hazree Admin dashboard and what administrative permissions they hold.
-                </p>
-              </div>
-
-              <RolePermissionManager
-                portalAccess={formData.portalAccess}
-                permissions={formData.permissions}
-                onChange={(role, perms) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    portalAccess: role,
-                    permissions: perms,
-                  }));
-                }}
-              />
+          {/* Row 6: Admin Portal Access & Permissions */}
+          <div className="pt-5 border-t border-slate-100 space-y-4">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-900">
+                Admin Portal Access & Permissions
+              </label>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Configure whether this employee can access the Hazree Admin dashboard and what administrative permissions they hold.
+              </p>
             </div>
-          )}
+
+            <RolePermissionManager
+              portalAccess={formData.portalAccess}
+              permissions={formData.permissions}
+              onChange={(role, perms) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  portalAccess: role,
+                  permissions: perms,
+                }));
+              }}
+            />
+          </div>
 
           {/* Row 7: Profile Photo / Avatar Picker (Placed at Bottom) */}
           <div className="pt-5 border-t border-slate-100">

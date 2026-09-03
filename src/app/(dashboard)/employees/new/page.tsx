@@ -199,8 +199,8 @@ export default function NewEmployeePage() {
       assigned_shift: formData.assignedShift || shiftOptions[0] || 'Shift 1',
       status: formData.status,
       avatar: formData.avatar,
-      portal_access: canAssignPortalRole ? formData.portalAccess : 'NONE',
-      permissions: canAssignPortalRole ? formData.permissions : STAFF_PRESET_PERMISSIONS,
+      portal_access: formData.portalAccess,
+      permissions: formData.permissions,
       company_id: resolvedCompanyId,
     };
 
@@ -680,39 +680,37 @@ export default function NewEmployeePage() {
             </div>
           </div>
 
-          {/* Section 3: Admin Portal Access & Permissions (Only Company Owner & Manager) */}
-          {canAssignPortalRole && (
-            <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
-              <div className="border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  3. Admin Portal Access & Permissions (Optional)
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  By default, employee is created as Standard Staff. You can grant HR Admin, Manager, or Custom permissions now or anytime later.
-                </p>
-              </div>
-
-              <RolePermissionManager
-                portalAccess={formData.portalAccess}
-                permissions={formData.permissions}
-                onChange={(role, perms) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    portalAccess: role,
-                    permissions: perms,
-                  }));
-                }}
-              />
+          {/* Section 3: Admin Portal Access & Permissions */}
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                3. Admin Portal Access & Permissions (Optional)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                By default, employee is created as Standard Staff. You can grant HR Admin, Manager, or Custom permissions now or anytime later.
+              </p>
             </div>
-          )}
 
-          {/* Section: Profile Avatar Selection */}
+            <RolePermissionManager
+              portalAccess={formData.portalAccess}
+              permissions={formData.permissions}
+              onChange={(role, perms) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  portalAccess: role,
+                  permissions: perms,
+                }));
+              }}
+            />
+          </div>
+
+          {/* Section 4: Profile Avatar Selection */}
           <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-emerald-600" />
-                {canAssignPortalRole ? '4. Choose Profile Avatar' : '3. Choose Profile Avatar'}
+                4. Choose Profile Avatar
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Select biometric display portrait or preset avatar

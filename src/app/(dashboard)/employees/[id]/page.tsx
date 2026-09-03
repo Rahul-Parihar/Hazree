@@ -126,7 +126,8 @@ export default function EmployeeDetailPage() {
   const userRole = useAppSelector((state) => state.auth.userRole);
   const currentUser = useAppSelector((state) => state.auth.currentUser);
   const isCompanyAdmin = userRole === 'COMPANY_ADMIN';
-  const canAssignPortalRole = userRole === 'SUPER_ADMIN' || userRole === 'COMPANY_ADMIN' || userRole === 'MANAGER';
+  const canAssignPortalRole =
+    userRole === 'SUPER_ADMIN' || userRole === 'COMPANY_ADMIN' || userRole === 'MANAGER' || userRole === 'HR_ADMIN';
   const showManualPunch = canManualPunch(userRole);
 
   const rawParamId = Array.isArray(params.id) ? params.id[0] : params.id;
