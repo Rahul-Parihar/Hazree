@@ -150,10 +150,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             H
           </div>
           <div className={cn(isCollapsed ? 'lg:hidden' : 'block')}>
-            <h1 className="font-extrabold text-lg text-white tracking-tight leading-none flex items-center gap-1.5">
-              Hazree <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">PRO</span>
+            <h1 className="font-heading font-extrabold text-lg text-white tracking-tight leading-none flex items-center gap-1.5">
+              Hazree <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 tracking-wider">PRO</span>
             </h1>
-            <p className="text-[11px] text-slate-400 font-medium">Workforce & Attendance</p>
+            <p className="text-[11px] text-slate-400 font-medium tracking-normal mt-0.5">Workforce & Attendance</p>
           </div>
         </div>
 
@@ -182,7 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-3">
         <div
           className={cn(
-            'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold border shadow-sm',
+            'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-heading border shadow-sm',
             userRole === 'SUPER_ADMIN'
               ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60'
               : 'bg-indigo-950/40 text-indigo-300 border-indigo-800/60',
@@ -196,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
 
           <div className={cn('flex items-center justify-between w-full min-w-0', isCollapsed && 'lg:hidden')}>
-            <span className="truncate">
+            <span className="truncate font-semibold tracking-tight">
               {userRole === 'SUPER_ADMIN' ? 'Super Admin Portal' : (currentUser?.companyName || 'Company Portal')}
             </span>
             <span className={cn(
@@ -208,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Navigation List */}
-      <nav className="flex-1 px-3 py-2 space-y-1.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
         {filteredNav.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -219,26 +219,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="button"
               onClick={() => handleNavClick(item.href)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-3 rounded-xl font-medium text-sm transition-all duration-200 group relative text-left cursor-pointer',
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-heading text-[13.5px] transition-all duration-200 group relative text-left cursor-pointer tracking-[-0.01em]',
                 isActive
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  ? 'bg-emerald-600 text-white font-semibold shadow-md shadow-emerald-600/25'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/70 font-medium'
               )}
             >
-              <Icon className={cn('w-5 h-5 shrink-0 transition-transform group-hover:scale-110', isActive && 'text-white')} />
+              <Icon className={cn('w-4.5 h-4.5 shrink-0 transition-transform group-hover:scale-105', isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-400')} />
 
               <span className={cn('flex-1 truncate', isCollapsed && 'lg:hidden')}>
                 {item.name}
               </span>
 
               {item.badge && (
-                <span className={cn('text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30', isCollapsed && 'lg:hidden')}>
+                <span className={cn('text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30', isCollapsed && 'lg:hidden')}>
                   {item.badge}
                 </span>
               )}
 
               {item.badgeCount && (
-                <span className={cn('w-5 h-5 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center', isCollapsed && 'lg:hidden')}>
+                <span className={cn('w-5 h-5 rounded-full bg-rose-500 text-white text-[11px] font-bold tabular-nums flex items-center justify-center shadow-sm shadow-rose-500/30', isCollapsed && 'lg:hidden')}>
                   {item.badgeCount}
                 </span>
               )}
@@ -264,10 +264,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
             </div>
             <div className={cn('min-w-0', isCollapsed && 'lg:hidden')}>
-              <p className="text-xs font-bold text-white truncate">
+              <p className="text-xs font-heading font-semibold text-white truncate tracking-tight">
                 {currentUser?.name || (userRole === 'SUPER_ADMIN' ? 'Anand Patel' : userRole === 'MANAGER' ? 'Vikram Malhotra' : userRole === 'HR_ADMIN' ? 'Pooja Sharma' : 'Company Admin')}
               </p>
-              <p className="text-[11px] text-emerald-400 font-semibold truncate">
+              <p className="text-[11px] text-emerald-400 font-medium truncate">
                 {userRole === 'SUPER_ADMIN'
                   ? 'Super Admin'
                   : userRole === 'MANAGER'
